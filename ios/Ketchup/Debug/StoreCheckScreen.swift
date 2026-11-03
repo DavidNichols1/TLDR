@@ -181,15 +181,21 @@ enum StoreCheck {
         try? old.write(to: file)
         check("Ignores an old file shape", store().inbox() == nil, "version 0 file read as nothing")
 
-        // 10. Launch clean-up: only the signed-in user's folder stays.
+        // 10. Launch clean-up: only the signed-in user's folder stays, and
+        // with nobody signed in nothing is touched.
         let b = DeviceStore(root: root) { userB }
         b.saveInbox(inbox)
         await b.flush()
+        let nobody = DeviceStore(root: root) { nil }
+        nobody.tidy()
+        await nobody.flush()
+        let untouched = (try? FileManager.default.contentsOfDirectory(atPath: root.path(percentEncoded: false)))?.count ?? 0
         let tidier = store()
         tidier.tidy()
         await tidier.flush()
         let folders = (try? FileManager.default.contentsOfDirectory(atPath: root.path(percentEncoded: false))) ?? []
-        check("Launch keeps only your folder", folders == [userA.uuidString.lowercased()], "\(folders.count) folder left")
+        check("Launch keeps only your folder", untouched == 2 && folders == [userA.uuidString.lowercased()],
+              "signed out: \(untouched) folders kept; signed in: \(folders.count) left")
 
         // 11. Signing out deletes everything.
         tidier.saveInbox(inbox)

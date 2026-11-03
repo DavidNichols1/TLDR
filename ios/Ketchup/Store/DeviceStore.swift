@@ -134,9 +134,11 @@ final class DeviceStore {
     }
 
     /// At launch: deletes any folder that isn't the signed-in user's (a
-    /// sign-out the app was closed in the middle of).
+    /// sign-out the app was closed in the middle of). With nobody signed in
+    /// it leaves everything: sign-out already wiped, and a session that
+    /// couldn't be read yet isn't a sign-out.
     func tidy() {
-        let current = user()?.uuidString.lowercased()
+        guard let current = user()?.uuidString.lowercased() else { return }
         let root = root
         queue.async {
             let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
