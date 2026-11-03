@@ -124,7 +124,8 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
   named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`,
   `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`,
-  `0007_people_contacts`). Append, never rewrite: a fresh project runs the whole file once.
+  `0007_people_contacts`, `0007_people_inbox_speed`). Append, never rewrite: a fresh project
+  runs the whole file once.
 - Delete account is the `delete-account` edge function (verify_jwt on): it calls
   `delete_account()` as the person (security definer, `authenticated` only), which deletes
   friends' saved catch-ups that read their messages, then the auth user (profile,
@@ -150,7 +151,9 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
 - Block is RLS: `messages_select_member` is `chat_id = any(my_chat_ids())` and
   `sender <> all(my_blocked_ids())`, each wrapped in `(select …)` so it's an InitPlan run once
   per query (keep that shape; a bare function call runs per row). `my_chats` leaves blocked
-  senders out of unread counts and inbox lines. `block_person` / `unblock_person` /
+  senders out of unread counts and inbox lines. Its `me` and `blocked` CTEs stay
+  `as materialized`: inlined, `auth.uid()` and `my_blocked_ids()` ran once per unread message
+  (65 ms on the speed check's busy account, 2.2 ms materialized). `block_person` / `unblock_person` /
   `my_blocks()` are the only way in; a trigger drops the blocker's `ai_briefs` that could have
   read that person. `mark_read` is unchanged: the cursor is a time, and every count and
   catch-up window is read through the policy. In the app, `PeopleStore.block` also forgets

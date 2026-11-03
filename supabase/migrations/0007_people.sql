@@ -10,6 +10,7 @@
 --   0007_people_reports_index    an index for reports.reported_user
 --   0007_people_delete_files     delete_account() returns the files to delete
 --   0007_people_contacts         contacts, and starting a chat with your people
+--   0007_people_inbox_speed      my_chats works out who you are and who you blocked once per call
 
 -- ---------------------------------------------------------------------------
 -- Part 1: delete account (App Store guideline 5.1.1(v)).
@@ -592,3 +593,56 @@ revoke execute on function public.add_contact(uuid), public.remove_contact(uuid)
   public.create_chat_with(text, uuid[]) from public, anon;
 grant execute on function public.add_contact(uuid), public.remove_contact(uuid), public.my_contacts(),
   public.create_chat_with(text, uuid[]) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Part 5: the inbox stays quick on a busy account.
+--
+-- Measured with supabase/tests/speed_check.sql (a rolled-back account with
+-- a 20,000-message chat, 5,000 unread): my_chats() took about 65 ms, because
+-- Postgres inlined both CTEs into the unread count, so my_blocked_ids() and
+-- auth.uid() (a settings read and a JSON parse) ran once for every unread
+-- message. `as materialized` runs each once per call: about 8.5 ms with only
+-- `blocked` materialized, about 2 ms with both. Same columns and results as
+-- part 2, checked side by side on the busy account, with and without a block.
+
+create or replace function public.my_chats()
+returns table (
+  id uuid, name text, invite_code text, member_count integer,
+  created_at timestamptz, last_message_at timestamptz,
+  last_message_preview text, last_message_sender_name text,
+  last_read_at timestamptz, unread_count integer
+)
+language sql stable security definer
+set search_path = public
+as $$
+  with me as materialized (select auth.uid() as id),
+       blocked as materialized (select public.my_blocked_ids() as ids)
+  select c.id, c.name, c.invite_code, c.member_count, c.created_at,
+         case when h.hidden then v.created_at else c.last_message_at end,
+         case when h.hidden then v.preview else c.last_message_preview end,
+         case when h.hidden then vp.display_name else p.display_name end,
+         m.last_read_at,
+         (select count(*)::int from public.messages x
+           where x.chat_id = c.id and x.created_at > m.last_read_at
+             and x.sender <> me.id and x.sender <> all (blocked.ids))
+    from me
+    cross join blocked
+    join public.chat_members m on m.user_id = me.id
+    join public.chats c on c.id = m.chat_id
+    cross join lateral (
+      select coalesce(c.last_message_sender = any (blocked.ids), false) as hidden) h
+    left join lateral (
+      select x.created_at, x.sender,
+             case
+               when x.image_path is null then left(x.body, 140)
+               when x.body = '' then '📷 Photo'
+               else '📷 ' || left(x.body, 138)
+             end as preview
+        from public.messages x
+       where h.hidden and x.chat_id = c.id and x.sender <> all (blocked.ids)
+       order by x.created_at desc
+       limit 1) v on true
+    left join public.profiles p on p.id = c.last_message_sender
+    left join public.profiles vp on vp.id = v.sender
+   order by coalesce(case when h.hidden then v.created_at else c.last_message_at end, c.created_at) desc;
+$$;
