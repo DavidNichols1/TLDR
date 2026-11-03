@@ -47,7 +47,9 @@ final class ChatModel {
     private(set) var unreadAtOpen = 0
     /// Where the "new messages" divider goes.
     private(set) var firstUnreadId: UUID?
-    private let cursorAtOpen: Date
+    /// Your read cursor when the chat opened: the inbox row's, then the
+    /// server's (your member row) once open() has it.
+    private var cursorAtOpen: Date
     /// True once the bottom of the thread has been on screen.
     var sawBottom = false
 
@@ -68,6 +70,15 @@ final class ChatModel {
     private var unseenBrief = false
     private var unseenUntil: Date?
 
+    /// Messages from the copy the phone kept (DeviceStore), until the
+    /// server's first page replaces them.
+    private var keptIds: Set<UUID> = []
+    /// The server's first page is in, with the unread count from your
+    /// member row: what's on screen is the server's now, not the phone's.
+    private(set) var synced = false
+    private var opening = false
+    private var prefetched = false
+
     /// Offline preview mode (DEBUG only, see Debug/PreviewData.swift): the
     /// network calls below are skipped and Muse Spark answers are canned.
     private(set) var isPreview = false
@@ -85,6 +96,7 @@ final class ChatModel {
         self.myId = myId
         self.unreadCount = chat.unreadCount
         self.cursorAtOpen = chat.lastReadAt
+        restoreFromDevice()
     }
 
     // MARK: - Loading
@@ -97,23 +109,35 @@ final class ChatModel {
         }
         #endif
         realtime.start()
-        guard !loaded else { return }
+        guard !synced, !opening else { return }
+        opening = true
+        defer { opening = false }
+        var paged = false
         do {
             // Reach back past the first unread message (plus a little context),
             // so the "N new messages" divider lands where the unread part starts.
             let limit = min(max(Self.pageSize, unreadCount + 25), Self.maxFirstLoad)
             let page = try await KetchupAPI.messages(in: chat.id, limit: limit)
+            // The server's page replaces the copy the phone kept.
+            messages = ThreadSnapshot.reconcile(messages, kept: keptIds, page: page)
+            keptIds = []
             hasOlder = page.count >= limit
             merge(page)
             loaded = true
+            paged = true
             loadError = nil
         } catch {
             loadError = error.localizedDescription
         }
-        await loadMembers()
-        computeUnread()
-        // A big backlog: start Muse Spark now so the tap feels instant.
-        if unreadCount >= Self.prefetchAt {
+        var exact = false
+        if await loadMembers(), paged { exact = await readFromServerCursor() }
+        computeUnread(exact: exact)
+        if paged { synced = true }
+        keepOnDevice()
+        // A big backlog: start Muse Spark now so the tap feels instant. Once:
+        // poll() runs open() again until the first page is in.
+        if !prefetched, unreadCount >= Self.prefetchAt {
+            prefetched = true
             Task { await runCatchUp(prefetch: true) }
         }
     }
@@ -121,12 +145,31 @@ final class ChatModel {
     func close() {
         realtime.stop()
         if sawBottom { markRead() }
+        keepOnDevice()
     }
 
-    func loadMembers() async {
-        guard !isPreview, let list = try? await KetchupAPI.members(of: chat.id) else { return }
+    @discardableResult
+    func loadMembers() async -> Bool {
+        guard !isPreview, let list = try? await KetchupAPI.members(of: chat.id) else { return false }
         members = list
         for m in list { names[m.userId] = m.name }
+        return true
+    }
+
+    /// The inbox row this chat opened from can be the phone's copy from
+    /// last time; your member row is the server's word on where you've read
+    /// to. Takes that cursor and pages back until the unread part is all
+    /// here. True when it is, so the unread count can be exact.
+    private func readFromServerCursor() async -> Bool {
+        guard let mine = members.first(where: { $0.userId == myId }) else { return false }
+        cursorAtOpen = mine.lastReadAt
+        while hasOlder, messages.count < Self.maxFirstLoad,
+              let oldest = messages.first(where: { !$0.pending && !$0.failed }), oldest.createdAt > cursorAtOpen {
+            let before = messages.count
+            await loadOlder()
+            if messages.count == before { break }
+        }
+        return !hasOlder || (messages.first.map { $0.createdAt <= cursorAtOpen } ?? true)
     }
 
     func loadOlder() async {
@@ -150,19 +193,51 @@ final class ChatModel {
     }
 
     /// The fallback while Realtime is down: everything newer than what we have.
+    /// Until the first page is in (opened offline on the kept copy), it
+    /// tries that page again instead.
     func poll() async {
-        guard loaded, !isPreview else { return }
+        guard !isPreview else { return }
+        guard synced else { return await open() }
         let newest = messages.last(where: { !$0.pending && !$0.failed })?.createdAt ?? chat.createdAt
         guard let fresh = try? await KetchupAPI.messages(in: chat.id, after: newest) else { return }
         merge(fresh)
     }
 
-    private func computeUnread() {
+    /// `exact`: everything after the server's cursor is loaded, so the count
+    /// is what's here, not at least the inbox row's.
+    private func computeUnread(exact: Bool = false) {
         let unread = messages.filter { $0.createdAt > cursorAtOpen && $0.sender != myId && !$0.pending }
         firstUnreadId = unread.first?.id
-        unreadCount = max(unreadCount, unread.count)
+        unreadCount = exact ? unread.count : max(unreadCount, unread.count)
         if unreadCount == 0 { firstUnreadId = nil }
         unreadAtOpen = unreadCount
+    }
+
+    // MARK: - Kept on the phone
+
+    /// Opens on the copy of this chat the phone kept from last time
+    /// (DeviceStore), before the server answers. "Load earlier" waits for
+    /// the server's page.
+    private func restoreFromDevice() {
+        guard let kept = DeviceStore.shared.thread(chat.id) else { return }
+        messages = kept.messages
+        members = kept.members
+        for m in kept.members { names[m.userId] = m.name }
+        keptIds = Set(kept.messages.map(\.id))
+        loaded = true
+        computeUnread()
+    }
+
+    /// The phone's copy already reaches the inbox row's last message, so
+    /// the thread can be placed before the server answers.
+    var showsCurrentCopy: Bool {
+        guard let newest = messages.last(where: { keptIds.contains($0.id) }) else { return false }
+        return newest.createdAt >= (chat.lastMessageAt ?? .distantPast)
+    }
+
+    private func keepOnDevice() {
+        guard synced, !isPreview else { return }
+        DeviceStore.shared.saveThread(chat.id, messages: messages, members: members)
     }
 
     // MARK: - Merging
@@ -354,19 +429,22 @@ extension ChatModel {
         var catchUp: AIPhase<BriefResponse<CatchUp>> = .loading
         var answer: AIPhase<BriefResponse<ChatAnswer>> = .loading
         var delay: Duration = .zero
+        /// The thread never finishes loading (`-screen chat-loading`).
+        var holdsLoading = false
     }
 
     /// An offline chat for `-screen` previews: these members and messages, no
     /// network, and Muse Spark requests that go to `.loading`, wait `delay`,
     /// then land on `catchUp` or `answer` (a canned `.loading` never lands).
     /// With `asked`, it opens as if that question was already answered.
+    /// `loading` keeps the thread waiting on its first page.
     static func preview(chat: ChatSummary, myId: UUID, members: [Member], messages: [Message],
                         catchUp: AIPhase<BriefResponse<CatchUp>>,
                         answer: AIPhase<BriefResponse<ChatAnswer>>,
-                        delay: Duration, asked question: String? = nil) -> ChatModel {
+                        delay: Duration, asked question: String? = nil, loading: Bool = false) -> ChatModel {
         let model = ChatModel(chat: chat, myId: myId)
         model.isPreview = true
-        model.script = PreviewScript(catchUp: catchUp, answer: answer, delay: delay)
+        model.script = PreviewScript(catchUp: catchUp, answer: answer, delay: delay, holdsLoading: loading)
         model.members = members
         for member in members { model.names[member.userId] = member.name }
         model.merge(messages)
@@ -381,9 +459,10 @@ extension ChatModel {
     /// The fixtures are already in, so do what a live open does after loading:
     /// count unread and prefetch a big backlog.
     private func openPreview() {
-        guard !loaded else { return }
+        guard !loaded, !script.holdsLoading else { return }
         loaded = true
         computeUnread()
+        synced = true
         if unreadCount >= Self.prefetchAt {
             Task { await runCatchUp(prefetch: true) }
         }

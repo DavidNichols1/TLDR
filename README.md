@@ -105,6 +105,24 @@ Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 - It retries once on 429/500/503 and honors `Retry-After`. The key is read from the edge
   function's secrets and is never sent to the app.
 
+## Opens instantly
+
+The phone keeps a copy of what you last saw, so Ketchup opens on your chats at once and
+refreshes from the server behind them.
+
+- **Your inbox and each chat's newest 400 messages stay on the phone.** They show in the
+  first frame, then the server's answer replaces them. Reading a 400-message chat back
+  takes under a millisecond on the simulator. Offline, a chat still opens, and says
+  "Couldn't refresh. Showing saved messages."
+- **Only yours, only here.** The copy lives in the app's own folder, one per signed-in
+  account, protected until the phone's first unlock after a restart and left out of
+  backups. Signing out deletes all of it, and a chat you leave is forgotten at the next
+  refresh ([`DeviceStore.swift`](ios/Ketchup/Store/DeviceStore.swift)).
+- **The server still decides what's unread.** When a chat opens, it takes your read cursor
+  from the server, so an out-of-date copy can't hide new messages from Catch me up.
+- **Paper, not spinners.** A first launch shows blank paper in the shape of the inbox's
+  rows and a chat's bubbles. It breathes slowly, and holds still with Reduce Motion on.
+
 ## Architecture
 
 ```mermaid
@@ -233,8 +251,9 @@ then the iOS app.
 ## Built on
 
 The networking and chat plumbing are adapted from **AurariaGO**, a live App Store app I
-built under VibetempLLC. That includes the Supabase client approach and the chat bubble
-and input bar components. Everything specific to Ketchup is new for this event: the
+built under VibetempLLC. That includes the Supabase client approach, the chat bubble
+and input bar components, and the on-device cache and loading skeletons (restyled for
+Ketchup). Everything specific to Ketchup is new for this event: the
 schema, the `catch-up` edge function, the Muse Spark integration, the catch-up and
 ask-the-chat UI, plan cards, and the Realtime websocket (AurariaGO polls).
 

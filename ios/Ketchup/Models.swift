@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct Profile: Decodable, Identifiable, Equatable {
+struct Profile: Codable, Identifiable, Equatable {
     let id: UUID
     var displayName: String
 
@@ -16,7 +16,7 @@ struct Profile: Decodable, Identifiable, Equatable {
 }
 
 /// A row of the inbox (`my_chats()`).
-struct ChatSummary: Decodable, Identifiable, Equatable, Hashable {
+struct ChatSummary: Codable, Identifiable, Equatable, Hashable {
     let id: UUID
     var name: String
     var inviteCode: String
@@ -53,7 +53,7 @@ struct ChatRow: Decodable {
     }
 }
 
-struct Member: Decodable, Identifiable, Equatable {
+struct Member: Codable, Identifiable, Equatable {
     let userId: UUID
     let joinedAt: Date
     let lastReadAt: Date
@@ -70,7 +70,7 @@ struct Member: Decodable, Identifiable, Equatable {
     }
 }
 
-struct Message: Decodable, Identifiable, Equatable {
+struct Message: Codable, Identifiable, Equatable {
     let id: UUID
     let chatId: UUID
     let sender: UUID

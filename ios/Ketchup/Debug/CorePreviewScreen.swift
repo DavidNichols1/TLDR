@@ -4,8 +4,9 @@
 //
 //  The chat side of the app on fixtures, one screen per `-screen` name:
 //  sign-in (email and code), the name step, the home pager on each page,
-//  the inbox (full and empty) with its New chat and Join sheets, the Breck
-//  chat (and a jump to a cited message), its info sheet, and the app icon.
+//  the inbox (full, empty and loading) with its New chat and Join sheets,
+//  the Breck chat (loading, opened from the copy kept on the phone with no
+//  server, and a jump to a cited message), its info sheet, and the app icon.
 //  The info sheet is shown full screen. The inbox screens are the pager's
 //  Chats page, as in the app, so `home` and `inbox` are the same screen.
 //
@@ -22,10 +23,13 @@ struct CorePreviewScreen: View {
         case homeInstagram = "home-instagram"
         case homeSnapchat = "home-snapchat"
         case inbox
+        case inboxLoading = "inbox-loading"
         case inboxEmpty = "inbox-empty"
         case newChat = "new-chat"
         case join
         case chat
+        case chatLoading = "chat-loading"
+        case chatKept = "chat-kept"
         case chatJump = "chat-jump"
         case info
         case icon
@@ -39,16 +43,22 @@ struct CorePreviewScreen: View {
 
     let name: String
     @State private var app: AppModel
-    @State private var chatModel = PreviewData.chatModel()
+    @State private var chatModel: ChatModel
     @State private var draft = ""
 
     init(name: String) {
         self.name = name
         switch Screen(rawValue: name) {
         case .inboxEmpty: _app = State(initialValue: PreviewData.app(chats: []))
+        case .inboxLoading: _app = State(initialValue: PreviewData.app(loading: true))
         // The name step prefills what sign-up picked: the email's first part.
         case .name: _app = State(initialValue: PreviewData.app(name: "david"))
         default: _app = State(initialValue: PreviewData.app())
+        }
+        switch Screen(rawValue: name) {
+        case .chatLoading: _chatModel = State(initialValue: PreviewData.emptyChatModel(holds: true))
+        case .chatKept: _chatModel = State(initialValue: PreviewData.keptChatModel())
+        default: _chatModel = State(initialValue: PreviewData.chatModel())
         }
         // The Instagram and Snapchat pages open their synthetic test threads
         // instead of the real sites, so previews stay offline. Registered, not
@@ -65,7 +75,7 @@ struct CorePreviewScreen: View {
                 SignInView(previewCodeFor: "david@example.com", code: "4821", cooldown: 42)
             case .name:
                 NameView()
-            case .home, .inbox, .inboxEmpty:
+            case .home, .inbox, .inboxEmpty, .inboxLoading:
                 HomePager(previewing: .chats)
             case .homeInstagram:
                 HomePager(previewing: .web(.instagram))
@@ -81,7 +91,7 @@ struct CorePreviewScreen: View {
                     .sheet(isPresented: .constant(true)) {
                         JoinChatSheet(code: $draft) {}
                     }
-            case .chat:
+            case .chat, .chatLoading, .chatKept:
                 NavigationStack {
                     ChatView(model: chatModel)
                 }
@@ -98,6 +108,10 @@ struct CorePreviewScreen: View {
             }
         }
         .environment(app)
+        // `-reduceMotion YES`, as in the Muse Spark previews.
+        .transformEnvironment(\._accessibilityReduceMotion) {
+            if UserDefaults.standard.bool(forKey: "reduceMotion") { $0 = true }
+        }
     }
 }
 

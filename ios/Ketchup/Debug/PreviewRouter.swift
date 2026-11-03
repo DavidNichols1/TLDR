@@ -25,12 +25,15 @@ struct PreviewRouter: View {
     /// Every screen's `-screen` name, in the order the list shows them.
     static var names: [String] {
         [DesignGallery.name] + CorePreviewScreen.names + AIPreviewScreen.names + WebChatPreviewScreen.names
+            + [StoreCheckScreen.name]
     }
 
     var body: some View {
         Group {
             if name == DesignGallery.name {
                 DesignGallery()
+            } else if name == StoreCheckScreen.name {
+                StoreCheckScreen()
             } else if name.hasPrefix("ai-"), AIPreviewScreen.names.contains(name) {
                 AIPreviewScreen(name: name)
             } else if name.hasPrefix("web-"), WebChatPreviewScreen.names.contains(name) {

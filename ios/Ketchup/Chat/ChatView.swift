@@ -84,14 +84,15 @@ struct ChatView: View {
                     Task { await jump(to: id, proxy: proxy) }
                 }
                 .task {
-                    await model.open()
-                    await position(proxy)
-                    #if DEBUG
-                    if let id = previewJump {
-                        previewJump = nil
-                        jumpRequest = id
-                    }
-                    #endif
+                    async let opened: Void = model.open()
+                    // The copy the phone kept is already current: place it while the server answers.
+                    if model.showsCurrentCopy { await place(proxy) }
+                    await opened
+                    if model.loaded, model.loadError != nil { show("Couldn't refresh. Showing saved messages.") }
+                }
+                // The server's page is in (now, or when a retry gets it).
+                .onChange(of: model.synced) { _, synced in
+                    if synced { Task { await position(proxy) } }
                 }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -153,13 +154,11 @@ struct ChatView: View {
             }
         }
         // While Realtime is down, poll every 4 s; when it comes back, one
-        // poll fills whatever arrived during the gap.
+        // poll fills whatever arrived during the gap. Until the first page is
+        // in (a chat opened offline), keep trying either way.
         .task(id: model.realtime.isLive) {
-            if model.realtime.isLive {
-                await model.poll()
-                return
-            }
-            while !Task.isCancelled {
+            if model.realtime.isLive { await model.poll() }
+            while !Task.isCancelled, !model.realtime.isLive || !model.synced {
                 try? await Task.sleep(for: .seconds(4))
                 if Task.isCancelled { return }
                 await model.poll()
@@ -217,7 +216,7 @@ struct ChatView: View {
                 model.sawBottom = true
             }
         }
-        .overlay { emptyState }
+        .overlay { ZStack { emptyState }.motion(Motion.fade, value: model.loaded) }
     }
 
     @ViewBuilder
@@ -228,8 +227,7 @@ struct ChatView: View {
                     .buttonStyle(.outline(.compact))
             }
         } else if !model.loaded {
-            ProgressView()
-                .tint(Theme.inkSoft)
+            ThreadSkeleton()
         } else if model.messages.isEmpty {
             let code = Text(model.chat.inviteCode).font(.mono(.body, weight: .semibold)).foregroundStyle(Theme.ink)
             ThreadNote(title: "Quiet in here",
@@ -318,21 +316,36 @@ struct ChatView: View {
 
     // MARK: - Scrolling
 
-    /// First stop: the "new messages" divider if there's anything unread
-    /// (so the Catch me up button is still meaningful), else the bottom.
+    /// First stop, once the server's page is in: the "new messages" divider
+    /// if there's anything unread (so the Catch me up button is still
+    /// meaningful), else the bottom. Only then does what's on screen count
+    /// as seen; a kept copy placed earlier can be out of date.
     private func position(_ proxy: ScrollViewProxy) async {
         guard !positioned else { return }
+        await place(proxy)
+        positioned = true
+        // A short thread fits on screen: the bottom is already visible and
+        // won't "change" into view, so count it as seen now.
+        if atBottom, !userScrolled { model.sawBottom = true }
+        #if DEBUG
+        if let id = previewJump {
+            previewJump = nil
+            jumpRequest = id
+        }
+        #endif
+    }
+
+    /// Scrolls to the divider or the bottom, unless they've started scrolling
+    /// themselves (the kept copy while the server answered): leave them be.
+    private func place(_ proxy: ScrollViewProxy) async {
         try? await Task.sleep(for: .milliseconds(60))
+        guard !userScrolled else { return }
         if model.firstUnreadId != nil {
             proxy.scrollTo(Self.unreadId, anchor: .top)
         } else {
             proxy.scrollTo(Self.bottomId, anchor: .bottom)
         }
         try? await Task.sleep(for: .milliseconds(350))
-        positioned = true
-        // A short thread fits on screen: the bottom is already visible and
-        // won't "change" into view, so count it as seen now.
-        if atBottom { model.sawBottom = true }
     }
 
     private func jump(to id: UUID, proxy: ScrollViewProxy) async {

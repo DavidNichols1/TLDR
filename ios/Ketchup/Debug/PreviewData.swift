@@ -24,6 +24,9 @@ enum PreviewData {
     static var isActive: Bool { screen != nil }
     /// `-section <id>` scrolls a long screen (the design gallery) to a part.
     static let section: String? = UserDefaults.standard.string(forKey: "section")
+    /// Whose copy DeviceStore keeps in a preview (in a scratch folder): nobody,
+    /// except while `keptChatModel()` sets the Breck chat up.
+    static var storeUser: UUID?
 
     // MARK: People
 
@@ -88,8 +91,29 @@ enum PreviewData {
     // MARK: Models
 
     /// The signed-in app: David, with Breck on top of three quieter chats.
-    static func app(name: String = myName, chats: [ChatSummary]? = nil) -> AppModel {
-        AppModel.preview(me: me, name: name, chats: chats ?? inbox)
+    /// `loading`: no chats yet, waiting on the server's first answer.
+    static func app(name: String = myName, chats: [ChatSummary]? = nil, loading: Bool = false) -> AppModel {
+        AppModel.preview(me: me, name: name, chats: loading ? [] : (chats ?? inbox), loading: loading)
+    }
+
+    /// The Breck chat before its first page: no messages yet, and no copy on
+    /// the phone. `holds` keeps it that way (`-screen chat-loading`);
+    /// otherwise it opens empty, with a catch-up that never lands, for the
+    /// skim's blank window (`-screen ai-loading-blank`).
+    static func emptyChatModel(holds: Bool) -> ChatModel {
+        ChatModel.preview(chat: breck, myId: me, members: holds ? [] : members, messages: [],
+                          catchUp: .loading, answer: .loading, delay: .zero, loading: holds)
+    }
+
+    /// The Breck chat as the app opens it with a copy kept on the phone, and
+    /// no server (`-screen chat-kept`): a live ChatModel, not a canned one,
+    /// that restores the copy, places it, fails to refresh offline and says
+    /// so. Its catch-up fails the same way.
+    static func keptChatModel() -> ChatModel {
+        storeUser = me
+        defer { storeUser = nil }
+        DeviceStore.shared.saveThread(breckId, messages: messages, members: members)
+        return ChatModel(chat: breck, myId: me)
     }
 
     /// The Breck chat, 302 unread. Muse Spark requests wait `delay`, then land

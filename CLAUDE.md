@@ -54,6 +54,30 @@ the technical recipe. README.md is the judge-facing overview.
   Data: `Debug/PreviewData.swift` over `Debug/Fixtures/`; screens: `Debug/CorePreviewScreen.swift`, `Debug/AIPreviewScreen.swift`.
 - Keep preview code inside `#if DEBUG`; a Release build (`-configuration Release CODE_SIGNING_ALLOWED=NO`) must still compile.
 
+## Kept on the phone, and skeletons (`ios/Ketchup/Store/`, `Design/Skeletons.swift`)
+- `DeviceStore` keeps the inbox (`inbox.json`: the my_chats rows and your profile) and each
+  chat's newest 400 messages and members (`threads/<chat>.json`) in
+  `Application Support/Ketchup/<user id>/`: complete-until-first-unlock, out of backups.
+  Sign-out deletes the whole folder, launch deletes any other user's, and each inbox refresh
+  forgets chats you're no longer in. Dates are stored as numbers, and `version` guards the shape.
+- AppModel and ChatModel restore it in their inits, and the server replaces it. ChatModel's
+  first page drops kept messages it didn't send back (`ThreadSnapshot.reconcile`), then takes
+  your read cursor from your member row and pages back to it, so a stale kept inbox can't hide
+  unread (the seed's `--rearm`). Only then is `synced` set: ChatView places the thread and starts
+  counting what's been seen (`sawBottom`), so backing out of a stale copy marks nothing read.
+  A current kept copy is scrolled into place earlier, without that. Until `synced`, the poll loop
+  retries the first page every 4 s, whether or not Realtime is live.
+- `Profile`, `ChatSummary`, `Member` and `Message` are `Codable` for this: new fields are kept
+  automatically and must be Codable too.
+- Offline check, no sign-in: `-screen store-check` must show "11 of 11 passed, 1 skipped" on a
+  simulator (data protection only exists on a phone, where it's 12 of 12); the console prints
+  `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
+- The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
+  then `Library/Application Support/Ketchup/`.
+- Previews: `inbox-loading`, `chat-loading`, `ai-loading-blank` (skeletons; `-reduceMotion YES`
+  holds them still), and `chat-kept` (a live ChatModel opening on a kept copy with no server, in
+  a scratch folder, never the real one). Screenshots: `docs/screens/speed/`.
+
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
 the viewer sets display name **David**, joins with the printed invite code, and has
