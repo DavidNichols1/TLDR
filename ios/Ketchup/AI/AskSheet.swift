@@ -12,7 +12,9 @@ struct AskSheet: View {
     let model: ChatModel
     let refs: RefContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var question = ""
+    @State private var scrolled = false
     @FocusState private var focused: Bool
 
     private static let suggestions = [
@@ -24,78 +26,58 @@ struct AskSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        AILabel()
-                        Text("Ask the chat")
-                            .font(.largeTitle.bold())
-                    }
-
-                    field
-
-                    if model.answer.value == nil && !model.answer.isLoading {
-                        suggestionChips
-                    }
-
-                    result
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Ask the chat")
+                        .font(.serif(.largeTitle))
+                        .foregroundStyle(Theme.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("\(Theme.modelName) reads the whole chat and answers with receipts.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSoft)
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 30)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                NotepadField(text: $question, focused: $focused, canAsk: canAsk, submit: submit)
+                if stage == .idle {
+                    suggestionChips
+                        .transition(.opacity)
                 }
+                result
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 40)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top > 1
+        } action: { _, isScrolled in
+            scrolled = isScrolled
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SheetBar(title: model.chat.name, scrolled: scrolled) { dismiss() }
+        }
+        .background(Theme.cream)
+        .presentationBackground(Theme.cream)
         .presentationDragIndicator(.visible)
+        .animation(Motion.choose(Motion.settle, reduceMotion: reduceMotion), value: stage)
         .onAppear {
             if question.isEmpty { question = model.lastQuestion }
-            if model.answer.value == nil { focused = true }
+            if stage == .idle { focused = true }
         }
-    }
-
-    private var field: some View {
-        HStack(spacing: 8) {
-            TextField("Ask anything about this chat", text: $question, axis: .vertical)
-                .lineLimit(1...4)
-                .focused($focused)
-                .submitLabel(.send)
-                .onSubmit(submit)
-            Button(action: submit) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(canAsk ? AnyShapeStyle(Theme.aiGradient) : AnyShapeStyle(Color.secondary.opacity(0.4)))
-            }
-            .buttonStyle(.plain)
-            .disabled(!canAsk)
-        }
-        .padding(.leading, 14)
-        .padding(.trailing, 6)
-        .padding(.vertical, 6)
-        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .strokeBorder(Theme.aiGradient.opacity(focused ? 0.8 : 0.35), lineWidth: 1))
     }
 
     private var suggestionChips: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(Self.suggestions, id: \.self) { s in
-                Button {
-                    question = s
-                    submit()
-                } label: {
-                    Text(s)
-                        .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(Theme.violet.opacity(0.10), in: Capsule())
-                        .foregroundStyle(Theme.indigo)
+        VStack(alignment: .leading, spacing: 10) {
+            Kicker("Or try one")
+            FlowLayout(spacing: 8) {
+                ForEach(Self.suggestions, id: \.self) { suggestion in
+                    Button(suggestion) {
+                        question = suggestion
+                        submit()
+                    }
+                    .buttonStyle(.outline(.compact))
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -106,40 +88,38 @@ struct AskSheet: View {
         case .idle:
             EmptyView()
         case .loading:
-            SparkleLoading(title: "Searching the chat…", lines: [1, 0.85, 0.6])
+            SkimmingView(title: "Looking through the chat",
+                         usually: "Usually a few seconds",
+                         lines: SkimLine.lines(from: model, startingAt: nil),
+                         titleFont: .serif(.title3))
+                .transition(.opacity)
         case .failed(let message):
-            AIErrorCard(message: message) { submit() }
+            AIErrorCard(message: message, prominent: false) { retry() }
+                .transition(.rise(reduceMotion: reduceMotion))
         case .done(let response):
             if let answer = response.result {
-                answerCard(answer)
+                AnswerCard(question: model.lastQuestion, answer: answer,
+                           byline: MuseByline.details(response), refs: refs)
+                    .transition(.rise(reduceMotion: reduceMotion))
             } else {
-                AIErrorCard(message: "Muse Spark didn't answer that. Try asking another way.") { submit() }
+                AIErrorCard(message: "\(Theme.modelName) didn't answer that. Try asking another way.",
+                            prominent: false) { retry() }
+                    .transition(.rise(reduceMotion: reduceMotion))
             }
         }
     }
 
-    private func answerCard(_ answer: ChatAnswer) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("“\(model.lastQuestion)”")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if !answer.found {
-                Label("Not in the chat", systemImage: "magnifyingglass")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.orange)
-            }
-            Text(answer.answer)
-                .font(.body)
-                .foregroundStyle(answer.found ? .primary : .secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            if !answer.refs.isEmpty {
-                Text("From the chat")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                RefChips(refs: answer.refs, context: refs)
-            }
+    // MARK: State
+
+    private enum Stage: Hashable { case idle, reading, failed, answered }
+
+    private var stage: Stage {
+        switch model.answer {
+        case .idle: .idle
+        case .loading: .reading
+        case .failed: .failed
+        case .done: .answered
         }
-        .aiCard(padding: 18)
     }
 
     private var canAsk: Bool {
@@ -151,5 +131,160 @@ struct AskSheet: View {
         focused = false
         let q = question
         Task { await model.ask(q) }
+    }
+
+    /// The last question again, even if the field has changed since.
+    private func retry() {
+        let q = model.lastQuestion.isEmpty ? question : model.lastQuestion
+        Task { await model.ask(q) }
+    }
+}
+
+/// The question box: a page of a notepad, ruled to the text, with Ask in
+/// ketchup red at its foot.
+private struct NotepadField: View {
+    @Binding var text: String
+    var focused: FocusState<Bool>.Binding
+    let canAsk: Bool
+    let submit: () -> Void
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 10) {
+            TextField("Your question", text: $text,
+                      prompt: Text("When are we leaving?").foregroundStyle(Theme.inkFaint),
+                      axis: .vertical)
+                .font(.serif(.title3, weight: .regular))
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.ketchupText)
+                .lineLimit(2...4)
+                .focused(focused)
+                .submitLabel(.send)
+                .onSubmit(submit)
+                .background(alignment: .top) {
+                    RuledLines(spacing: Self.lineHeight, baseline: Self.baseline)
+                        .stroke(Theme.rule, lineWidth: 1)
+                        .accessibilityHidden(true)
+                }
+            Button("Ask", action: submit)
+                .buttonStyle(.ketchup(.compact))
+                .disabled(!canAsk)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(focused.wrappedValue ? Theme.inkSoft : Theme.rule, lineWidth: 1)
+        }
+        .motion(Motion.fade, value: focused.wrappedValue)
+    }
+
+    /// The field's font, so the rules land under each line of text.
+    private static var font: UIFont {
+        let base = UIFont.preferredFont(forTextStyle: .title3)
+        return base.fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: 0) } ?? base
+    }
+
+    private static var lineHeight: CGFloat { font.lineHeight }
+    /// From the top of a line to just under its letters.
+    private static var baseline: CGFloat { font.ascender + 4 }
+}
+
+/// Notepad rules: one line under each line of text, as far as the frame goes.
+nonisolated private struct RuledLines: Shape {
+    var spacing: CGFloat
+    var baseline: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard spacing > 4 else { return path }
+        var y = rect.minY + baseline
+        while y <= rect.maxY + 2 {
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+            y += spacing
+        }
+        return path
+    }
+}
+
+/// What Muse Spark said, under the question it answers, with the messages
+/// behind it. When the chat doesn't say, the card goes quiet: no paper, a
+/// dashed edge, and the closest messages it found.
+private struct AnswerCard: View {
+    let question: String
+    let answer: ChatAnswer
+    let byline: [String]
+    let refs: RefContext
+
+    var body: some View {
+        if answer.found {
+            found
+        } else {
+            notFound
+        }
+    }
+
+    private var found: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Kicker(question)
+            BriefMarks.moneyAndTimes(answer.answer)
+                .font(.serif(.title3, weight: .regular))
+                .foregroundStyle(Theme.ink)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .markRuns(sweep: true, delay: 0.25)
+            RefChips(refs: answer.refs, context: refs, limit: 2)
+            MuseByline(verb: "Answered by", details: byline)
+                .padding(.top, 2)
+        }
+        .paperCard(padding: 18)
+    }
+
+    private var notFound: some View {
+        let parts = Self.split(answer.answer)
+        return VStack(alignment: .leading, spacing: 14) {
+            Kicker(question)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(parts.headline)
+                    .font(.serif(.title2))
+                    .foregroundStyle(Theme.ink)
+                if let rest = parts.rest {
+                    Text(rest)
+                        .font(.body)
+                        .foregroundStyle(Theme.inkSoft)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            if !answer.refs.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Kicker("Closest it gets")
+                    RefChips(refs: answer.refs, context: refs, limit: 2)
+                }
+            }
+            MuseByline(verb: "Answered by", details: byline)
+                .padding(.top, 2)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Theme.inkFaint, style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+        }
+    }
+
+    /// "The chat doesn't say. Sam asked twice and nobody answered." gives
+    /// that first sentence as the headline. Any other answer gets it added.
+    static func split(_ answer: String) -> (headline: String, rest: String?) {
+        let headline = "The chat doesn't say."
+        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let opener = trimmed.replacingOccurrences(of: "’", with: "'")
+        guard opener.lowercased().hasPrefix("the chat doesn't say") else {
+            return (headline, trimmed.isEmpty ? nil : trimmed)
+        }
+        let after = String(trimmed.dropFirst("the chat doesn't say".count)
+            .drop { " .,:;".contains($0) })
+        return (headline, after.isEmpty ? nil : after)
     }
 }
