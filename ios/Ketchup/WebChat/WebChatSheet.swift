@@ -6,13 +6,14 @@
 //  source's website, laid out with the same Muse Spark pieces as Ketchup's
 //  own chats: the skim while it reads, the brief, Ask. A source chip can't
 //  jump to the message (it isn't in Ketchup), so it shows the whole message
-//  instead. Nothing here is saved.
+//  instead. A catch-up or answer that lands is kept on this phone only
+//  (Store/SavedBriefs.swift), never on Ketchup's server.
 //
 
 import SwiftUI
 
 /// One catch-up on a thread read off a website, and any questions asked
-/// after it. In memory only, for as long as the sheet is open.
+/// after it. What lands is kept on the phone; the thread itself isn't.
 @Observable
 final class WebCatchUp: Identifiable {
     let id = UUID()
@@ -54,7 +55,9 @@ final class WebCatchUp: Identifiable {
     func run() async {
         brief = .loading
         do {
-            brief = .done(try await WebChatAPI.catchUp(thread, readerName: readerName))
+            let response = try await WebChatAPI.catchUp(thread, readerName: readerName)
+            brief = .done(response)
+            keepOnPhone(response)
         } catch {
             brief = .failed(WebChatError.message(for: error))
         }
@@ -66,7 +69,9 @@ final class WebCatchUp: Identifiable {
         lastQuestion = q
         answer = .loading
         do {
-            answer = .done(try await WebChatAPI.ask(q, about: thread, readerName: readerName))
+            let response = try await WebChatAPI.ask(q, about: thread, readerName: readerName)
+            answer = .done(response)
+            keepOnPhone(response, question: q)
         } catch {
             answer = .failed(WebChatError.message(for: error))
         }
@@ -239,7 +244,7 @@ struct WebChatSheet: View {
         let covers = thread.reachedStart && !thread.truncated
             ? "Covers the whole chat."
             : "Covers the last \(thread.messages.count.formatted()) messages."
-        return Text("\(covers) Read from the \(source.name) chat open on this phone, and nothing from it was saved. Experimental, not in the released app.")
+        return Text("\(covers) Read from the \(source.name) chat open on this phone, and kept on this phone only, until you delete it. Experimental, not in the released app.")
             .font(.footnote)
             .foregroundStyle(Theme.inkSoft)
             .fixedSize(horizontal: false, vertical: true)
@@ -314,7 +319,7 @@ struct WebQuoteCard: View {
                 text
                 ScrollView { text }
             }
-            Text("From your \(source.name) chat. Not saved.")
+            Text("From your \(source.name) chat. Kept on this phone with the catch-up.")
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSoft)
         }

@@ -47,7 +47,7 @@ struct ChatView: View {
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 28
 
     enum ChatSheet: String, Identifiable {
-        case catchUp, ask, info
+        case catchUp, ask, saved, info
         var id: String { rawValue }
     }
 
@@ -86,7 +86,9 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             thread
                 .onChange(of: model.messages.last?.id) { _, _ in
-                    guard positioned, let last = model.messages.last else { return }
+                    guard let last = model.messages.last else { return }
+                    // A bubble you just sent comes into view even before the first page is in.
+                    guard positioned || (last.sender == model.myId && (last.pending || last.failed)) else { return }
                     if last.sender == model.myId || atBottom {
                         withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
                     }
@@ -158,6 +160,7 @@ struct ChatView: View {
                 Menu {
                     Button { sheet = .catchUp } label: { Label("Catch me up", systemImage: "drop") }
                     Button { sheet = .ask } label: { Label("Ask the chat", systemImage: "questionmark.bubble") }
+                    Button { sheet = .saved } label: { Label("Earlier catch-ups", systemImage: "clock.arrow.circlepath") }
                     Divider()
                     Button { sheet = .info } label: { Label("Members & invite", systemImage: "person.2") }
                 } label: {
@@ -173,6 +176,9 @@ struct ChatView: View {
                 CatchUpSheet(model: model, refs: refContext)
             case .ask:
                 AskSheet(model: model, refs: refContext)
+            case .saved:
+                SavedBriefsSheet(place: .chat(model.chat.id), title: model.chat.name,
+                                 livePreview: { model.preview($0) }, jump: refContext.jump)
             case .info:
                 ChatInfoSheet(model: model) {
                     leftChat = true

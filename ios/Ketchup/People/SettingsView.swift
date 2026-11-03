@@ -169,8 +169,11 @@ struct SettingsView: View {
         }
     }
 
-    /// SLOT (Speed session): "Saved catch-ups" and "Clear cache".
-    @ViewBuilder private var savedCatchUpsSlot: some View {}
+    /// "Saved catch-ups" and "Clear cache" (Saved/SavedCatchUps.swift).
+    @ViewBuilder private var savedCatchUpsSlot: some View {
+        SavedCatchUpsRow()
+        ClearCacheRow()
+    }
 
     // MARK: Account
 

@@ -181,6 +181,29 @@ Ketchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a
 - **It breathes, it doesn't shimmer:** a slow opacity pulse, since a shimmer band would be a gradient. With Reduce Motion it holds still.
 - **Offline,** a chat opens on its kept copy and the toast says "Couldn't refresh. Showing saved messages."
 
+## Saved catch-ups
+
+Every catch-up you open and every Ask answer stays on the phone (`Store/SavedBriefs.swift`), so it can be read again with no network call. `Saved/SavedCatchUps.swift` lays them out. Screenshots: `screens/speed/saved-*`.
+
+<p>
+<img src="screens/speed/saved-light.png" width="200" alt="Earlier catch-ups for Breck">
+<img src="screens/speed/saved-brief-dark.png" width="200" alt="A saved catch-up, dark">
+<img src="screens/speed/saved-all-light.png" width="200" alt="Every chat's saved catch-ups">
+<img src="screens/speed/settings-phone-light.png" width="200" alt="Settings: Saved catch-ups and Clear cache">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `SavedBriefsSheet` | A chat's (or a web page's) "Earlier catch-ups", from its … menu: paper rows newest first, then one opened in place with "‹ Earlier catch-ups" over it and "Delete from this phone" under it. Swipe or long-press a row to delete; Clear all asks first. |
+| `SavedBriefRow` | Kicker "Catch-up · Yesterday 9:40 PM" or "Asked · …", the gist's first sentence or the question in New York, and "302 messages" in mono (a web row adds its thread's name). |
+| `SavedQuoteCard` | A source the chat doesn't have loaded (or a web thread's), shown as it was kept: monogram, name in their color, when, the text, "Kept on this phone with the catch-up." |
+| `SavedCatchUpsView` | Every chat's saved catch-ups, pushed from Settings: a kicker per chat, the same rows, then the room they take and Delete all. |
+| `SavedCatchUpsRow`, `ClearCacheRow` | Settings' two rows under "On this iPhone": the count, with the list behind it; Clear cache with its size ("4.2 MB: your inbox, recent messages and photos. Saved catch-ups stay."). |
+
+- **The byline says when:** "Read by Muse Spark · 302 messages · Saved Nov 2 at 9:40 PM".
+- **Sources still trace back.** A chip jumps to the message when the chat has it loaded; otherwise it opens the message as kept.
+- **Deleting says what it means:** "They're only on this phone, so they can't come back."
+
 ## Web chats (Instagram and Snapchat)
 
 Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one page of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Snapchat only runs its computer version, so its page is laid out 1024 points wide and shrunk to fit; pinch to zoom. Screenshots: `screens/webchat/` (the synthetic test threads, made-up people).
@@ -196,9 +219,9 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 |---|---|
 | `WebChatBar` | The site's name in New York, `Kicker("Experimental")` under it, back and a … menu on the right. A hairline under it. Done only when the page is shown full screen. |
 | The Catch me up pill | The page's one ketchup thing, floating over the site: the drop, "Catch me up", and "Last 30, 80 or 120 messages" in mono. It's a menu, since the site doesn't say what's unread. While it reads: "Reading the chat", "Scrolling back for older messages". |
-| `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, nothing saved, not released), plus the site's own note when it needs one (Snapchat: its computer page, shrunk to fit), with a ketchup "Got it". |
+| `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, the catch-up stays on this phone and never on Ketchup's server, not released), plus the site's own note when it needs one (Snapchat: its computer page, shrunk to fit), with a ketchup "Got it". |
 | `WebChatSheet` | The same pieces as a chat's catch-up: `SheetBar`, `SkimmingView` on the thread's own messages, `CatchUpContent`, `AIErrorCard`, and Ask's `NotepadField` and `AnswerCard`. The byline names the source ("88 Instagram messages"); a quiet footer says what it covered and that it's experimental. |
-| `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Not saved". |
+| `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Kept on this phone with the catch-up." |
 
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **"Experimental" is said, not shouted:** a kicker under the name, a line in the footer.
@@ -243,9 +266,10 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too, and `-send "on my way"` sends that 1.2 s in on the chat screens |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
-| `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
+| `saved`, `saved-brief`, `saved-empty`, `saved-quote`, `saved-all` | Saved catch-ups (`Debug/SavedPreviewScreen.swift`) on a scratch store: Breck's Earlier catch-ups, opened on its catch-up, empty, a source shown as kept, and every chat's list in its Settings bar |
+| `store-check` | Not a screen: runs the on-device copy and saved catch-ups (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
 | `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |

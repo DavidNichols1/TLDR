@@ -124,6 +124,91 @@ final class DeviceStore {
         }
     }
 
+    // MARK: Saved catch-ups (SavedBriefs.swift)
+
+    /// Catch-ups and answers kept per chat, so the list stays quick to read.
+    static let savedPerChat = 100
+
+    /// A chat's saved catch-ups and answers, newest first.
+    func saved(_ place: SavedPlace) -> SavedChat? {
+        read(SavedChat.self, at: "saved/\(place.file)")
+    }
+
+    /// Keeps a catch-up or an answer at the top of its chat's list. One that's
+    /// already kept (the same server brief, opened again) stays where it is.
+    func keep(_ brief: SavedBrief, in place: SavedPlace, name: String) {
+        var chat = saved(place) ?? SavedChat(name: name, briefs: [])
+        guard !chat.briefs.contains(where: { $0.id == brief.id }) else { return }
+        chat.name = name
+        chat.briefs = Array(([brief] + chat.briefs).prefix(Self.savedPerChat))
+        write(chat, at: "saved/\(place.file)")
+    }
+
+    func forget(_ brief: UUID, in place: SavedPlace) {
+        guard var chat = saved(place) else { return }
+        chat.briefs.removeAll { $0.id == brief }
+        if chat.briefs.isEmpty {
+            remove(at: "saved/\(place.file)")
+        } else {
+            write(chat, at: "saved/\(place.file)")
+        }
+    }
+
+    /// A chat's Clear all.
+    func forgetAll(in place: SavedPlace) {
+        remove(at: "saved/\(place.file)")
+    }
+
+    /// Every chat with something saved, the most recent first.
+    func allSaved() -> [(place: SavedPlace, chat: SavedChat)] {
+        guard let folder = folder() else { return [] }
+        let dir = folder.appending(path: "saved", directoryHint: .isDirectory)
+        // What's on disk, and what's still on its way there.
+        var files = Set((try? FileManager.default.contentsOfDirectory(atPath: dir.path(percentEncoded: false))) ?? [])
+        let prefix = Self.key(dir)
+        for key in memory.keys where key.hasPrefix(prefix) {
+            files.insert(String(key.dropFirst(prefix.count).drop { $0 == "/" }))
+        }
+        return files.compactMap { file in
+            guard let place = SavedPlace(file: file), let chat = saved(place), !chat.briefs.isEmpty else { return nil }
+            return (place, chat)
+        }
+        .sorted { ($0.chat.briefs.first?.savedAt ?? .distantPast) > ($1.chat.briefs.first?.savedAt ?? .distantPast) }
+    }
+
+    /// Every saved catch-up and answer, in every chat.
+    func forgetAllSaved() {
+        for (place, _) in allSaved() { remove(at: "saved/\(place.file)") }
+    }
+
+    // MARK: Clear cache
+
+    /// The inbox and threads kept on the phone. They come back from the
+    /// server; saved catch-ups stay.
+    func clearCopies() {
+        guard let folder = folder() else { return }
+        let inbox = folder.appending(path: "inbox.json")
+        let threads = folder.appending(path: "threads", directoryHint: .isDirectory)
+        memory[Self.key(inbox)] = Gone()
+        for key in memory.keys where key.hasPrefix(Self.key(threads)) { memory[key] = Gone() }
+        queue.async {
+            try? FileManager.default.removeItem(at: inbox)
+            try? FileManager.default.removeItem(at: threads)
+        }
+    }
+
+    /// Bytes on the phone: the inbox and threads, and saved catch-ups.
+    /// Measured after the writes already queued.
+    func usage() async -> (copies: Int, saved: Int) {
+        guard let folder = folder() else { return (0, 0) }
+        return await withCheckedContinuation { done in
+            queue.async {
+                let saved = Self.size(of: folder.appending(path: "saved", directoryHint: .isDirectory))
+                done.resume(returning: (Self.size(of: folder) - saved, saved))
+            }
+        }
+    }
+
     // MARK: Everything
 
     /// Signing out: deletes every user's folder, so nothing of theirs stays.
@@ -157,6 +242,10 @@ final class DeviceStore {
         let value: Value
     }
 
+    /// In `memory`: a file that's been deleted, while its removal waits on
+    /// the queue, so a read in between doesn't find it on disk.
+    private struct Gone {}
+
     private static func threadPath(_ chat: UUID) -> String {
         "threads/\(chat.uuidString.lowercased()).json"
     }
@@ -174,6 +263,7 @@ final class DeviceStore {
     private func read<Value: Codable>(_ type: Value.Type, at path: String) -> Value? {
         guard let url = folder()?.appending(path: path) else { return nil }
         if let value = memory[Self.key(url)] as? Value { return value }
+        if memory[Self.key(url)] is Gone { return nil }
         #if DEBUG
         let started = Date.now
         #endif
@@ -196,6 +286,22 @@ final class DeviceStore {
         memory[Self.key(url)] = value
         let root = root
         queue.async { Self.store(data, at: url, root: root) }
+    }
+
+    private func remove(at path: String) {
+        guard let url = folder()?.appending(path: path) else { return }
+        memory[Self.key(url)] = Gone()
+        queue.async { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// Runs on the queue: every file's bytes under `folder`.
+    nonisolated private static func size(of folder: URL) -> Int {
+        guard let files = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        var total = 0
+        for case let file as URL in files {
+            total += (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        }
+        return total
     }
 
     /// Runs on the queue. Creates the folders on first use, protected and

@@ -108,10 +108,10 @@ struct Message: Codable, Identifiable, Equatable {
 
 // MARK: - Muse Spark results (shape set by supabase/functions/_shared/brief.ts)
 
-struct CatchUp: Decodable, Equatable {
-    struct Item: Decodable, Equatable, Hashable { let text: String; let refs: [UUID] }
+struct CatchUp: Codable, Equatable {
+    struct Item: Codable, Equatable, Hashable { let text: String; let refs: [UUID] }
 
-    struct Plan: Decodable, Equatable, Hashable, Identifiable {
+    struct Plan: Codable, Equatable, Hashable, Identifiable {
         let title: String
         let startsAt: String?
         let endsAt: String?
@@ -149,14 +149,14 @@ struct CatchUp: Decodable, Equatable {
         }
     }
 
-    struct Question: Decodable, Equatable, Hashable {
+    struct Question: Codable, Equatable, Hashable {
         let question: String
         let askedBy: String?
         let refs: [UUID]
         enum CodingKeys: String, CodingKey { case question, refs; case askedBy = "asked_by" }
     }
 
-    struct Owe: Decodable, Equatable, Hashable {
+    struct Owe: Codable, Equatable, Hashable {
         let who: String
         let owesWhom: String?
         let what: String
@@ -178,7 +178,7 @@ struct CatchUp: Decodable, Equatable {
     }
 }
 
-struct ChatAnswer: Decodable, Equatable {
+struct ChatAnswer: Codable, Equatable {
     let answer: String
     let found: Bool
     let refs: [UUID]
@@ -196,6 +196,8 @@ struct BriefResponse<Result: Decodable>: Decodable {
     /// Newest message the brief covers (raw timestamp; catch-up moves the
     /// read cursor here, not to "now", so later messages stay unread).
     let until: String?
+    /// Its ai_briefs row, new or reused, so the phone keeps it once.
+    var briefId: UUID?
     let error: String?
 
     var untilDate: Date? { until.flatMap(JSON.date(from:)) }
@@ -204,5 +206,6 @@ struct BriefResponse<Result: Decodable>: Decodable {
         case kind, empty, cached, result, model, error, until
         case messageCount = "message_count"
         case latencyMs = "latency_ms"
+        case briefId = "brief_id"
     }
 }

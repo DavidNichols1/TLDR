@@ -66,17 +66,33 @@ the technical recipe. README.md is the judge-facing overview.
   unread (the seed's `--rearm`). Only then is `synced` set: ChatView places the thread and starts
   counting what's been seen (`sawBottom`), so backing out of a stale copy marks nothing read.
   A current kept copy is scrolled into place earlier, without that. Until `synced`, the poll loop
-  retries the first page every 4 s, whether or not Realtime is live.
+  retries the first page every 4 s, whether or not Realtime is live. A send, a catch-up or
+  reaching the bottom records `readThrough`, and unread counts from the later of it and the
+  server's cursor, so a page or member row that answers after you sent can't bring the count
+  back. Check it offline: `-screen chat-kept -send "on my way"` must drop "302 new" for good
+  (the bubble shows, not sent), and `-screen chat-kept` alone must keep "302 new".
 - `Profile`, `ChatSummary`, `Member` and `Message` are `Codable` for this: new fields are kept
   automatically and must be Codable too.
-- Offline check, no sign-in: `-screen store-check` must show "11 of 11 passed, 1 skipped" on a
-  simulator (data protection only exists on a phone, where it's 12 of 12); the console prints
+- Saved catch-ups (`Store/SavedBriefs.swift`, `saved/<chat>.json` or `saved/web-<source>.json`):
+  ChatModel keeps a catch-up once you've seen it (a prefetch only when you open it) and every
+  answer; WebCatchUp keeps Instagram's and Snapchat's, on the phone only. The server's
+  `brief_id` keeps a reopened catch-up from being kept twice; 100 per chat, newest first. Each
+  keeps the messages it cites (`SavedQuote`). UI in `Saved/SavedCatchUps.swift`: "Earlier
+  catch-ups" in the chat's and the web pages' … menu, and Settings' "Saved catch-ups" and
+  "Clear cache" rows (`savedCatchUpsSlot`). Clear cache runs `DeviceStore.clearCopies()` and
+  `RemoteImages.clear()`; saved catch-ups stay. Deletes go through the store's queue with a
+  marker in memory, so a read in between can't bring a file back.
+- Offline check, no sign-in: `-screen store-check` must show "14 of 14 passed, 1 skipped" on a
+  simulator (data protection only exists on a phone, where it's 15 of 15); the console prints
   `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
 - The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
   then `Library/Application Support/Ketchup/`.
 - Previews: `inbox-loading`, `chat-loading`, `ai-loading-blank` (skeletons; `-reduceMotion YES`
-  holds them still), and `chat-kept` (a live ChatModel opening on a kept copy with no server, in
-  a scratch folder, never the real one). Screenshots: `docs/screens/speed/`.
+  holds them still), `chat-kept` (a live ChatModel opening on a kept copy with no server, in
+  a scratch folder, never the real one), and `saved`, `saved-brief`, `saved-empty`,
+  `saved-quote`, `saved-all` (a scratch store with Breck's catch-up, two answers and the
+  Instagram test thread's catch-up). `settings -section phone` shows the two Settings rows.
+  Screenshots: `docs/screens/speed/`.
 
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
@@ -206,8 +222,9 @@ site's reader and outline scripts and fixtures. The way in is the signed-in home
   in the `text_brief_usage` source check, which needs a migration), a reader script that returns
   the same JSON, fixtures plus `.expected.json`, harness runs, and its domain in the plist.
 - Rules: read only the chat the user has open, only on tap. Never inject scripts, read
-  cookies or run anything on login pages. Store nothing: no `ai_briefs` rows, and no message
-  text, names or model output in logs (counts and token usage only). Real tests use a separate
+  cookies or run anything on login pages. Store nothing on the server: no `ai_briefs` rows,
+  and no message text, names or model output in logs (counts and token usage only). The
+  catch-up and answers are kept on the phone only (SavedBriefs), until the user deletes them. Real tests use a separate
   test account with a staged chat where possible, and David signs in himself. DOM dumps or
   screenshots with real DMs stay in the session scratchpad, never in git or reports.
 - Offline: `deno test supabase/functions/_shared/` (transcript format, index refs), then the

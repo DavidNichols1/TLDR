@@ -233,6 +233,12 @@ nonisolated final class RemoteImages: @unchecked Sendable {
         for file in files { try? FileManager.default.removeItem(at: file) }
     }
 
+    /// Bytes of photos on disk, for Settings' Clear cache.
+    func diskBytes() -> Int {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        return files.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+    }
+
     // MARK: Disk
 
     /// A stable file name for any key: FNV-1a 64 of its bytes.
