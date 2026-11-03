@@ -1,0 +1,19 @@
+{
+ "kind": "ask",
+ "cached": false,
+ "model": "muse-spark-1.3",
+ "message_count": 302,
+ "latency_ms": 3386,
+ "question": "How much do I owe and to who?",
+ "result": {
+  "answer": "You owe $90 to Maya for the Airbnb (reduced from $140 after the Friday-night refund), and $20 to Jordan for gas since you're in his car.",
+  "found": true,
+  "refs": [
+   "6fe6a3cc-7a99-5aa3-a3dd-be8a6a18adb5",
+   "76456d57-027d-51bc-8f8a-bea427a7135e",
+   "6d19d2ee-c349-5543-8089-6c46aff56ed3",
+   "32786fcc-2ab9-5ada-8beb-f784689649a7",
+   "20cbd723-a26f-57fc-b094-8c1e92df2c4d"
+  ]
+ }
+}
