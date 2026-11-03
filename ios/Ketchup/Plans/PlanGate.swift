@@ -39,13 +39,27 @@ enum PlanGate {
         if top == nil, store.plan == .free { throw ConsentError.waiting }
         guard !store.consented else { return }
         guard let top else { throw ConsentError.waiting }
-        guard await PlanSheets.askConsent(over: top) else { throw ConsentError.declined }
+        // Two requests at once (Catch me up and Ask) share one question.
+        let ask = question ?? Task { await askAndSave(over: top) }
+        question = ask
+        let outcome = await ask.value
+        question = nil
+        if let refusal = outcome { throw refusal }
+    }
+
+    /// The question on screen now, if there is one.
+    private static var question: Task<ConsentError?, Never>?
+
+    /// Nil once you've said yes and the server has it.
+    private static func askAndSave(over top: UIViewController) async -> ConsentError? {
+        guard await PlanSheets.askConsent(over: top) else { return .declined }
         do {
             try await PlanAPI.giveConsent()
         } catch {
-            throw ConsentError.notSaved
+            return .notSaved
         }
-        store.consentGiven()
+        PlanStore.shared.consentGiven()
+        return nil
     }
 
     /// A 402 or 403 from the server, before it becomes the error message.
