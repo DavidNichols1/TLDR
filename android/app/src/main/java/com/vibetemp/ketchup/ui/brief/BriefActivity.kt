@@ -7,36 +7,31 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import com.vibetemp.ketchup.R
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.vibetemp.ketchup.data.BriefResponse
 import com.vibetemp.ketchup.data.BriefSource
 import com.vibetemp.ketchup.data.BriefSourceIntent
+import com.vibetemp.ketchup.data.CatchUp
+import com.vibetemp.ketchup.data.CatchUpResponse
+import com.vibetemp.ketchup.data.KetchupApi
+import com.vibetemp.ketchup.data.KetchupJson
 import com.vibetemp.ketchup.data.TextThread
-import com.vibetemp.ketchup.ui.design.CapsuleButton
-import com.vibetemp.ketchup.ui.design.Kicker
-import com.vibetemp.ketchup.ui.design.paperCard
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 
 /**
  * Catch me up and Ask, for a [BriefSource]. Started from the app (a Ketchup
  * chat) or from the reader service over Instagram or Snapchat (a
- * [TextThread], in a task of its own). The brief slice owns this file; the
- * two `start`/`intent` functions are the contract the other slices call.
+ * [TextThread], in a task of its own, so Back returns to that app). The
+ * brief slice owns this file; the two `start`/`intent` functions and
+ * [EXTRA_JUMP_TO_MESSAGE] are the contract the other slices call.
  *
- * Stub for now: it shows which source it was started for.
+ * The catch-up starts as the page opens and survives a rotation (it lives
+ * in a ViewModel). For a chat, a tapped source finishes with RESULT_OK and
+ * the message's id; the brief also moves the chat's read cursor to the
+ * newest message it read, like iOS, so the chat should refresh its unread
+ * count when the brief returns.
  */
 class BriefActivity : ComponentActivity() {
 
@@ -61,59 +56,76 @@ class BriefActivity : ComponentActivity() {
          * message is tapped: that message's id, so the chat scrolls to it.
          */
         const val EXTRA_JUMP_TO_MESSAGE = "com.vibetemp.ketchup.extra.JUMP_TO_MESSAGE"
+
+        /** A chat's finished brief, kept across the process dying while the page was in the background. */
+        private const val STATE_BRIEF = "brief"
     }
+
+    private var session: BriefSession? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // A thread brief's task reopened from Recents after it was closed
+        // would read a thread that may have moved on (and spend another
+        // catch-up): treat it as gone, like after the process died.
+        val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
         val source = BriefSourceIntent.from(intent)
+            ?.takeUnless { it is TextThread && fromHistory && savedInstanceState == null }
+        session = source?.let { s ->
+            val restored = if (s is BriefSource.Chat) savedInstanceState?.getString(STATE_BRIEF)?.let(::decode) else null
+            val factory = BriefViewModel.Factory(KetchupApi.get(applicationContext), s, restored)
+            ViewModelProvider(this, factory)[BriefViewModel::class.java].session
+        }
         setContent {
             KetchupTheme {
-                BriefStub(source, onDone = ::finish)
+                BriefPage(session, onDone = ::finish, onJump = ::jumpTo, onOpenApp = ::openApp)
             }
         }
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Only a Ketchup chat's brief: a thread read off another app is never kept.
+        val current = session ?: return
+        if (current.source !is BriefSource.Chat) return
+        current.catchUp.done?.let { outState.putString(STATE_BRIEF, KetchupJson.encodeToString(SERIALIZER, it)) }
+    }
+
+    /** A cited message in a Ketchup chat: hand its id back so the chat scrolls to it. */
+    private fun jumpTo(messageId: String) {
+        setResult(RESULT_OK, Intent().putExtra(EXTRA_JUMP_TO_MESSAGE, messageId))
+        finish()
+    }
+
+    /** Not signed in: bring Ketchup itself up (its own task, when the brief opened over another app). */
+    private fun openApp() {
+        if (isTaskRoot) {
+            packageManager.getLaunchIntentForPackage(packageName)?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }
+        finish()
+    }
+
+    private fun decode(raw: String): CatchUpResponse? = catching { KetchupJson.decodeFromString(SERIALIZER, raw) }.getOrNull()
 }
 
-/** What the stub shows: the source it was started for, or why there's none. */
-@Composable
-fun BriefStub(source: BriefSource?, onDone: () -> Unit) {
-    val colors = KetchupTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.cream)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Kicker(stringResource(R.string.brief_kicker))
-        when (source) {
-            null -> Text(stringResource(R.string.brief_source_gone), style = KetchupTheme.type.body, color = colors.ink)
-            is BriefSource.Chat -> Column(Modifier.paperCard(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Kicker(stringResource(R.string.brief_source_chat))
-                Text(source.displayTitle, style = KetchupTheme.type.serifTitle2, color = colors.ink)
-                Text(source.id, style = KetchupTheme.type.monoCaption, color = colors.inkSoft)
-            }
-            is TextThread -> Column(Modifier.paperCard(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Kicker(source.source.appName)
-                Text(source.displayTitle, style = KetchupTheme.type.serifTitle2, color = colors.ink)
-                Text(
-                    pluralStringResource(R.plurals.brief_message_count, source.messages.size, source.messages.size),
-                    style = KetchupTheme.type.monoCaption,
-                    color = colors.inkSoft,
-                )
-                source.messages.takeLast(3).forEach { m ->
-                    Text(
-                        "${if (m.isMine) stringResource(R.string.brief_you) else m.sender}: ${m.text}",
-                        style = KetchupTheme.type.subheadline,
-                        color = colors.ink,
-                        maxLines = 2,
-                    )
-                }
-            }
+private val SERIALIZER = BriefResponse.serializer(CatchUp.serializer())
+
+/** Holds the page's [BriefSession], so a rotation keeps a catch-up that's running. */
+internal class BriefViewModel(api: KetchupApi, source: BriefSource, restored: CatchUpResponse?) : ViewModel() {
+    val session = BriefSession(source, liveBackend(api, source), viewModelScope).apply {
+        if (restored != null) catchUp = Phase.Done(restored)
+        start()
+    }
+
+    class Factory(
+        private val api: KetchupApi,
+        private val source: BriefSource,
+        private val restored: CatchUpResponse?,
+    ) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            @Suppress("UNCHECKED_CAST")
+            return BriefViewModel(api, source, restored) as T
         }
-        CapsuleButton(stringResource(R.string.brief_done), onClick = onDone)
     }
 }

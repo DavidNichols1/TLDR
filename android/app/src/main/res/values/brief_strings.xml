@@ -1,13 +1,151 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The brief slice's strings: Catch me up and Ask. -->
+<!-- The brief slice's strings: Catch me up and Ask the chat. Copy from iOS (ios/Ketchup/AI/). No em dashes. -->
 <resources>
+    <!-- The bar across the top -->
     <string name="brief_kicker">Catch me up</string>
-    <string name="brief_source_chat">Ketchup chat</string>
-    <string name="brief_source_gone">That chat isn\'t open here anymore. Go back to it and tap Catch me up again.</string>
-    <string name="brief_you">You</string>
     <string name="brief_done">Done</string>
-    <plurals name="brief_message_count">
-        <item quantity="one">%d message read</item>
-        <item quantity="other">%d messages read</item>
+    <string name="brief_ask_short">Ask</string>
+    <!-- Over Instagram or Snapchat: "Instagram · Breck Crew" -->
+    <string name="brief_running_head_thread">%1$s · %2$s</string>
+
+    <!-- Reading -->
+    <string name="brief_reading_chat">Reading the chat</string>
+    <plurals name="brief_reading_count">
+        <item quantity="one">Reading %1$s message</item>
+        <item quantity="other">Reading %1$s messages</item>
     </plurals>
+    <string name="brief_skimming">Muse Spark is skimming so you don\'t have to.</string>
+    <string name="brief_skimming_thread">Muse Spark is skimming your %1$s chat so you don\'t have to.</string>
+    <string name="brief_usually">Usually about 20 seconds</string>
+    <string name="brief_usually_thread">Usually 10 to 25 seconds</string>
+    <string name="brief_usually_ask">Usually a few seconds</string>
+    <string name="brief_longer">Taking longer than usual</string>
+    <string name="brief_looking">Looking through the chat</string>
+    <string name="brief_loading">Loading</string>
+
+    <!-- Didn't go through -->
+    <string name="brief_didnt_go_through">Didn\'t go through</string>
+    <string name="brief_try_again">Try again</string>
+    <string name="brief_nothing_marked">Nothing was marked as read.</string>
+    <string name="brief_nothing_saved">Nothing from the chat was saved.</string>
+    <string name="brief_no_catch_up">Muse Spark didn\'t send a catch-up back. Try again.</string>
+    <string name="brief_no_answer">Muse Spark didn\'t answer that. Try asking another way.</string>
+
+    <!-- Nothing new -->
+    <string name="brief_caught_up">You\'re all caught up</string>
+    <string name="brief_caught_up_body">Nothing new to ketchup on since you last read this chat. Looking for something? Try Ask the chat.</string>
+    <string name="brief_thread_empty">No messages to read</string>
+    <string name="brief_thread_empty_body">Ketchup couldn\'t see any messages in this chat. Scroll to the newest message and try again.</string>
+
+    <!-- Not signed in, or the source is gone -->
+    <string name="brief_signed_out">Sign in to Ketchup first</string>
+    <string name="brief_signed_out_body">Catch me up and Ask the chat run on your Ketchup account. Sign in, then tap Catch me up again.</string>
+    <string name="brief_open_ketchup">Open Ketchup</string>
+    <string name="brief_source_gone">That chat isn\'t open here anymore</string>
+    <string name="brief_source_gone_body">Go back to it and tap Catch me up again.</string>
+
+    <!-- The byline: "Read by Muse Spark · 302 messages · 23 s" -->
+    <string name="brief_read_by">Read by</string>
+    <string name="brief_answered_by">Answered by</string>
+    <string name="brief_model">Muse Spark</string>
+    <plurals name="brief_byline_messages">
+        <item quantity="one">%1$s message</item>
+        <item quantity="other">%1$s messages</item>
+    </plurals>
+    <!-- "88 Instagram messages" -->
+    <plurals name="brief_byline_app_messages">
+        <item quantity="one">%1$s %2$s message</item>
+        <item quantity="other">%1$s %2$s messages</item>
+    </plurals>
+    <string name="brief_byline_seconds">%1$d s</string>
+    <!-- A catch-up Muse Spark had already made for the same messages -->
+    <string name="brief_saved">Saved</string>
+    <string name="brief_saved_at">Saved at %1$s</string>
+    <string name="brief_saved_on">Saved %1$s at %2$s</string>
+
+    <!-- Sections -->
+    <string name="brief_for_you">For you</string>
+    <string name="brief_for_you_name">For you, %1$s</string>
+    <string name="brief_plans">Plans</string>
+    <string name="brief_owes">Who owes what</string>
+    <string name="brief_questions">Still unanswered</string>
+    <string name="brief_highlights">Highlights</string>
+    <string name="brief_no_reply">No reply yet</string>
+    <string name="brief_asked">%1$s asked: %2$s. No reply yet.</string>
+    <string name="brief_asked_anon">Asked: %1$s. No reply yet.</string>
+    <string name="brief_show_where">Show where it was said</string>
+    <string name="brief_to_do_done">Done</string>
+    <string name="brief_to_do_open">Not done</string>
+
+    <!-- Plans -->
+    <string name="brief_add_to_calendar">Add to calendar</string>
+    <string name="brief_no_calendar">There\'s no calendar app on this phone.</string>
+    <string name="brief_confirmed">Confirmed</string>
+    <string name="brief_maybe">Maybe</string>
+    <string name="brief_all_day">All day</string>
+    <string name="brief_time_tbd">Time TBD</string>
+    <string name="brief_until">To %1$s</string>
+    <string name="brief_just_you">Just you</string>
+    <plurals name="brief_you_and_more">
+        <item quantity="one">You and %d more</item>
+        <item quantity="other">You and %d more</item>
+    </plurals>
+    <plurals name="brief_going_count">
+        <item quantity="one">%d going</item>
+        <item quantity="other">%d going</item>
+    </plurals>
+    <string name="brief_going">Going: %1$s</string>
+    <string name="brief_when_tbd">Time to be decided</string>
+    <string name="brief_when_all_day">%1$s, all day</string>
+    <string name="brief_when_day_tbd">%1$s, time to be decided</string>
+    <string name="brief_when_at">%1$s at %2$s</string>
+    <string name="brief_when_to">%1$s to %2$s</string>
+
+    <!-- Who owes what, as a diner check -->
+    <string name="brief_your_tab">Your tab</string>
+    <string name="brief_the_table">The table</string>
+    <string name="brief_everyone_else">Everyone else</string>
+    <string name="brief_to_bring">To bring</string>
+    <string name="brief_tap_a_line">Tap a line to see where it was said.</string>
+    <string name="brief_you_owe">You owe</string>
+    <string name="brief_owed_to_you">Owed to you</string>
+    <string name="brief_you">You</string>
+
+    <!-- Sources -->
+    <string name="brief_see_message">See the message</string>
+    <plurals name="brief_more_sources">
+        <item quantity="one">1 more source</item>
+        <item quantity="other">%d more sources</item>
+    </plurals>
+    <string name="brief_shows_in_chat">Shows it in the chat</string>
+    <string name="brief_shows_message">Shows the whole message</string>
+    <string name="brief_cited_footer">From your %1$s chat. Not saved.</string>
+    <string name="brief_about_time">About %1$s</string>
+    <string name="brief_replying_to">Replying to %1$s</string>
+    <string name="brief_replying_to_you">Replying to you</string>
+
+    <!-- Ask the chat -->
+    <string name="brief_ask_title">Ask the chat</string>
+    <string name="brief_ask_subtitle">Muse Spark reads the whole chat and answers with receipts.</string>
+    <string name="brief_ask_field">Your question</string>
+    <string name="brief_ask_placeholder">When are we leaving?</string>
+    <string name="brief_ask_button">Ask</string>
+    <string name="brief_or_try_one">Or try one</string>
+    <string-array name="brief_suggestions">
+        <item>What did we decide?</item>
+        <item>When and where are we meeting?</item>
+        <item>Who\'s bringing what?</item>
+        <item>Does anyone owe me money?</item>
+        <item>Did anyone answer my question?</item>
+    </string-array>
+    <string name="brief_closest">Closest it gets</string>
+    <string name="brief_no_source">Muse Spark couldn\'t point to a message for this.</string>
+
+    <!-- Over Instagram or Snapchat -->
+    <string name="brief_footer_whole">Covers the whole chat.</string>
+    <plurals name="brief_footer_last">
+        <item quantity="one">Covers the last message.</item>
+        <item quantity="other">Covers the last %1$s messages.</item>
+    </plurals>
+    <string name="brief_footer_thread">Read from the %1$s chat open on this phone. Nothing from it was saved.</string>
 </resources>
