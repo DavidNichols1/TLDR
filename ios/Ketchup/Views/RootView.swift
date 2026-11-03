@@ -28,7 +28,7 @@ struct RootView: View {
             } else if app.needsName {
                 NameView()
             } else {
-                HomePager()
+                HomeTabs()
             }
         }
         .motion(Motion.settle, value: app.isSignedIn)

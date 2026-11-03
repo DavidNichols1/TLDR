@@ -2,15 +2,53 @@
 //  SettingsPieces.swift
 //  Ketchup
 //
-//  What Settings is built from: a titled section of rows on one paper
-//  card, and the row itself (an icon, a label, maybe a value). Other
-//  screens with a list of choices (Blocked people, People) use them too.
+//  What Settings is built from: the header that says who's signed in, a
+//  titled section of rows on one paper card, and the row itself (an icon, a
+//  label, maybe a value). Other screens with a list of choices (the You tab,
+//  Blocked people, People) use them too.
 //
 
 import SwiftUI
 
 /// Width of a row's icon column at the default text size.
 private let iconColumn: CGFloat = 24
+
+/// Who's signed in: a kicker over your name in New York, the email you sign
+/// in with, and your photo (your monogram until there is one). The top of
+/// Settings and of the You tab.
+struct AccountHeader: View {
+    let kicker: String
+
+    @Environment(AppModel.self) private var app
+    @ScaledMetric(relativeTo: .largeTitle) private var avatarSize: CGFloat = 56
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Kicker(kicker)
+                // "You" until the profile has loaded.
+                Text(app.me?.displayName ?? "You")
+                    .font(.serif(.largeTitle))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityAddTraits(.isHeader)
+                if let email = app.accountEmail {
+                    Text(email)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSoft)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Signed in as \(email)")
+                }
+            }
+            Spacer(minLength: 0)
+            Avatar(name: app.me?.displayName ?? "?", path: app.me?.avatarPath, size: avatarSize)
+        }
+        .padding(.top, 6)
+    }
+}
 
 /// A titled group of rows on one paper card, hairlines between them. A row
 /// that draws nothing (an empty slot) takes no room and gets no hairline,

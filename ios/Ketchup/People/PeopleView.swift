@@ -4,14 +4,13 @@
 //
 //  Your people: everyone you've added from a profile, by name, with how
 //  many chats you share. Tap one for their profile. They're who New chat
-//  offers to add, so a chat with them needs no code. From Settings.
+//  offers to add, so a chat with them needs no code. From Settings; the
+//  You tab shows the same list (PeopleList).
 //
 
 import SwiftUI
 
 struct PeopleView: View {
-    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
-
     private var store: PeopleStore { .shared }
 
     var body: some View {
@@ -31,9 +30,9 @@ struct PeopleView: View {
                 }
 
                 if store.contacts.isEmpty {
-                    if store.contactsLoaded { nobody } else { ProgressView().tint(Theme.inkSoft).frame(maxWidth: .infinity) }
+                    if store.contactsLoaded { NoPeopleCard() } else { ProgressView().tint(Theme.inkSoft).frame(maxWidth: .infinity) }
                 } else {
-                    list
+                    PeopleList(contacts: store.contacts)
                 }
 
                 NavigationLink {
@@ -64,10 +63,18 @@ struct PeopleView: View {
         guard store.contactsLoaded, !store.contacts.isEmpty else { return "People" }
         return store.contacts.count == 1 ? "1 person" : "\(store.contacts.count) people"
     }
+}
 
-    private var list: some View {
+/// Your people on one paper card: each one's photo, name and how many chats
+/// you share, with a chevron to their profile. Your people and the You tab.
+struct PeopleList: View {
+    let contacts: [Contact]
+
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
+
+    var body: some View {
         VStack(spacing: 0) {
-            ForEach(store.contacts) { contact in
+            ForEach(contacts) { contact in
                 NavigationLink {
                     ProfileView(person: contact.person)
                 } label: {
@@ -77,7 +84,7 @@ struct PeopleView: View {
                             Text(contact.displayName)
                                 .font(.body)
                                 .foregroundStyle(Theme.ink)
-                            Text(sharedLine(contact.sharedChats))
+                            Text(Self.sharedLine(contact.sharedChats))
                                 .font(.mono(.caption2))
                                 .foregroundStyle(Theme.inkSoft)
                         }
@@ -93,7 +100,7 @@ struct PeopleView: View {
                 }
                 .buttonStyle(.pressable)
                 .transition(.opacity)
-                if contact.id != store.contacts.last?.id {
+                if contact.id != contacts.last?.id {
                     Rectangle()
                         .fill(Theme.rule)
                         .frame(height: 1)
@@ -104,16 +111,18 @@ struct PeopleView: View {
         .paperCard(padding: 14)
     }
 
-    private func sharedLine(_ chats: Int) -> String {
+    static func sharedLine(_ chats: Int) -> String {
         switch chats {
         case 0: "No chats together now"
         case 1: "In 1 chat with you"
         default: "In \(chats) chats with you"
         }
     }
+}
 
-    /// Nobody yet: where Add lives.
-    private var nobody: some View {
+/// Nobody yet: a quiet card that says where Add lives.
+struct NoPeopleCard: View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("No one yet")
                 .font(.serif(.title3))

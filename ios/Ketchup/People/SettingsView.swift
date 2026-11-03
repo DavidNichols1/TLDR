@@ -2,11 +2,12 @@
 //  SettingsView.swift
 //  Ketchup
 //
-//  Settings, from the inbox's top-left button: who you are (your name,
-//  which you can change, and the email you sign in with), your people and
-//  inviting friends, blocked people, the web chats' sign-ins, signing out,
-//  deleting your account, and about. Its pages are in AccountPages.swift,
-//  PeopleView.swift, InviteView.swift and BlockedPeopleView.swift.
+//  Settings, a sheet from the You tab: who you are (your name, which you
+//  can change, and the email you sign in with), your people and inviting
+//  friends, blocked people, the web chats' sign-ins, signing out, deleting
+//  your account, and about. Its pages are in AccountPages.swift,
+//  PeopleView.swift, InviteView.swift and BlockedPeopleView.swift. The You
+//  tab (YouView.swift) shares its header and Privacy section.
 //
 //  Two sections hold other features' rows: profilePhotoSlot (Photos/) and
 //  savedCatchUpsSlot under "On this iPhone" (Saved/). A section whose rows
@@ -16,8 +17,8 @@
 import SwiftUI
 
 struct SettingsView: View {
-    /// Closes the sheet, then signs out (ChatsListView runs it once the
-    /// sheet is gone).
+    /// Closes the sheet, then signs out (YouView runs it once the sheet is
+    /// gone).
     let close: (SettingsExit) -> Void
 
     @Environment(AppModel.self) private var app
@@ -28,20 +29,15 @@ struct SettingsView: View {
     @State private var choosingPhoto = false
     @State private var photoProblem: String?
 
-    @ScaledMetric(relativeTo: .largeTitle) private var monogramSize: CGFloat = 56
-
-    /// "You" until the profile has loaded.
-    private var name: String { app.me?.displayName ?? "You" }
-
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 30) {
-                        header
+                        AccountHeader(kicker: "Settings")
                         you
                         people.id("people")
-                        privacy.id("privacy")
+                        PrivacySection().id("privacy")
                         WebChatSignOutSection().id("web")
                         onThisPhone.id("phone")
                         account.id("account")
@@ -99,34 +95,6 @@ struct SettingsView: View {
     }
 
     // MARK: You
-
-    /// "Settings" over your name in New York, the email you sign in with,
-    /// and your monogram.
-    private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Kicker("Settings")
-                Text(name)
-                    .font(.serif(.largeTitle))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-                    .accessibilityAddTraits(.isHeader)
-                if let email = app.accountEmail {
-                    Text(email)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.inkSoft)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
-                        .accessibilityLabel("Signed in as \(email)")
-                }
-            }
-            Spacer(minLength: 0)
-            Avatar(name: app.me?.displayName ?? "?", path: app.me?.avatarPath, size: monogramSize)
-        }
-        .padding(.top, 6)
-    }
 
     private var you: some View {
         SettingsSection("You", footer: "Friends see your name and photo in your chats, and \(Theme.modelName) uses your name in catch-ups.") {
@@ -188,27 +156,6 @@ struct SettingsView: View {
         let store = PeopleStore.shared
         guard store.contactsLoaded else { return nil }
         return store.contacts.isEmpty ? "None" : "\(store.contacts.count)"
-    }
-
-    // MARK: Privacy
-
-    private var privacy: some View {
-        SettingsSection("Privacy") {
-            NavigationLink {
-                BlockedPeopleView()
-            } label: {
-                SettingsRow("Blocked people", systemImage: "hand.raised", value: blockedCount, chevron: true)
-            }
-            .buttonStyle(.pressable)
-        }
-        .task { await PeopleStore.shared.load() }
-    }
-
-    /// "None" or how many, once the list has loaded.
-    private var blockedCount: String? {
-        let store = PeopleStore.shared
-        guard store.loaded else { return nil }
-        return store.blocked.isEmpty ? "None" : "\(store.blocked.count)"
     }
 
     // MARK: On this iPhone
@@ -282,6 +229,30 @@ struct SettingsView: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? "1"
         return "\(short) (\(build))"
+    }
+}
+
+// MARK: - Privacy
+
+/// Privacy: Blocked people, with how many. In Settings and on the You tab.
+struct PrivacySection: View {
+    var body: some View {
+        SettingsSection("Privacy") {
+            NavigationLink {
+                BlockedPeopleView()
+            } label: {
+                SettingsRow("Blocked people", systemImage: "hand.raised", value: blockedCount, chevron: true)
+            }
+            .buttonStyle(.pressable)
+        }
+        .task { await PeopleStore.shared.load() }
+    }
+
+    /// "None" or how many, once the list has loaded.
+    private var blockedCount: String? {
+        let store = PeopleStore.shared
+        guard store.loaded else { return nil }
+        return store.blocked.isEmpty ? "None" : "\(store.blocked.count)"
     }
 }
 

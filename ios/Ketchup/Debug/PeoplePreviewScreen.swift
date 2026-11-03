@@ -4,7 +4,7 @@
 //
 //  Settings and the people screens on fixtures, one screen per `-screen`
 //  name: Settings itself (add `-section web`, `account` or `about` to
-//  scroll there), Settings as the inbox opens it (a sheet), Change your
+//  scroll there), Settings as the You tab opens it (a sheet), Change your
 //  name, Delete account, a profile (and the same person blocked), Report
 //  a message (and the thank-you), Blocked people, Chat info with a
 //  blocked member, a profile or a report opened from the thread, Your
@@ -53,7 +53,7 @@ struct PeoplePreviewScreen: View {
     init(name: String) {
         self.name = name
         let screen = Screen(rawValue: name)
-        // The inbox opens its own Settings sheet (ChatsListView). Registered,
+        // The You tab opens its own Settings sheet (YouView). Registered,
         // not saved: it lasts for this launch only.
         if screen == .settingsSheet {
             UserDefaults.standard.register(defaults: ["KetchupOpenSettings": true])
@@ -63,7 +63,7 @@ struct PeoplePreviewScreen: View {
             PeopleStore.shared.preview(blocked: [Self.blocked(.jordan, daysAgo: 1), Self.blocked(.sam, daysAgo: 6)])
         case .profileBlocked, .infoBlocked:
             PeopleStore.shared.preview(blocked: [Self.blocked(.jordan, daysAgo: 1)])
-        case .people, .newChatPeople, .settings:
+        case .people, .newChatPeople, .settings, .settingsSheet:
             PeopleStore.shared.preview(blocked: [], contacts: Self.contacts)
         case .profileContact:
             PeopleStore.shared.preview(blocked: [], contacts: [Self.contact(PreviewData.jordan, "Jordan")])
@@ -78,7 +78,7 @@ struct PeoplePreviewScreen: View {
             case .settings:
                 SettingsView { _ in }
             case .settingsSheet:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .you)
             case .settingsName:
                 NavigationStack { EditNameView() }
             case .settingsDelete:
@@ -106,7 +106,7 @@ struct PeoplePreviewScreen: View {
                     ProfileView(person: Self.person(.jordan), previewShared: [PreviewData.breck])
                 }
             case .newChatPeople:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
                         NewChatSheet(name: $newName, people: Self.contacts.map(\.person), picked: $newPeople) {}
                     }
@@ -137,8 +137,9 @@ struct PeoplePreviewScreen: View {
                              blockedAt: .now.addingTimeInterval(-daysAgo * 86_400))
     }
 
-    /// Three of the demo chat's friends, added from Breck.
-    private static var contacts: [Contact] {
+    /// Three of the demo chat's friends, added from Breck (also the You tab's
+    /// people in the home previews).
+    static var contacts: [Contact] {
         [contact(PreviewData.maya, "Maya"), contact(PreviewData.priya, "Priya"), contact(PreviewData.theo, "Theo")]
     }
 

@@ -3,22 +3,20 @@
 //  Ketchup
 //
 //  The inbox (my_chats): newest activity first, unread badges, new chat,
-//  join with a code, pull to refresh, Settings (top left). The first page of
-//  HomePager, whose switcher sits in the middle of this top bar.
+//  join with a code, pull to refresh. The first tab of HomeTabs; your
+//  profile and Settings are the You tab.
 //
 
 import SwiftUI
 
 struct ChatsListView: View {
     @Environment(AppModel.self) private var app
-    @Environment(HomePagerState.self) private var pager: HomePagerState?
+    @Environment(HomeTabsState.self) private var tabs: HomeTabsState?
 
     @State private var path: [UUID] = []
     @State private var showNew = false
     @State private var showJoin = false
-    @State private var showSettings = false
     @State private var showInvite = false
-    @State private var settingsExit: SettingsExit?
     @State private var newName = ""
     /// Your people picked in New chat, added straight in (People/).
     @State private var newPeople: Set<UUID> = []
@@ -54,6 +52,10 @@ struct ChatsListView: View {
             }
             .background(Theme.cream)
             .overlay { emptyState }
+            // Keeps the last row (and the empty state) clear of the tab bar.
+            // Only the inbox does: an open chat gets the whole screen, and
+            // the bar steps aside.
+            .safeAreaPadding(.bottom, tabs?.barHeight ?? 0)
             .refreshable { await app.refreshChats() }
             .navigationTitle("Chats")
             .navigationBarTitleDisplayMode(.inline)
@@ -84,23 +86,6 @@ struct ChatsListView: View {
                 }
             }
             .sheet(isPresented: $showInvite) { InviteSheet() }
-            // Signing out waits for the sheet to go, so it isn't left over sign-in.
-            .sheet(isPresented: $showSettings, onDismiss: {
-                guard let exit = settingsExit else { return }
-                settingsExit = nil
-                Task { await app.leave(exit) }
-            }) {
-                SettingsView { exit in
-                    if showSettings {
-                        settingsExit = exit
-                        showSettings = false
-                    } else {
-                        // Already closed (a delete finished after the sheet
-                        // went): nothing will dismiss it again, so leave now.
-                        Task { await app.leave(exit) }
-                    }
-                }
-            }
             .alert("Something went wrong", isPresented: Binding(get: { error != nil || app.problem != nil },
                                                                 set: { if !$0 { error = nil; app.problem = nil } })) {
                 Button("OK", role: .cancel) {}
@@ -108,10 +93,6 @@ struct ChatsListView: View {
                 Text(error ?? app.problem ?? "")
             }
         }
-        #if DEBUG
-        // `-screen settings-sheet` opens Settings over the inbox (PeoplePreviewScreen).
-        .onAppear { if UserDefaults.standard.bool(forKey: "KetchupOpenSettings") { showSettings = true } }
-        #endif
         // Keep the inbox fresh while it's on screen (badges, previews).
         .task {
             while !Task.isCancelled {
@@ -122,9 +103,18 @@ struct ChatsListView: View {
         .onChange(of: path) { _, new in
             if new.isEmpty { Task { await app.refreshChats() } }
         }
-        // In a chat, horizontal swipes are the chat's: the pager stays put.
+        #if DEBUG
+        // `-openChat YES` opens Breck 1.2 s in, as if tapped, so a home
+        // preview shows the tab bar stepping aside for the chat.
+        .task {
+            guard Previewing.isOn, UserDefaults.standard.bool(forKey: "openChat") else { return }
+            try? await Task.sleep(for: .seconds(1.2))
+            path = [PreviewData.breckId]
+        }
+        #endif
+        // In a chat the tab bar steps aside: the chat's input bar takes the bottom.
         .onChange(of: path.isEmpty, initial: true) { _, atInbox in
-            pager?.locked = !atInbox
+            tabs?.locked = !atInbox
         }
     }
 
@@ -151,13 +141,9 @@ struct ChatsListView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        // The middle of the bar stays empty (no "Chats" title): HomePager's
-        // switcher sits there.
+        // The big header names the page; the bar keeps just its button.
         ToolbarItem(placement: .principal) {
             Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
-        }
-        ToolbarItem(placement: .topBarLeading) {
-            Button { showSettings = true } label: { profileLabel }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -169,20 +155,6 @@ struct ChatsListView: View {
             }
             .disabled(busy)
             .accessibilityLabel("New chat or join")
-        }
-    }
-
-    /// My photo, or my initials in my color, where a generic person icon used to be.
-    @ViewBuilder
-    private var profileLabel: some View {
-        if let me = app.me {
-            Avatar(name: me.displayName, path: me.avatarPath, size: 30)
-                .accessibilityHidden(false)
-                .accessibilityLabel("Settings, \(me.displayName)")
-        } else {
-            Image(systemName: "person")
-                .foregroundStyle(Theme.ink)
-                .accessibilityLabel("Settings")
         }
     }
 

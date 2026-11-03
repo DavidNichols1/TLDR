@@ -3,13 +3,13 @@
 //  Ketchup
 //
 //  The chat side of the app on fixtures, one screen per `-screen` name:
-//  sign-in (email and code), the name step, the home pager on each page,
-//  the inbox (full, empty and loading) with its New chat and Join sheets,
-//  the Breck chat (loading, opened from the copy kept on the phone with no
-//  server, a jump to a cited message, and someone joining: JoinedPreview.swift),
-//  its info sheet, and the app icon.
-//  The info sheet is shown full screen. The inbox screens are the pager's
-//  Chats page, as in the app, so `home` and `inbox` are the same screen.
+//  sign-in (email and code), the name step, the home on each tab (Chats,
+//  Instagram, Snapchat, You), the inbox (full, empty and loading) with its
+//  New chat and Join sheets, the Breck chat (loading, opened from the copy
+//  kept on the phone with no server, a jump to a cited message, and someone
+//  joining: JoinedPreview.swift), its info sheet, and the app icon. The info
+//  sheet is shown full screen. The inbox screens are the home's Chats tab,
+//  as in the app, so `home` and `inbox` are the same screen.
 //
 
 #if DEBUG
@@ -23,6 +23,7 @@ struct CorePreviewScreen: View {
         case home
         case homeInstagram = "home-instagram"
         case homeSnapchat = "home-snapchat"
+        case homeYou = "home-you"
         case inbox
         case inboxLoading = "inbox-loading"
         case inboxEmpty = "inbox-empty"
@@ -63,10 +64,12 @@ struct CorePreviewScreen: View {
         case .chatJoined: _chatModel = State(initialValue: PreviewData.joinedChatModel())
         default: _chatModel = State(initialValue: PreviewData.chatModel())
         }
-        // The Instagram and Snapchat pages open their synthetic test threads
+        // The Instagram and Snapchat tabs open their synthetic test threads
         // instead of the real sites, so previews stay offline. Registered, not
         // saved: it lasts for this launch only.
         UserDefaults.standard.register(defaults: ["KetchupInstagramFixture": true, "KetchupSnapchatFixture": true])
+        // The You tab lists three of the demo chat's friends as your people.
+        PeopleStore.shared.preview(blocked: [], contacts: PeoplePreviewScreen.contacts)
     }
 
     var body: some View {
@@ -79,18 +82,20 @@ struct CorePreviewScreen: View {
             case .name:
                 NameView()
             case .home, .inbox, .inboxEmpty, .inboxLoading:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .chats)
             case .homeInstagram:
-                HomePager(previewing: .web(.instagram))
+                HomeTabs(previewing: .web(.instagram))
             case .homeSnapchat:
-                HomePager(previewing: .web(.snapchat))
+                HomeTabs(previewing: .web(.snapchat))
+            case .homeYou:
+                HomeTabs(previewing: .you)
             case .newChat:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
                         NewChatSheet(name: $draft) {}
                     }
             case .join:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
                         JoinChatSheet(code: $draft) {}
                     }

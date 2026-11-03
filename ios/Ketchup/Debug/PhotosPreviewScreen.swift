@@ -3,8 +3,8 @@
 //  Ketchup
 //
 //  Photos on fixtures, one screen per `-screen` name. Profile photos: the
-//  cropper framing a picked photo, the inbox with David's photo on the
-//  account button, the Breck chat with photos by each sender's run, and its
+//  cropper framing a picked photo, the inbox with David's photo on the You
+//  tab, the Breck chat with photos by each sender's run, and its
 //  members. Photos in chats: the end of Breck with photos in it, a photo of
 //  David's on its way up, one waiting in the composer, and the viewer. Muse
 //  Spark reading them: a brief and an answer that cite Maya's photo of the
@@ -56,7 +56,7 @@ struct PhotosPreviewScreen: View {
             : ChatModel.preview(chat: PreviewData.breck, myId: PreviewData.me, members: members,
                                 messages: PreviewData.messages, catchUp: .done(PreviewData.brief),
                                 answer: .done(PreviewData.answer), delay: .seconds(1.5)))
-        // The pager's other pages stay on their synthetic threads (see CorePreviewScreen).
+        // The home's web tabs stay on their synthetic threads (see CorePreviewScreen).
         UserDefaults.standard.register(defaults: ["KetchupInstagramFixture": true, "KetchupSnapchatFixture": true])
     }
 
@@ -68,7 +68,7 @@ struct PhotosPreviewScreen: View {
                     try await Task.sleep(for: .seconds(1))
                 }
             case .inbox:
-                HomePager(previewing: .chats)
+                HomeTabs(previewing: .chats)
             case .chat, .thread:
                 NavigationStack {
                     ChatView(model: chatModel)
