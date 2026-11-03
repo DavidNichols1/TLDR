@@ -38,6 +38,12 @@ time are we leaving?" and get groaned at.
   doesn't say, it tells you so.
 - **A real group chat underneath.** Sign in with an email code, create a chat, and
   invite friends with a 6-character code. Messages arrive in real time.
+- **Profile photos.** Pick a photo, frame it in the square, and it shows by your
+  messages, in the member list and on your account button. No photo, no problem: your
+  initials stand in.
+- **Photos in the chat.** Send a photo with a caption or without one. It shows in your
+  bubble straight away with a ring filling as it uploads, keeps its shape in the thread,
+  and opens full screen to zoom and share. Only the chat's members can see it.
 
 <table>
   <tr>
@@ -158,6 +164,15 @@ flowchart LR
   with JWT verification on. It reads messages *with the caller's token*, so Row Level
   Security decides what the model can see. It uses the service role only to write and
   check `ai_briefs`.
+- **Photos** ([`ios/Ketchup/Photos/`](ios/Ketchup/Photos), [`Storage.swift`](ios/Ketchup/Net/Storage.swift)):
+  a small Storage client (upload with progress, public and signed URLs, delete) and one
+  image pipeline for every photo. Decoded photos stay in memory at the size they're
+  drawn, the original bytes stay on disk, and each upload gets a new path, so every
+  phone downloads each photo once. A profile photo is cropped on the phone to a 512 px
+  JPEG (66 to 153 KB on the simulator's sample photos). A chat photo goes up as two
+  JPEGs: at most 2048 px for the viewer, and a 768 px copy for the thread. The bubble is
+  laid out from the photo's stored size, so the thread doesn't jump as photos load. In
+  the transcript Muse Spark reads, a photo is a `[photo]` line with its caption.
 
 ### Security
 
@@ -168,18 +183,29 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **Deleting your account deletes what you wrote.** Settings → Delete account calls
+- **Deleting your account deletes what you wrote.** Settings → Delete account first deletes your
+  profile photo and the photos you sent from storage, then calls
   [`delete_account()`](supabase/migrations/0007_people.sql), one transaction. Your
   profile, memberships and every message you sent go, and so does a chat you were the
   last one in. Each chat you wrote in gets its inbox line recomputed, so no preview
   quotes you, and catch-ups friends saved that read your messages are deleted too: your
   words don't outlive you inside someone else's summary. Messages don't stay behind as
   "Deleted account", because in a group of friends the words still say who wrote them.
-- **A 33-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
+  Profile photos are in a public bucket, so the app loads them without a token, but
+  nobody can list it. You can only upload into and delete from your own folder (10 an
+  hour), and your profile can only point at a photo in your own folder. Chat photos are
+  in a private bucket: only the chat's members can read them (through short-lived signed
+  URLs) or upload into its folder (200 files an hour), only the sender can delete one,
+  and a message can only point at a photo already uploaded to its own chat. Photos are
+  re-encoded on the phone, so no location or other metadata leaves it.
+- **A 49-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
-  Instagram and Snapchat catch-up's usage cap, and deleting an account. It runs in one
-  transaction and rolls back.
+  Instagram and Snapchat catch-up's usage cap, profile photos (own folder only, no
+  listing, the hourly cap), chat photos (members only, uploaded first, own chat only,
+  only the sender deletes) and deleting an account. It runs in one transaction and
+  rolls back.
 
 ## Run it yourself
 

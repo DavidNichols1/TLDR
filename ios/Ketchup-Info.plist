@@ -24,5 +24,8 @@
 		<string>sc-cdn.net</string>
 		<string>sc-static.net</string>
 	</array>
+	<!-- A chat photo's Share sheet can save it to the library (Photos/PhotoViewer.swift). -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ketchup saves the chat photos you choose to your photo library.</string>
 </dict>
 </plist>

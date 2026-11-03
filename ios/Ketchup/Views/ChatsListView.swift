@@ -159,13 +159,12 @@ struct ChatsListView: View {
         }
     }
 
-    /// My initials in my color, where a generic person icon used to be.
+    /// My photo, or my initials in my color, where a generic person icon used to be.
     @ViewBuilder
     private var profileLabel: some View {
         if let me = app.me {
-            Text(Theme.initials(me.displayName))
-                .font(.system(.subheadline, design: .serif, weight: .bold))
-                .foregroundStyle(Theme.personColor(name: me.displayName))
+            Avatar(name: me.displayName, path: me.avatarPath, size: 30)
+                .accessibilityHidden(false)
                 .accessibilityLabel("Settings, \(me.displayName)")
         } else {
             Image(systemName: "person")
