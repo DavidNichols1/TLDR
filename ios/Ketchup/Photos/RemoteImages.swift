@@ -101,8 +101,12 @@ nonisolated final class RemoteImages: @unchecked Sendable {
     #endif
 
     private init() {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        folder = caches.appending(path: "photos", directoryHint: .isDirectory)
+        var root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        #if DEBUG
+        // Offline previews keep their photos out of the real cache (as DeviceStore does).
+        if Self.previewing { root = URL.temporaryDirectory.appending(path: "Ketchup-preview") }
+        #endif
+        folder = root.appending(path: "photos", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         memory.totalCostLimit = 80 * 1024 * 1024
         let config = URLSessionConfiguration.default
