@@ -144,3 +144,9 @@ private `chat-media` bucket under the chat's folder, named like the app names th
   message's `created_at` with an update (that trigger doesn't run on updates). Last, it
   backdates `chats.created_at` and the summary columns so that new members see
   everything as unread.
+- Joining a chat adds a "David joined" line to it (migration 0009: a `messages` row with
+  `kind = 'joined'`). The script adds the demo friends directly, so they get none, and
+  it leaves join lines out of the chat's inbox line, its message counts and the unread
+  counts it prints. A join line that would land inside the conversation (you joined,
+  then ran `--retime`) moves to the chat's start. Before 0009 is applied, none of this
+  applies and nothing changes.

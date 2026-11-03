@@ -37,7 +37,8 @@ time are we leaving?" and get groaned at.
   owe Maya?". You get a short answer with the messages that back it up. If the chat
   doesn't say, it tells you so.
 - **A real group chat underneath.** Sign in with an email code, create a chat, and
-  invite friends with a 6-character code. Messages arrive in real time.
+  invite friends with a 6-character code. Messages arrive in real time, and a small
+  "Maya joined" line says when someone comes in.
 - **Profile photos.** Pick a photo, frame it in the square, and it shows by your
   messages, in the member list and on your account button. No photo, no problem: your
   initials stand in.
@@ -70,7 +71,8 @@ checks that every claim is backed by a real message.
    ([`transcript.ts`](supabase/functions/_shared/transcript.ts)). Each message is one
    line, `[m12] Sat, Nov 7, 9:15 AM · Maya: …`, with timestamps in the reader's time
    zone. Newlines inside a message are flattened, so one message can't pretend to be
-   another.
+   another. Someone joining is a `[Maya joined]` line with no ref: context the model
+   can use but can't cite, and it isn't counted as a message.
 2. **Strict JSON output.** The request sends a JSON Schema as `response_format`
    (`json_schema`, `strict: true`), so the output is limited to that shape: `tldr`,
    `highlights`, `plans` (with `starts_at`, `ends_at`, `all_day`, `location`,
@@ -194,14 +196,18 @@ flowchart LR
 - **Android app** ([`android/`](android)): Kotlin and Jetpack Compose on the same
   backend, with no networking libraries. The same kind of hand-written Supabase client
   (email-code auth, PostgREST, RPCs, edge functions) and its own small websocket client
-  for Realtime, over TLS with the system's trust store and a hostname check. 123 JVM
+  for Realtime, over TLS with the system's trust store and a hostname check. 137 JVM
   unit tests cover the Realtime protocol, paging, the brief and the reader's parser.
   See "Android, and the Instagram bubble" below.
 - **Database** ([`supabase/migrations/`](supabase/migrations)): profiles, chats, members,
   messages and `ai_briefs`. Writes that change membership go through security-definer
   RPCs, and clients can't write directly to `chats` or `chat_members`. A new member's
   read cursor starts before the chat began, so their first Catch me up covers the whole
-  history. Indexes are measured, not guessed: [`speed_check.sql`](supabase/tests/speed_check.sql)
+  history. Joining, starting a chat or being added leaves one "Maya joined" line in the
+  thread ([`0009_joins.sql`](supabase/migrations/0009_joins.sql)): a message row the
+  server writes, so it pages and arrives over Realtime like any message, but it never
+  counts as unread, never becomes the inbox's last message and never moves anyone's
+  read cursor. Indexes are measured, not guessed: [`speed_check.sql`](supabase/tests/speed_check.sql)
   times the hot paths on today's data and on a busy account built inside a rolled-back
   transaction (20,000 messages, 5,000 unread, 3,000 saved briefs). Migration 0008 added
   only what moved a number: every send's rate check went from 0.80 ms to 0.015 ms, and
@@ -254,6 +260,11 @@ flowchart LR
   On the 302-message demo chat the app's first page went from 6.4 ms to 0.49 ms in
   the database, and the catch-up's read from 8.0 ms to 0.45 ms (EXPLAIN ANALYZE, median
   of 7, November 3, 2026).
+- **Only the server says who joined.** A "Maya joined" line is written by the join
+  itself, as the person who joined. Clients can't post one, for themselves or anyone
+  else: they have no grant on the message's `kind`, and the insert policy takes only
+  text. It doesn't count toward the send limit, and leaving and rejoining moves the line
+  instead of adding another, so it can't be used to flood a chat.
 - **Reports go to us, not to the app.** You can report a message (long press) or a
   person (their profile), with a reason. Only the reporter can file one, nobody can read
   reports through the API, and the server keeps a copy of the reported message so it
@@ -272,15 +283,17 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **An 80-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 95-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
   Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
   inbox lines, dropped catch-ups, one way), reports (unreadable, never your own, never
   from outside a chat), your people (private, only from a shared chat, new chats skip
   whoever blocked you), profile photos (own folder only, no listing, the hourly cap),
-  chat photos (members only, uploaded first, own chat only, only the sender deletes)
-  and deleting an account. It runs in one transaction and rolls back.
+  chat photos (members only, uploaded first, own chat only, only the sender deletes),
+  deleting an account, and "joined" lines (server-written only, never unread or the
+  inbox line, outside the send limit, one per person). It runs in one transaction and
+  rolls back.
 
 ## Run it yourself
 
