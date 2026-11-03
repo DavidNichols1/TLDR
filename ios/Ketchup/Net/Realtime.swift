@@ -40,6 +40,9 @@ final class ChatRealtime {
     }
 
     func start() {
+        #if DEBUG
+        if PreviewData.isActive { return }  // offline preview mode
+        #endif
         guard stopped else { return }
         stopped = false
         Task { await connect() }

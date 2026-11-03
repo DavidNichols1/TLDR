@@ -9,6 +9,19 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        #if DEBUG
+        if let screen = PreviewData.screen {
+            // Offline preview mode (`-screen <name>`): see Debug/PreviewData.swift.
+            PreviewRouter(name: screen)
+        } else {
+            live
+        }
+        #else
+        live
+        #endif
+    }
+
+    private var live: some View {
         Group {
             if !app.isSignedIn {
                 SignInView()
