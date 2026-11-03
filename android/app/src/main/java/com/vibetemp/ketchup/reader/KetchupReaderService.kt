@@ -48,6 +48,10 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
     private var watchJob: Job? = null
     private var readJob: Job? = null
 
+    /** The person tapped Stop: the reader puts the thread back and hands nothing over. */
+    @Volatile
+    private var stopRequested = false
+
     /** The thread the bubble is up for. */
     private var current: OnScreen? = null
 
@@ -147,7 +151,8 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         val root = rootInActiveWindow ?: return null
         val source = sourceOf(root) ?: return null
         val layout = ThreadLayout.detect(NodeSnapshots.structure(root), source) ?: return null
-        return OnScreen(source, layout, root.windowId, fixture = root.packageName?.toString() == packageName)
+        val fixture = root.packageName?.toString() == packageName && ReaderDebug.fixtureIsOffline(root)
+        return OnScreen(source, layout, root.windowId, fixture)
     }
 
     /** Which app [root] is: Instagram, Snapchat, or (debug builds) the fixture thread. */
@@ -194,7 +199,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
     }
 
     override fun onStop() {
-        readJob?.cancel()
+        stopRequested = true
     }
 
     override fun onPick(last: Int) {
@@ -203,14 +208,19 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         val overlay = overlay ?: return
         overlay.showPanel(PanelState.Reading(ReadProgress(0, last)))
         readingWindow = on.windowId
+        stopRequested = false
         readJob = scope.launch {
             try {
                 val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source))
-                val result = reader.read(last) { overlay.showPanel(PanelState.Reading(it)) }
+                val result = reader.read(last, { overlay.showPanel(PanelState.Reading(it)) }, { stopRequested })
                 when (result) {
                     is ThreadReader.Result.Read -> handOff(result.thread, on)
                     ThreadReader.Result.NotAThread -> overlay.showPanel(PanelState.Problem(R.string.reader_problem_not_thread, null))
                     ThreadReader.Result.NothingFound -> overlay.showPanel(PanelState.Problem(R.string.reader_problem_nothing, last))
+                    ThreadReader.Result.Stopped -> {
+                        Log.i(TAG, "read stopped")
+                        overlay.hidePanel()
+                    }
                 }
             } catch (e: CancellationException) {
                 Log.i(TAG, "read stopped")

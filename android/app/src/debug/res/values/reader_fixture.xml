@@ -4,4 +4,6 @@
     <item name="reader_fixture_root" type="id" />
     <item name="reader_fixture_list" type="id" />
     <item name="reader_fixture_composer" type="id" />
+    <!-- The fixture started with the boolean extra "live": the reader treats it like a real thread (it needs a Ketchup account). -->
+    <item name="reader_fixture_live" type="id" />
 </resources>

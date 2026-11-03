@@ -32,12 +32,17 @@ internal object ReaderDebug {
     const val ENABLED = true
     const val ACTION_DUMP = "com.vibetemp.ketchup.debug.READER_DUMP"
     private const val FIXTURE_ROOT = "com.vibetemp.ketchup:id/reader_fixture_root"
+    private const val FIXTURE_LIVE = "com.vibetemp.ketchup:id/reader_fixture_live"
     private const val TAG_DUMP = "KetchupReaderDump"
     private var receiver: BroadcastReceiver? = null
 
     /** Instagram, when [root] is the fixture thread; null for every other screen of the app. */
     fun fixtureSource(root: AccessibilityNodeInfo): TextSource? =
         if (root.findAccessibilityNodeInfosByViewId(FIXTURE_ROOT).isNotEmpty()) TextSource.INSTAGRAM else null
+
+    /** The fixture as offline test data (no account needed), unless it was started with `--ez live true`. */
+    fun fixtureIsOffline(root: AccessibilityNodeInfo): Boolean =
+        root.findAccessibilityNodeInfosByViewId(FIXTURE_LIVE).isEmpty()
 
     fun onConnected(service: AccessibilityService) {
         val r = object : BroadcastReceiver() {

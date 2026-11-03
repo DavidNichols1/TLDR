@@ -13,6 +13,8 @@ internal object ReaderDebug {
 
     fun fixtureSource(root: AccessibilityNodeInfo): TextSource? = null
 
+    fun fixtureIsOffline(root: AccessibilityNodeInfo): Boolean = false
+
     fun onConnected(service: AccessibilityService) = Unit
 
     fun onDisconnected(service: AccessibilityService) = Unit

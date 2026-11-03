@@ -41,6 +41,11 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
 | `chat-breck` | `debug/ChatPreviews.kt` | The end of the Breck thread on fixtures |
 | `brief-breck` | `debug/BriefPreviews.kt` | Muse Spark's real Breck brief: gist and highlights, each with its source |
+| `reader-instagram-page`, `reader-snapchat-page` | `debug/ReaderPreviews.kt` | The pager's Instagram and Snapchat pages, live: is the bubble on, is the app installed |
+| `reader-page-on` | `debug/ReaderPreviews.kt` | The Instagram page with the bubble on and Instagram installed |
+| `reader-consent` | `debug/ReaderPreviews.kt` | The disclosure before Android's accessibility settings |
+| `reader-panel` | `debug/ReaderPreviews.kt` | The bubble and each state of its panel (pick, reading, sign in, set up, nothing found) |
+| `reader-fixture` | `debug/ReaderPreviews.kt` | A button that opens the synthetic Instagram thread the reader service can read |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
 Fixtures are debug-only assets in `app/src/debug/assets/fixtures/`: iOS's `messages.json`, `brief.json`, `ask.json`, `ask-notfound.json`, and `instagram-thread.json` (iOS's synthetic Instagram fixture as a `TextThread`, made-up people). `debug/PreviewData.kt` decodes them with the app's own JSON setup; in a composable, `val data = previewData()`.
@@ -104,6 +109,31 @@ suspend fun ask(source: BriefSource, question: String, readerName: String): AskR
 
 - The session lives in private app storage (`ketchup.session` shared preferences); the manifest keeps the app out of backups and device transfers. Only Supabase Auth refusing the refresh token (400/401) signs you out.
 - Times are `java.time.Instant` and keep Postgres's microseconds, so a read cursor set to a message's own time covers it.
+
+## The reader (experimental, sideloaded only)
+
+`reader/KetchupReaderService` reads the DM thread open in the official Instagram or Snapchat app, when the person taps, and hands a `TextThread` to `BriefActivity.start`. Like the iOS web readers it's against both apps' terms and Google Play wouldn't allow it, so it stays experimental and sideloaded.
+
+- **Spotting a thread** (no tap needed, no text read): a structure-only copy of the screen (`NodeSnapshots.structure`: class names, bounds, flags, text lengths, and an editable field's hint) must show a message list over a "Message..." composer ("Send a chat" on Snapchat), `ThreadLayout`. Then a 56 dp Ketchup bubble floats over it (`ReaderOverlay`, `TYPE_ACCESSIBILITY_OVERLAY`, no draw-over-apps permission), draggable, kept above the composer, gone when the thread is.
+- **Reading** (only after a tap): the bubble opens a panel, Last 30 / 80 / 120 (`ReaderPanel`). Not signed in, or no consent yet: it says so and opens Ketchup. The read (`ThreadReader`) scrolls back with `ACTION_SCROLL_BACKWARD`, waits for the list to settle, copies the screen with text, and lays the pages together by the shift the shared pieces agree on (`Stitcher`), so nothing is read twice or lost. It stops for the iOS readers' reasons (`enough`, `start`, `loads`, `steps`, `budget`, `no-scroller`), puts the thread back, and hands over the newest N with `ReaderStats` (counts only). Stop puts it back and hands nothing over.
+- **Parsing** (`PageParser`, `ThreadWalk`, pure Kotlin behind `ReaderNode`, JVM-tested): never by view ids, which Instagram obfuscates. Right of center is mine; a long-pressable box that isn't the full width is a bubble; a short loose line over their bubble names the run in a group; "You replied to Maya" plus the next bubble in the row makes a `TextMessage.Quote`; photos, videos, voice notes, GIFs, stickers and shared posts become "[photo]" style placeholders; centered times ("Today 3:41 PM", `Stamps`) give `at`; notices, "Seen", reactions and avatars are dropped. A 1:1 thread names them after its title.
+- **Privacy:** nothing is stored (a consent flag aside); logs are counts only (`adb logcat -s KetchupReader`).
+- **The page** (`ReaderPage(source)`, the pager's Instagram and Snapchat pages): what the bubble does, whether it's on (checked on resume), Turn on (the consent screen, then `Settings.ACTION_ACCESSIBILITY_SETTINGS`), the Android 13+ "Allow restricted settings" tip for sideloaded installs, and Open Instagram (or a note that it isn't installed). Snapchat's page says it hasn't been tested on a real phone.
+
+Check it on the `ketchup_reader` emulator (no Instagram there; debug builds draw a synthetic thread with made-up people, `debug/ReaderFixtureActivity`, and a debug service config adds the app's own package so only that screen counts as a thread):
+
+```bash
+ADB="$HOME/Library/Android/sdk/platform-tools/adb -s emulator-5564"
+$ADB shell settings put secure enabled_accessibility_services com.vibetemp.ketchup/com.vibetemp.ketchup.reader.KetchupReaderService
+$ADB shell settings put secure accessibility_enabled 1      # a force-stop of the app turns it off again
+$ADB shell am start -n com.vibetemp.ketchup/.MainActivity --es screen reader-consent   # agree once, or tap through reader-instagram-page
+$ADB shell am start -n com.vibetemp.ketchup/.debug.ReaderFixtureActivity               # the bubble shows; tap it, pick Last 30
+$ADB logcat -s KetchupReader    # "read instagram: 30 kept, found 38, ... stop enough" and "fixture check: 30 of 30 match"
+```
+
+The fixture is offline (no account needed, nothing sent); `--ez live true` keeps the sign-in check, so a signed-out phone shows "Sign in to Ketchup first". On Nov 3, 2026: Last 30 read 30 of 30 in 2.2 s, Last 120 read all 88 (stop `start`) in 10.3 s, both matching the fixture.
+
+**Tuning on a real phone** (David signs in himself; real DMs stay off git, screenshots and reports): open a thread, then long-press the bubble, or `$ADB shell am broadcast -a com.vibetemp.ketchup.debug.READER_DUMP -p com.vibetemp.ketchup` and `$ADB logcat -s KetchupReaderDump`. Debug builds log the screen's structure: class names, view ids, bounds, flags and text lengths, never text. The first things to check there: that Instagram's bubbles are long-pressable (the parser's bubble rule) and that its list advertises scroll-back. Whether Snapchat exposes chat text to accessibility at all is unknown.
 
 ## The design system
 

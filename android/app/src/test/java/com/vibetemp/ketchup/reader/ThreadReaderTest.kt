@@ -218,6 +218,26 @@ class ThreadReaderTest {
     }
 
     @Test
+    fun stopPutsTheThreadBackAndHandsNothingOver() {
+        val t = FakeThread("Trail Crew")
+        for (i in 0 until 200) t.them("Theo", "plan $i", label = i == 0)
+        val screen = FakeScreen(t)
+        var checks = 0
+        val result = runBlocking { ThreadReader(TextSource.INSTAGRAM, screen, { now }).read(120, {}, { ++checks > 3 }) }
+        assertEquals(ThreadReader.Result.Stopped, result)
+        assertTrue(screen.scrollsBack > 0)
+        assertTrue(screen.atBottom)
+
+        // The thread went away mid-read (the person left the app): nothing goes anywhere.
+        val real = FakeScreen(t)
+        var looks = 0
+        val leaving = object : ReaderScreen by real {
+            override suspend fun snapshot(): ReaderNode? = if (++looks > 2) null else real.window()
+        }
+        assertEquals(ThreadReader.Result.Stopped, runBlocking { ThreadReader(TextSource.INSTAGRAM, leaving, { now }).read(120) })
+    }
+
+    @Test
     fun notAThreadWithoutAList() {
         val screen = object : ReaderScreen by FakeScreen(FakeThread("x")) {
             override suspend fun snapshot(): ReaderNode =

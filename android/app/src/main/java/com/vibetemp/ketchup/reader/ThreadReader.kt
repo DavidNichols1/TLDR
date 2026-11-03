@@ -66,9 +66,16 @@ class ThreadReader(
 
         /** A list, but nothing in it read as a message. */
         data object NothingFound : Result
+
+        /** The person stopped it, or the thread went away mid-read. Nothing goes anywhere. */
+        data object Stopped : Result
     }
 
-    suspend fun read(last: Int, onProgress: (ReadProgress) -> Unit = {}): Result {
+    /**
+     * [stopped] is checked between scrolls: when it says so, the reader puts
+     * the thread back and returns [Result.Stopped].
+     */
+    suspend fun read(last: Int, onProgress: (ReadProgress) -> Unit = {}, stopped: () -> Boolean = { false }): Result {
         val wanted = last.coerceIn(1, MAX_MESSAGES)
         val started = screen.clock()
         val density = screen.density
@@ -84,13 +91,16 @@ class ThreadReader(
         var loads = 0
         var stalls = 0
         var reachedStart = false
+        var gone = false
         val stop: String
 
         suspend fun step(): Boolean {
             if (!screen.scrollBack()) return false
             steps++
             screen.awaitChange(SETTLE_MS)
-            val page = screen.snapshot()?.let { PageParser.parse(it, source, density) }
+            val root = screen.snapshot()
+            if (root == null) gone = true
+            val page = root?.let { PageParser.parse(it, source, density) }
             if (page != null && stitcher.add(page) > 0) stalls = 0 else stalls++
             return true
         }
@@ -114,6 +124,10 @@ class ThreadReader(
                     }
                     naming++
                 }
+                if (gone || stopped()) {
+                    stop = "steps"
+                    break
+                }
                 if (screen.clock() - started >= BUDGET_MS) {
                     stop = "budget"
                     break
@@ -131,7 +145,7 @@ class ThreadReader(
                 }
                 var grew = false
                 val until = screen.clock() + LOAD_WAIT_MS
-                while (!grew && screen.clock() < until) {
+                while (!grew && !gone && !stopped() && screen.clock() < until) {
                     screen.awaitChange(LOAD_POLL_MS)
                     stalls = 0
                     grew = step() && stalls == 0
@@ -147,8 +161,8 @@ class ThreadReader(
         }
         val ms = screen.clock() - started
 
-        // Put the thread back where the person had it.
-        if (steps > 0) {
+        // Put the thread back where the person had it (unless it's gone).
+        if (steps > 0 && !gone) {
             onProgress(ReadProgress(min(walk().messages.size, wanted), wanted, restoring = true))
             repeat(steps) {
                 if (screen.clock() - started >= BUDGET_MS + RESTORE_MS || !screen.scrollForward()) return@repeat
@@ -156,6 +170,7 @@ class ThreadReader(
             }
         }
 
+        if (gone || stopped()) return Result.Stopped
         val result = walk()
         if (result.messages.isEmpty()) return Result.NothingFound
         val stats = ReaderStats(

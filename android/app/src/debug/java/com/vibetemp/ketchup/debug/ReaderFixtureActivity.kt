@@ -42,7 +42,9 @@ import kotlin.math.roundToInt
  * right, long-pressable bubbles, a reply with its quote, photos, a voice
  * note, time stamps, a notice, a reaction and "Seen", and a "Message..."
  * composer. The service treats only this screen as a thread (its root's
- * id, ReaderDebug). Offline: nothing it leads to reaches the server.
+ * id, ReaderDebug). Offline: nothing it leads to reaches the server, and
+ * the reader skips its sign-in check here. With `--ez live true` it keeps
+ * that check, so the panel's "Sign in to Ketchup first" shows when signed out.
  */
 class ReaderFixtureActivity : Activity() {
 
@@ -59,7 +61,7 @@ class ReaderFixtureActivity : Activity() {
         super.onCreate(savedInstanceState)
         Previewing.active = true
         val thread = PreviewData.get(this).instagramThread
-        setContentView(screen(thread, rows(thread)))
+        setContentView(screen(thread, rows(thread), live = intent.getBooleanExtra(EXTRA_LIVE, false)))
     }
 
     /** The fixture's messages as Instagram's rows, with a few time stamps and the extras it draws. */
@@ -79,7 +81,7 @@ class ReaderFixtureActivity : Activity() {
         return out
     }
 
-    private fun screen(thread: TextThread, rows: List<Row>): View {
+    private fun screen(thread: TextThread, rows: List<Row>, live: Boolean): View {
         val root = LinearLayout(this).apply {
             id = R.id.reader_fixture_root
             orientation = LinearLayout.VERTICAL
@@ -90,7 +92,10 @@ class ReaderFixtureActivity : Activity() {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
-        root.addView(header(thread.title), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)))
+        root.addView(
+            header(thread.title).apply { if (live) id = R.id.reader_fixture_live },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)),
+        )
         val list = ListView(this).apply {
             id = R.id.reader_fixture_list
             divider = null
@@ -291,22 +296,24 @@ class ReaderFixtureActivity : Activity() {
 
     private fun colorFor(name: String): Int = PEOPLE[(name.hashCode() and 0x7fffffff) % PEOPLE.size]
 
-    private companion object {
-        val MEDIA = linkedMapOf(
+    companion object {
+        const val EXTRA_LIVE = "live"
+
+        private val MEDIA = linkedMapOf(
             "[photo]" to "Photo",
             "[video]" to "Video",
             "[GIF]" to "GIF",
             "[voice message]" to "Voice message",
             "[shared post]" to "Shared post",
         )
-        val WHITE = Color.WHITE
-        val BLACK = Color.parseColor("#000000")
-        val GRAY_TEXT = Color.parseColor("#737373")
-        val GRAY_LINE = Color.parseColor("#C7C7C7")
-        val GRAY_BUBBLE = Color.parseColor("#EFEFEF")
-        val GRAY_QUOTE = Color.parseColor("#F5F5F5")
-        val PURPLE = Color.parseColor("#7B4BF5")
-        val BLUE = Color.parseColor("#3797F0")
-        val PEOPLE = listOf("#E1306C", "#F77737", "#FCAF45", "#5B51D8", "#3797F0", "#20B486").map(Color::parseColor)
+        private val WHITE = Color.WHITE
+        private val BLACK = Color.parseColor("#000000")
+        private val GRAY_TEXT = Color.parseColor("#737373")
+        private val GRAY_LINE = Color.parseColor("#C7C7C7")
+        private val GRAY_BUBBLE = Color.parseColor("#EFEFEF")
+        private val GRAY_QUOTE = Color.parseColor("#F5F5F5")
+        private val PURPLE = Color.parseColor("#7B4BF5")
+        private val BLUE = Color.parseColor("#3797F0")
+        private val PEOPLE = listOf("#E1306C", "#F77737", "#FCAF45", "#5B51D8", "#3797F0", "#20B486").map(Color::parseColor)
     }
 }
