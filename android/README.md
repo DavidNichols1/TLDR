@@ -41,11 +41,6 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
 | `chat-breck` | `debug/ChatPreviews.kt` | The end of the Breck thread on fixtures |
 | `brief-breck` | `debug/BriefPreviews.kt` | Muse Spark's real Breck brief: gist and highlights, each with its source |
-| `reader-instagram-page`, `reader-snapchat-page` | `debug/ReaderPreviews.kt` | The pager's Instagram and Snapchat pages, live: is the bubble on, is the app installed |
-| `reader-page-on` | `debug/ReaderPreviews.kt` | The Instagram page with the bubble on and Instagram installed |
-| `reader-consent` | `debug/ReaderPreviews.kt` | The disclosure before Android's accessibility settings |
-| `reader-panel` | `debug/ReaderPreviews.kt` | The bubble and each state of its panel (pick, reading, sign in, set up, nothing found) |
-| `reader-fixture` | `debug/ReaderPreviews.kt` | A button that opens the synthetic Instagram thread the reader service can read |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
 Fixtures are debug-only assets in `app/src/debug/assets/fixtures/`: iOS's `messages.json`, `brief.json`, `ask.json`, `ask-notfound.json`, and `instagram-thread.json` (iOS's synthetic Instagram fixture as a `TextThread`, made-up people). `debug/PreviewData.kt` decodes them with the app's own JSON setup; in a composable, `val data = previewData()`.
@@ -119,6 +114,7 @@ suspend fun ask(source: BriefSource, question: String, readerName: String): AskR
 - **Parsing** (`PageParser`, `ThreadWalk`, pure Kotlin behind `ReaderNode`, JVM-tested): never by view ids, which Instagram obfuscates. Right of center is mine; a long-pressable box that isn't the full width is a bubble; a short loose line over their bubble names the run in a group; "You replied to Maya" plus the next bubble in the row makes a `TextMessage.Quote`; photos, videos, voice notes, GIFs, stickers and shared posts become "[photo]" style placeholders; centered times ("Today 3:41 PM", `Stamps`) give `at`; notices, "Seen", reactions and avatars are dropped. A 1:1 thread names them after its title.
 - **Privacy:** nothing is stored (a consent flag aside); logs are counts only (`adb logcat -s KetchupReader`).
 - **The page** (`ReaderPage(source)`, the pager's Instagram and Snapchat pages): what the bubble does, whether it's on (checked on resume), Turn on (the consent screen, then `Settings.ACTION_ACCESSIBILITY_SETTINGS`), the Android 13+ "Allow restricted settings" tip for sideloaded installs, and Open Instagram (or a note that it isn't installed). Snapchat's page says it hasn't been tested on a real phone.
+- **Previews** (`debug/ReaderPreviews.kt`, besides `reader-instagram` in the table above): `reader-instagram-page` and `reader-snapchat-page` (the live pages: is the bubble on, is the app installed), `reader-page-on`, `reader-consent`, `reader-panel` (the bubble and each panel state: pick, reading, sign in, set up, nothing found) and `reader-fixture` (opens the fixture thread below).
 
 Check it on the `ketchup_reader` emulator (no Instagram there; debug builds draw a synthetic thread with made-up people, `debug/ReaderFixtureActivity`, and a debug service config adds the app's own package so only that screen counts as a thread):
 
