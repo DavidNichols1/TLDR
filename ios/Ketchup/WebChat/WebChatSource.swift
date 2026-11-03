@@ -5,10 +5,9 @@
 //  EXPERIMENTAL, NOT RELEASED. A chat app whose own website Ketchup opens
 //  in a web view, and reads one open thread from when the user asks, for
 //  the same Muse Spark catch-up as Ketchup's own chats (edge function
-//  catch-up-text). Instagram is the one that works. Snapchat is listed so
-//  the pager has its page, but Snapchat for Web won't run in a phone's web
-//  view (it sends phones to the app store), and Ketchup doesn't fake a
-//  computer to get around that.
+//  catch-up-text). Instagram runs its phone page; Snapchat only runs its
+//  computer version, so it gets the desktop page, laid out wide and scaled
+//  to fit, in app-bound mode.
 //
 
 import Foundation
@@ -21,7 +20,8 @@ struct WebChatSource: Identifiable, Hashable {
     /// Where the web view starts: the site's own inbox.
     let startURL: URL
     /// The web view stays on these sites (and their subdomains); links
-    /// anywhere else open in Safari.
+    /// anywhere else open in Safari. In app-bound mode they must also be in
+    /// Info.plist's WKAppBoundDomains.
     let domains: [String]
     /// A single chat thread, where the catch-up button shows: this host or
     /// a subdomain, and a path matching `threadPath` (a regular expression).
@@ -34,12 +34,25 @@ struct WebChatSource: Identifiable, Hashable {
     /// Appended to WebKit's user agent, so the site serves its normal
     /// mobile page.
     let userAgentSuffix: String?
+    /// For a site that only runs on a computer: WebKit asks for the desktop
+    /// page with this user agent, and the page is laid out this wide, then
+    /// scaled down to fit. A view transform, nothing in the page.
+    let desktop: Desktop?
+    /// Keeps the web view to Info.plist's WKAppBoundDomains, the only way
+    /// WebKit lets a site run its service worker.
+    let appBound: Bool
     /// Whose terms say no to reading it automatically, for the intro card.
     let owner: String
-    /// Why the site can't run here, when it can't. The tab says so instead.
-    let unavailable: String?
+    /// One more line for the intro card, when the site needs explaining.
+    let note: String?
     /// Synthetic test threads for DEBUG builds.
     let fixtures: [Fixture]
+
+    struct Desktop: Hashable {
+        let userAgent: String
+        /// Points.
+        let width: Double
+    }
 
     /// A test page in the app bundle, shown at a thread URL so the button
     /// and the reader behave as they would on the real site.
@@ -81,8 +94,10 @@ extension WebChatSource {
         readerScript: "InstagramThreadReader",
         outlineScript: "InstagramPageOutline",
         userAgentSuffix: "Version/26.0 Mobile/15E148 Safari/604.1",
+        desktop: nil,
+        appBound: false,
         owner: "Meta",
-        unavailable: nil,
+        note: nil,
         fixtures: [
             Fixture(title: "Test thread", file: "ig-thread-fixture",
                     url: URL(string: "https://www.instagram.com/direct/t/ketchup-test-fixture/")!),
@@ -90,25 +105,29 @@ extension WebChatSource {
                     url: URL(string: "https://www.instagram.com/direct/t/ketchup-test-fixture/")!),
         ])
 
-    /// Checked Nov 3, 2026: with a phone's user agent web.snapchat.com says
-    /// to use a computer; with a desktop one and desktop content mode it
-    /// still lands on the mobile "Download Snapchat" page, because the page
-    /// sees a touch screen and a phone-wide window. Getting past that would
-    /// take a script injected into every Snapchat page, sign-in included,
-    /// which Ketchup doesn't do.
+    /// Snapchat for Web, checked Nov 3, 2026. On a phone it sends you to
+    /// "Download Snapchat", even with a desktop user agent; with the page
+    /// laid out wide too, it serves its computer version. Signed in, its chat
+    /// app then needs a service worker, so it runs in app-bound mode.
     static let snapchat = WebChatSource(
         id: "snapchat",
         name: "Snapchat",
-        startURL: URL(string: "https://web.snapchat.com")!,
-        domains: ["snapchat.com"],
-        threadHost: "web.snapchat.com",
-        threadPath: "^/[^/]+",
-        readerScript: "",
-        outlineScript: nil,
+        startURL: URL(string: "https://www.snapchat.com/web")!,
+        domains: ["snapchat.com", "snap.com"],
+        threadHost: "www.snapchat.com",
+        threadPath: "^/web/[^/]+",
+        readerScript: "SnapchatThreadReader",
+        outlineScript: "SnapchatPageOutline",
         userAgentSuffix: nil,
+        desktop: Desktop(userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Safari/605.1.15",
+                         width: 1024),
+        appBound: true,
         owner: "Snap",
-        unavailable: "On a phone, Snapchat for Web sends you to the Snapchat app. Getting around that would mean pretending to be a computer from inside Snapchat's own pages, sign-in included, and Ketchup won't do that.",
-        fixtures: [])
+        note: "Snapchat only runs its computer version here, so the page is shrunk to fit. Pinch to zoom.",
+        fixtures: [
+            Fixture(title: "Test chat", file: "snap-thread-fixture",
+                    url: URL(string: "https://www.snapchat.com/web/ketchup-test-fixture")!),
+        ])
 
     static let all: [WebChatSource] = [.instagram, .snapchat]
 }

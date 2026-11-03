@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Merged with the keys Xcode generates (INFOPLIST_KEY_* build settings).
+	App-bound domains, for the experimental web chats (ios/Ketchup/WebChat/):
+	WebKit only runs a site's service worker in a web view kept to these, and
+	Snapchat for Web won't load without one. App-wide: Ketchup's own scripts
+	(the readers) can then only run on these sites, so every web-chat source's
+	thread pages must be on the list. At most 10.
+	-->
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>instagram.com</string>
+		<string>snapchat.com</string>
+		<string>snap.com</string>
+		<string>sc-cdn.net</string>
+		<string>sc-static.net</string>
+	</array>
+</dict>
+</plist>

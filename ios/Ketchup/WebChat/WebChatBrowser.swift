@@ -9,7 +9,9 @@
 //  store keeps the sign-in the way Safari would. Nothing is injected into
 //  any page. The source's reader script runs only when the user picks how
 //  much to catch up on, on a thread page, in Ketchup's own isolated
-//  JavaScript world, and it checks the page again itself.
+//  JavaScript world, and it checks the page again itself. A desktop source
+//  (Snapchat) gets WebKit's desktop page and a custom user agent, the way
+//  Safari's "Request Desktop Website" does it, and app-bound mode.
 //
 
 import SwiftUI
@@ -34,8 +36,11 @@ final class WebChatBrowser {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
+        config.limitsNavigationsToAppBoundDomains = source.appBound
+        if source.desktop != nil { config.defaultWebpagePreferences.preferredContentMode = .desktop }
         if let suffix = source.userAgentSuffix { config.applicationNameForUserAgent = suffix }
         webView = WKWebView(frame: .zero, configuration: config)
+        webView.customUserAgent = source.desktop?.userAgent
         policy = WebChatNavigationPolicy(source: source)
         webView.navigationDelegate = policy
         webView.uiDelegate = policy
@@ -46,7 +51,12 @@ final class WebChatBrowser {
         // Sites change pages with pushState, which only KVO on `url` sees.
         observations = [
             webView.observe(\.url, options: [.initial, .new]) { [weak self] web, _ in
-                MainActor.assumeIsolated { self?.url = web.url }
+                MainActor.assumeIsolated {
+                    self?.url = web.url
+                    #if DEBUG
+                    if let self, let url = web.url { print("[\(self.source.id)] page \(Self.redacted(url))") }
+                    #endif
+                }
             },
             webView.observe(\.isLoading, options: [.initial, .new]) { [weak self] web, _ in
                 MainActor.assumeIsolated { self?.isLoading = web.isLoading }
@@ -96,6 +106,15 @@ final class WebChatBrowser {
     }
 
     #if DEBUG
+    /// Host and path for the console, with ids and the query left out: any
+    /// path piece that isn't a plain word becomes `:id`.
+    static func redacted(_ url: URL) -> String {
+        let parts = url.path.split(separator: "/").map { piece in
+            piece.range(of: "^([a-z][a-z-]{0,24}|v[0-9])$", options: .regularExpression) != nil ? String(piece) : ":id"
+        }
+        return (url.host ?? url.scheme ?? "?") + "/" + parts.joined(separator: "/")
+    }
+
     /// Test page only: a synthetic thread from the app bundle, shown at a
     /// thread URL so the button and the reader behave as they would on the
     /// real site. It makes no network requests.
@@ -109,7 +128,8 @@ final class WebChatBrowser {
     /// the page (structure, styles, positions; text only as lengths), saved
     /// to the app's temporary folder. Returns the file.
     func savePageOutline() async throws -> URL {
-        guard let url, source.allows(url), let name = source.outlineScript else { throw WebChatError.readerMissing }
+        // Thread pages only, like the reader: never a sign-in page.
+        guard isThread, let name = source.outlineScript else { throw WebChatError.notAThread }
         let outline = try await webView.callAsyncJavaScript(try Self.script(name), arguments: [:], in: nil,
                                                             contentWorld: .defaultClient) as? String ?? ""
         let out = FileManager.default.temporaryDirectory.appendingPathComponent("\(source.id)-outline.txt")
@@ -151,10 +171,42 @@ final class WebChatNavigationPolicy: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 }
 
-/// The browser's web view, as a SwiftUI view.
+/// The browser's web view, as a SwiftUI view. With a `layoutWidth` wider
+/// than the screen, the page is laid out that wide and scaled down to fit:
+/// the site gets a genuinely wide window, and since it's a view transform,
+/// touches and pinch zoom still land where they look.
 struct WebChatWebView: UIViewRepresentable {
     let webView: WKWebView
+    var layoutWidth: Double? = nil
 
-    func makeUIView(context: Context) -> WKWebView { webView }
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func makeUIView(context: Context) -> Host { Host(webView: webView, layoutWidth: layoutWidth) }
+    func updateUIView(_ uiView: Host, context: Context) {}
+
+    final class Host: UIView {
+        let webView: WKWebView
+        let layoutWidth: Double?
+
+        init(webView: WKWebView, layoutWidth: Double?) {
+            self.webView = webView
+            self.layoutWidth = layoutWidth
+            super.init(frame: .zero)
+            clipsToBounds = true
+            addSubview(webView)
+        }
+
+        required init?(coder: NSCoder) { fatalError("not from a storyboard") }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let width = layoutWidth.map({ CGFloat($0) }), bounds.width > 0, width > bounds.width else {
+                webView.transform = .identity
+                webView.frame = bounds
+                return
+            }
+            let scale = bounds.width / width
+            webView.bounds = CGRect(x: 0, y: 0, width: width, height: bounds.height / scale)
+            webView.center = CGPoint(x: bounds.midX, y: bounds.midY)
+            webView.transform = CGAffineTransform(scaleX: scale, y: scale)
+        }
+    }
 }

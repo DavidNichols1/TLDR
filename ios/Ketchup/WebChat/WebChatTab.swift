@@ -18,11 +18,7 @@ struct WebChatTab: View {
     var close: (() -> Void)? = nil
 
     var body: some View {
-        if let reason = source.unavailable {
-            WebChatUnavailable(source: source, reason: reason, close: close)
-        } else {
-            WebChatPage(source: source, close: close)
-        }
+        WebChatPage(source: source, close: close)
     }
 }
 
@@ -75,7 +71,7 @@ private struct WebChatPage: View {
             }
             ZStack(alignment: .bottom) {
                 if let browser {
-                    WebChatWebView(webView: browser.webView)
+                    WebChatWebView(webView: browser.webView, layoutWidth: source.desktop?.width)
                 } else {
                     Theme.cream
                 }
@@ -119,9 +115,8 @@ private struct WebChatPage: View {
         let b = WebChatBrowser(source: source)
         browser = b
         #if DEBUG
-        // `-KetchupInstagramFixture YES` opens the synthetic test thread instead.
-        if source == .instagram, UserDefaults.standard.bool(forKey: "KetchupInstagramFixture"),
-           let fixture = source.fixtures.first {
+        // `-KetchupInstagramFixture YES` (`-KetchupSnapchatFixture YES`) opens the synthetic test thread instead.
+        if UserDefaults.standard.bool(forKey: "Ketchup\(source.name)Fixture"), let fixture = source.fixtures.first {
             b.open(fixture)
             return
         }
@@ -296,6 +291,9 @@ struct WebChatIntro: View {
                         point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
                         point("hand.tap", "Open a chat, tap Catch me up, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
                         point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. Nothing is saved.")
+                        if let note = source.note {
+                            point("plus.magnifyingglass", note)
+                        }
                         point("exclamationmark.triangle", "Not in the released app. \(source.name)'s terms don't allow this, so it only ships if \(source.owner) is fine with it.")
                     }
                     Button("Got it", action: done)
@@ -321,36 +319,5 @@ struct WebChatIntro: View {
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-}
-
-/// A source whose site can't run in a phone's web view (Snapchat), said
-/// plainly in place of a page that would only send you to the app store.
-private struct WebChatUnavailable: View {
-    let source: WebChatSource
-    let reason: String
-    let close: (() -> Void)?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            WebChatBar(title: source.name, close: close) { EmptyView() }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Kicker("Not on iPhone")
-                    Text("\(source.name) only works on a computer")
-                        .font(.serif(.title2))
-                        .foregroundStyle(Theme.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(reason)
-                        .font(.body)
-                        .foregroundStyle(Theme.inkSoft)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .paperCard(padding: 22)
-                .padding(20)
-            }
-        }
-        .background(Theme.cream)
     }
 }

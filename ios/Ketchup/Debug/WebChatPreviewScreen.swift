@@ -3,11 +3,11 @@
 //  Ketchup
 //
 //  The web-chat screens offline, one per `-screen web-…` name, on the
-//  synthetic Instagram thread in Instagram/Fixture/ (made-up people): the
-//  Instagram page on that thread, the first-visit card, the catch-up while
-//  it reads, a finished one (a canned brief, not a Muse Spark call), a
-//  failure, a source shown whole, and the Snapchat page. No sign-in, no
-//  network. Sheets are shown full screen.
+//  synthetic threads in Instagram/Fixture/ and Snapchat/Fixture/ (made-up
+//  people): the Instagram page on its thread, the first-visit card, the
+//  catch-up while it reads, a finished one (a canned brief, not a Muse
+//  Spark call), a failure, a source shown whole, and the Snapchat page on
+//  its thread. No sign-in, no network. Sheets are shown full screen.
 //
 
 #if DEBUG
@@ -22,7 +22,6 @@ struct WebChatPreviewScreen: View {
         case error = "web-error"
         case quote = "web-quote"
         case snapchat = "web-snapchat"
-        case snapchatTrial = "web-snapchat-trial"
     }
 
     static var names: [String] { Screen.allCases.map(\.rawValue) }
@@ -32,11 +31,14 @@ struct WebChatPreviewScreen: View {
 
     init(name: String) {
         self.name = name
-        // For this launch only: the tab opens the fixture thread, and shows
-        // its first-visit card only on web-intro.
+        // For this launch only: the tabs open their fixture threads, and show
+        // a first-visit card only on web-intro.
         var args = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
-        args["KetchupInstagramFixture"] = true
+        // `-KetchupSnapchatFixture NO` keeps the real site instead.
+        if args["KetchupInstagramFixture"] == nil { args["KetchupInstagramFixture"] = true }
+        if args["KetchupSnapchatFixture"] == nil { args["KetchupSnapchatFixture"] = true }
         args["webchat.instagram.introSeen"] = name != Screen.intro.rawValue
+        args["webchat.snapchat.introSeen"] = true
         UserDefaults.standard.setVolatileDomain(args, forName: UserDefaults.argumentDomain)
     }
 
@@ -56,8 +58,6 @@ struct WebChatPreviewScreen: View {
                 WebQuoteCard(message: Self.thread.messages[84], source: .instagram)
             case .snapchat:
                 WebChatTab(source: .snapchat)
-            case .snapchatTrial:
-                SnapchatTrialScreen()
             case nil:
                 PreviewIndex(unknown: name)
             }

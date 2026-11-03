@@ -2,9 +2,10 @@
 //  InstagramEntry.swift
 //  Ketchup
 //
-//  EXPERIMENTAL, NOT RELEASED. The inbox's way into the Instagram page
+//  EXPERIMENTAL, NOT RELEASED. The inbox's way into the web chats
 //  (ChatsListView's toolbar), until the signed-in home becomes a pager with
-//  a WebChatTab per source. It shows the same tab full screen, with Done.
+//  a WebChatTab per source. A menu of the sources; each shows its tab full
+//  screen, with Done.
 //
 
 import SwiftUI
@@ -17,14 +18,18 @@ struct InstagramToolbarItem: ToolbarContent {
 
 private struct InstagramEntryButton: View {
     @Environment(AppModel.self) private var app
-    @State private var open = false
+    @State private var open: WebChatSource?
 
     var body: some View {
-        Button { open = true } label: {
-            Label("Catch up on Instagram", systemImage: "camera")
+        Menu {
+            ForEach(WebChatSource.all) { source in
+                Button("Catch up on \(source.name)") { open = source }
+            }
+        } label: {
+            Label("Catch up on another app", systemImage: "camera")
         }
-        .fullScreenCover(isPresented: $open) {
-            WebChatTab(source: .instagram) { open = false }
+        .fullScreenCover(item: $open) { source in
+            WebChatTab(source: source) { open = nil }
                 .environment(app)
         }
     }
