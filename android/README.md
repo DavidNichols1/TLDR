@@ -40,7 +40,7 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 |---|---|---|
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
 | `chat-breck` | `debug/ChatPreviews.kt` | The end of the Breck thread on fixtures |
-| `brief-breck` | `debug/BriefPreviews.kt` | Muse Spark's real Breck brief: gist and highlights, each with its source |
+| `brief`, `brief-plans`, `brief-owes`, `brief-questions`, `brief-checked`, `brief-cached`, `brief-loading`, `brief-loading-still`, `brief-empty`, `brief-error`, `brief-signed-out`, `brief-gone`, `brief-thread`, `brief-thread-loading`, `brief-citations`, `brief-own-task`, `ask`, `ask-answer`, `ask-notfound` | `debug/BriefPreviews.kt` | Catch me up and Ask on Muse Spark's real Breck brief and answers, and iOS's hand-written brief of the Instagram thread. A scripted backend plays them back: Try again re-reads, Ask answers after a pause ("hot tub" gets the one the chat doesn't say). `-still` is the Reduce Motion skim; `brief-own-task` opens the real `BriefActivity` the way the reader service will |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
 Fixtures are debug-only assets in `app/src/debug/assets/fixtures/`: iOS's `messages.json`, `brief.json`, `ask.json`, `ask-notfound.json`, and `instagram-thread.json` (iOS's synthetic Instagram fixture as a `TextThread`, made-up people). `debug/PreviewData.kt` decodes them with the app's own JSON setup; in a composable, `val data = previewData()`.
@@ -73,6 +73,11 @@ BriefActivity.intent(context, source): Intent
 ```
 
 A chat rides in the Intent's extras; a thread stays in this process's memory with only a key in the Intent (Binder's size limit, and a friend's messages shouldn't sit in the system's copy). `BriefSourceIntent.from(intent)` reads it back, or null after the process died. `BriefActivity` has its own task affinity, so over Instagram, Back returns to Instagram.
+
+What the brief does with it (`ui/brief/`): the catch-up starts as the page opens (a ViewModel keeps it through a rotation), with the skim of the real messages while Muse Spark reads, and Ask the chat sits under the brief on the same page.
+
+- **A Ketchup chat**: a tapped source finishes with `RESULT_OK` and `EXTRA_JUMP_TO_MESSAGE` (the message id). Like iOS, a brief that lands moves the read cursor to its `until`, so refresh the chat's unread count when the brief returns. A finished brief survives the process dying in the background (saved state, chats only).
+- **A thread**: a tapped source opens the item's cited messages in a sheet (`thread.message(ref)`), since there's no chat in Ketchup to jump into. `reader_name` is the reader's Ketchup display name, or "Me" without one, like iOS. Nothing from the thread is kept.
 
 **The API** (`data/KetchupApi.kt`, `KetchupApi.get(context)`, safe from the service too). Every call throws `ApiException` with a sentence a person can read.
 

@@ -121,8 +121,11 @@ class BriefSession(
                 if (error != null) {
                     Phase.Failed(error)
                 } else {
-                    // Caught up through the newest message the brief read.
-                    scope.launch { withContext(NonCancellable) { catching { backend.caughtUp(response.untilInstant) } } }
+                    // Caught up through the newest message the brief read. Nothing new
+                    // has no `until` and nothing to mark (a message arriving meanwhile stays unread).
+                    response.untilInstant?.let { until ->
+                        scope.launch { withContext(NonCancellable) { catching { backend.caughtUp(until) } } }
+                    }
                     response.result?.let { loadCited(Refs.all(it)) }
                     Phase.Done(response)
                 }

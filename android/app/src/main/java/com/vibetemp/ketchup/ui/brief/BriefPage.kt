@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -48,9 +50,12 @@ import com.vibetemp.ketchup.data.TextThread
 import com.vibetemp.ketchup.ui.design.CapsuleButton
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 import com.vibetemp.ketchup.ui.theme.Motion
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -94,16 +99,22 @@ fun BriefPage(
     val margin = with(LocalDensity.current) { 12.dp.toPx() }
     var sheet by remember { mutableStateOf(initialCited) }
     // Where the scrolling content starts on screen, and where each section starts in it.
+    // Read in callbacks, not while composing, so scrolling doesn't recompose the page.
     var viewportTop by remember { mutableFloatStateOf(0f) }
     val sections = remember { mutableStateMapOf<BriefSection, Float>() }
-    fun place(section: BriefSection, yInRoot: Float) {
-        sections[section] = yInRoot - viewportTop + scroll.value
+    val place: (BriefSection, Float) -> Unit = remember {
+        { section, yInRoot -> sections[section] = yInRoot - viewportTop + scroll.value }
     }
+    val scrolled by remember { derivedStateOf { scroll.value > 0 } }
 
     val stage = session.stage()
     val thread = session?.source as? TextThread
     val app = thread?.source?.appName
     val askShown = session != null && (stage == BriefStage.Brief || (stage == BriefStage.Empty && thread == null))
+    // A tapped source: jump into the chat, or show a thread's messages in the sheet.
+    val open: (String, List<String>) -> Unit = remember(thread, onJump) {
+        { ref, all -> if (thread != null) sheet = CitedRequest(ref, all) else onJump(ref) }
+    }
 
     // A brief landing while the page is open gets a success tap.
     var landed by remember { mutableStateOf(stage) }
@@ -125,7 +136,7 @@ fun BriefPage(
                 // The new content animates in: wait for the room to scroll (or the page's end).
                 val target = (top - margin).toInt().coerceAtLeast(0)
                 withTimeoutOrNull(700) { snapshotFlow { scroll.maxValue }.first { it >= target } }
-                scroll.animateScrollTo(target.coerceAtMost(scroll.maxValue))
+                scroll.glideTo(target)
             }
         }
     }
@@ -134,7 +145,7 @@ fun BriefPage(
         val section = initialSection ?: return@LaunchedEffect
         val y = snapshotFlow { sections[section] }.filterNotNull().first()
         delay(450)
-        scroll.animateScrollTo((y - margin).toInt().coerceAtLeast(0))
+        scroll.glideTo((y - margin).toInt())
     }
 
     Box(
@@ -150,12 +161,12 @@ fun BriefPage(
             }
             BriefTopBar(
                 title = title,
-                scrolled = scroll.value > 0,
+                scrolled = scrolled,
                 onDone = onDone,
                 onAsk = if (!askShown) null else {
                     {
                         scope.launch {
-                            sections[BriefSection.Ask]?.let { scroll.animateScrollTo((it - margin).toInt().coerceAtLeast(0)) }
+                            sections[BriefSection.Ask]?.let { scroll.glideTo((it - margin).toInt()) }
                             focus.requestFocus()
                         }
                     }
@@ -184,14 +195,12 @@ fun BriefPage(
                     },
                     label = "stage",
                 ) { shown ->
-                    StageContent(shown, session, onOpenApp, initiallyDone, onSection = ::place) { ref, all ->
-                        if (thread != null) sheet = CitedRequest(ref, all) else onJump(ref)
-                    }
+                    StageContent(shown, session, onOpenApp, initiallyDone, onSection = place, open = open)
                 }
                 if (askShown) {
                     AskSection(
                         session,
-                        rememberRefContext(session) { ref, all -> if (thread != null) sheet = CitedRequest(ref, all) else onJump(ref) },
+                        rememberRefContext(session, open),
                         focus,
                         app = app,
                         modifier = Modifier
@@ -285,4 +294,16 @@ private fun ThreadFooter(thread: TextThread, response: CatchUpResponse?) {
         color = KetchupTheme.colors.inkSoft,
         modifier = Modifier.riseIn(8, HAND_OVER_MS),
     )
+}
+
+/**
+ * Scrolls to [y] (kept within the page), like animateScrollTo, except that
+ * a finger taking over the scroll just ends it instead of ending the caller.
+ */
+private suspend fun ScrollState.glideTo(y: Int) {
+    try {
+        animateScrollTo(y.coerceIn(0, maxValue))
+    } catch (e: CancellationException) {
+        if (!currentCoroutineContext().isActive) throw e
+    }
 }
