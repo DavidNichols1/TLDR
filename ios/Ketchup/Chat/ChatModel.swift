@@ -305,6 +305,7 @@ final class ChatModel {
             if error.localizedDescription.lowercased().contains("duplicate key") {
                 // An earlier attempt did land (its reply was lost); it's sent.
                 messages[i].pending = false
+                PhotoUploads.shared.finished(id)
             } else {
                 messages[i].pending = false
                 messages[i].failed = true
