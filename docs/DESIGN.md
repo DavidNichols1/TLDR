@@ -116,25 +116,24 @@ Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on th
 - **The reader is "You"**, in ink; everyone else is in `personColor(name:)`, as in the chat.
 - **Mustard only on what's the reader's**: the times and money in the gist and in answers, their name in questions, their total.
 
-## Web chats (Instagram; Snapchat says no)
+## Web chats (Instagram and Snapchat)
 
-Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one page of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Screenshots: `screens/webchat/` (the synthetic test thread, made-up people).
+Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one page of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Snapchat only runs its computer version, so its page is laid out 1024 points wide and shrunk to fit; pinch to zoom. Screenshots: `screens/webchat/` (the synthetic test threads, made-up people).
 
 <p>
 <img src="screens/webchat/web-instagram-light.png" width="200" alt="Instagram's page under the slim bar, with the Catch me up pill">
 <img src="screens/webchat/web-reading-light.png" width="200" alt="Reading 88 messages: the skim of the thread's own messages">
 <img src="screens/webchat/web-brief-light.png" width="200" alt="The brief, credited Read by Muse Spark · 88 Instagram messages">
-<img src="screens/webchat/web-snapchat-light.png" width="200" alt="Snapchat only works on a computer">
+<img src="screens/webchat/web-snapchat-light.png" width="200" alt="Snapchat's computer page, shrunk to fit under the slim bar, with the Catch me up pill">
 </p>
 
 | Piece | What it does |
 |---|---|
 | `WebChatBar` | The site's name in New York, `Kicker("Experimental")` under it, back and a … menu on the right. A hairline under it. Done only when the page is shown full screen. |
 | The Catch me up pill | The page's one ketchup thing, floating over the site: the drop, "Catch me up", and "Last 30, 80 or 120 messages" in mono. It's a menu, since the site doesn't say what's unread. While it reads: "Reading the chat", "Scrolling back for older messages". |
-| `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, nothing saved, not released) with a ketchup "Got it". |
+| `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, nothing saved, not released), plus the site's own note when it needs one (Snapchat: its computer page, shrunk to fit), with a ketchup "Got it". |
 | `WebChatSheet` | The same pieces as a chat's catch-up: `SheetBar`, `SkimmingView` on the thread's own messages, `CatchUpContent`, `AIErrorCard`, and Ask's `NotepadField` and `AnswerCard`. The byline names the source ("88 Instagram messages"); a quiet footer says what it covered and that it's experimental. |
 | `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Not saved". |
-| `WebChatUnavailable` | A source whose site won't run in a phone's web view (Snapchat): a paper card saying why, and nothing to press. |
 
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **"Experimental" is said, not shouted:** a kicker under the name, a line in the footer.
@@ -160,7 +159,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
 | `signin`, `signin-code`, `name`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
-| `web-instagram`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote`, `web-snapchat` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic Instagram thread. `web-instagram` is the real page on the bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
+| `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
 
 Light and dark screenshots:
 

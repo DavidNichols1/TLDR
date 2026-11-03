@@ -59,56 +59,80 @@ the technical recipe. README.md is the judge-facing overview.
 the viewer sets display name **David**, joins with the printed invite code, and has
 302 unread. `--rearm` resets David to all-unread between video takes.
 
-## Instagram catch-up (experimental, not released)
+## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
-`WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` holds Instagram's reader and outline
-scripts, its fixtures, and `InstagramEntry.swift` (the inbox's camera button, which shows
-`WebChatTab(source: .instagram)` full screen until the home becomes a pager with a page per
-source). Edge function `catch-up-text`, migration `0004_text_brief_usage`. README has the summary.
+`WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` and `ios/Ketchup/Snapchat/` hold each
+site's reader and outline scripts and fixtures. `Instagram/InstagramEntry.swift` is the inbox's
+camera button (a menu of the sources, each `WebChatTab(source:)` full screen) until the home
+becomes a pager with a page per source. Edge function `catch-up-text`, migrations
+`0004_text_brief_usage` and `0005_text_brief_snapchat`. README has the summary.
 - The UI reuses `AI/` (CatchUpContent, SkimmingView, AIErrorCard, NotepadField, AnswerCard).
   `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
   message instead of jumping.
-- Snapchat: `WebChatSource.snapchat` is marked unavailable and its page says why. Checked
-  Nov 3, 2026: web.snapchat.com sends a phone's user agent to "use a computer", and a desktop
-  user agent plus desktop content mode still lands on the mobile "Download Snapchat" page
-  (the page sees `maxTouchPoints` 5 and a 402 px window). Getting past it means injecting a
-  script into every Snapchat page, sign-in included; don't, unless David decides otherwise.
-- Adding a source: a `WebChatSource` (id is catch-up-text's `source`, also allowed in
-  `SOURCES` there and in the `text_brief_usage` source check, which needs a migration), a
-  reader script that returns the same JSON, fixtures plus `.expected.json`, and harness runs.
-- Rules: read only the DM thread the user has open, only on tap. Never inject scripts, read
+- App-bound domains: `ios/Ketchup-Info.plist` (merged with the generated keys, `INFOPLIST_FILE`)
+  lists `WKAppBoundDomains`: instagram.com, snapchat.com, snap.com, sc-cdn.net, sc-static.net
+  (5 of the 10 allowed). It's app-wide: Ketchup's scripts (`callAsyncJavaScript`) then only run
+  on listed domains, so every source's thread pages must be on it. Ketchup uses no message
+  handlers or cookie APIs. The reader harness is its own macOS process, without this plist.
+- Each source's web view (all use the default website data store):
+
+  | | Instagram | Snapchat |
+  |---|---|---|
+  | Page | phone version | desktop (`preferredContentMode = .desktop`), laid out 1024 pt wide, scaled to fit (`WebChatWebView`, a view transform) |
+  | User agent | WebKit's + `Version/26.0 Mobile/15E148 Safari/604.1` | `customUserAgent`, Mac Safari 27 |
+  | `limitsNavigationsToAppBoundDomains` | false | true (WebKit only runs a service worker in app-bound mode) |
+  | Thread pages | `instagram.com/direct/t/<id>` | `www.snapchat.com/web/<id>` |
+
+- Snapchat, found Nov 3, 2026 (DEBUG trial, commits 0194b44 and c892873): a phone's user agent
+  gets "use a computer"; desktop mode alone still lands on the mobile "Download Snapchat" page;
+  desktop mode plus a wide layout gets the desktop page; signed in, the chat app then shows its
+  own "Oops! Something went wrong" until the web view is app-bound. Nothing is injected.
+  Sign in with username or email and password (no passkeys or Google in the app). On the
+  shrunk page the first tap on a chat row can act as a hover; tap again.
+- Adding a source: a `WebChatSource` (id is catch-up-text's `source`, also in `SOURCES` there and
+  in the `text_brief_usage` source check, which needs a migration), a reader script that returns
+  the same JSON, fixtures plus `.expected.json`, harness runs, and its domain in the plist.
+- Rules: read only the chat the user has open, only on tap. Never inject scripts, read
   cookies or run anything on login pages. Store nothing: no `ai_briefs` rows, and no message
   text, names or model output in logs (counts and token usage only). Real tests use a separate
-  test Instagram account with a staged chat, and David signs in himself. DOM dumps or
+  test account with a staged chat where possible, and David signs in himself. DOM dumps or
   screenshots with real DMs stay in the session scratchpad, never in git or reports.
 - Offline: `deno test supabase/functions/_shared/` (transcript format, index refs), then the
-  reader against the synthetic fixture (real WebKit, no network):
+  readers against their synthetic fixtures (real WebKit, no network). Instagram:
   `swift scripts/ig-extractor-check/check.swift --html ios/Ketchup/Instagram/Fixture/ig-thread-fixture.html --js ios/Ketchup/Instagram/InstagramThreadReader.js --expected ios/Ketchup/Instagram/Fixture/ig-thread-fixture.expected.json`
   must print `PASS 88/88` (about 6 s; exit 1 = a mismatch, 2 = the reader failed). Then the
   same against `ig-thread-fixture-virtual.html` and its `.expected.json` (the real page's
   structure: column-reverse scroller, virtualized rows), once as is and once with
   `--url 'https://www.instagram.com/direct/t/ketchup-test-fixture/?anchoring=on'`; all three
-  must pass 88/88. Change a fixture and its `.expected.json` together.
+  must pass 88/88. Snapchat (a computer-sized window):
+  `swift scripts/ig-extractor-check/check.swift --html ios/Ketchup/Snapchat/Fixture/snap-thread-fixture.html --js ios/Ketchup/Snapchat/SnapchatThreadReader.js --expected ios/Ketchup/Snapchat/Fixture/snap-thread-fixture.expected.json --url https://www.snapchat.com/web/ketchup-test-fixture --size 1024x768 --args '{"maxMessages":300,"maxScrolls":8,"debug":true,"readerName":"David"}'`
+  must print `PASS 62/62`. The Snapchat fixture is generated: change
+  `scripts/ig-extractor-check/make_snap_fixture.py` and rerun it (both files at once). Change an
+  Instagram fixture and its `.expected.json` together.
 - Deploy: `supabase functions deploy catch-up-text --project-ref cfqlnthmqwkhjbhylvgu --use-api`,
   and redeploy `catch-up` after any `_shared` change. `list_edge_functions` → `verify_jwt: true`
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.
-- Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` (the page
-  on the synthetic thread), `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote`,
-  `web-snapchat`. Signed in: the inbox camera button (later the pager page) → `…` → Testing →
-  a test thread → Catch me up. `-KetchupInstagramFixture YES` opens the fixture instead of
-  instagram.com. The console prints counts only: `[instagram] read N messages, …`. Tap the
+- Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` and
+  `-screen web-snapchat` (each page on its synthetic thread), `web-intro`, `web-reading`,
+  `web-brief`, `web-error`, `web-quote`. `-KetchupSnapchatFixture NO` (or Instagram) keeps the
+  real site in a preview. Signed in: the inbox camera button (later the pager page) → a source →
+  `…` → Testing → a test thread → Catch me up. The console prints counts only:
+  `[snapchat] read N messages, …`, and each page as host and path with ids left out. Tap the
   menu once and wait: a second tap where the button was lands on "Last 120".
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
-  `-destination 'id=<udid>' -allowProvisioningUpdates`, then
-  `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`.
-  Real runs (Nov 3, 2026, David's account): before the virtualization fix about 31 messages
-  with every sender shown as the group's name; after it, real names, and "Last 120" returns
-  exactly 120 (found 122, stop "enough", 6 loads, 56 steps, 9 s of reading). The log line's
-  `reader` object explains a short count: `stop` says why it ended, `units` vs `found` shows
-  pieces that weren't messages, `dupes` shows rows read twice. Replies carry their quote
-  (Instagram draws it without `dir="auto"`, in a half-faded line with a 4px bar). The DEBUG
-  "Save page outline (no text)" writes `tmp/instagram-outline.txt`; pull it with
-  `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.vibetemp.ketchup --source tmp/instagram-outline.txt --destination <scratchpad file>`.
+  `-destination 'id=<udid>'` (or `generic/platform=iOS` while it's locked) and
+  `-allowProvisioningUpdates`, then
+  `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`
+  (it fails while the phone is locked). To open a screen there:
+  `xcrun devicectl device process launch --device <udid> --terminate-existing --console com.vibetemp.ketchup -- -screen web-snapchat -KetchupSnapchatFixture NO`
+  (app arguments go after `--`). Instagram real runs (Nov 3, 2026, David's account): before the
+  virtualization fix about 31 messages with every sender shown as the group's name; after it,
+  real names, and "Last 120" returns exactly 120 (found 122, stop "enough", 6 loads, 56 steps,
+  9 s of reading). The log line's `reader` object explains a short count: `stop` says why it
+  ended, `units` vs `found` shows pieces that weren't messages, `dupes` shows rows read twice.
+  Replies carry their quote (Instagram draws it without `dir="auto"`, in a half-faded line with
+  a 4px bar). The DEBUG "Save page outline (no text)" writes `tmp/<source>-outline.txt`; pull it
+  with `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.vibetemp.ketchup --source tmp/snapchat-outline.txt --destination <scratchpad file>`.
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
-  `{source, mode, attempt, messages, prompt, completion, reasoning}` and nothing else. Usage:
-  `select mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
+  `{source, mode, attempt, messages, prompt, completion, reasoning, reader}` and nothing else.
+  Usage: `select source, mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
