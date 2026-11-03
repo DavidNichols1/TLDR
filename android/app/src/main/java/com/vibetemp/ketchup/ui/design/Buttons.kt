@@ -65,7 +65,13 @@ fun CapsuleButton(
         ButtonFill.Ink -> colors.onInk
         ButtonFill.Outline -> colors.ink
     }
-    val base = if (compact) modifier else modifier.fillMaxWidth()
+    // Scale and dim the whole capsule, fill included (before the background, or only the label would).
+    val base = (if (compact) modifier else modifier.fillMaxWidth())
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .alpha(if (!enabled) 0.4f else if (pressed && reduceMotion) 0.7f else 1f)
     val filled = when (fill) {
         ButtonFill.Ketchup -> base.background(colors.ketchup, CircleShape)
         ButtonFill.Ink -> base.background(colors.ink, CircleShape)
@@ -73,11 +79,6 @@ fun CapsuleButton(
     }
     Box(
         modifier = filled
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .alpha(if (!enabled) 0.4f else if (pressed && reduceMotion) 0.7f else 1f)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = if (compact) 16.dp else 22.dp, vertical = if (compact) 9.dp else 15.dp),
         contentAlignment = Alignment.Center,

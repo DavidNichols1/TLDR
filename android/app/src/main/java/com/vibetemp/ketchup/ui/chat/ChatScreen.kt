@@ -84,6 +84,7 @@ import com.vibetemp.ketchup.ui.design.Monogram
 import com.vibetemp.ketchup.ui.design.pressable
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 import com.vibetemp.ketchup.ui.theme.person
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -125,7 +126,8 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
     val list = rememberLazyListState()
     var draft by rememberSaveable { mutableStateOf("") }
     var highlighted by remember { mutableStateOf<String?>(null) }
-    var jumpRequest by remember { mutableStateOf<String?>(null) }
+    // Messages to jump to (a brief's cited message); one at a time, in order.
+    val jumps = remember { Channel<String>(Channel.CONFLATED) }
     var positioned by remember { mutableStateOf(false) }
     var userScrolled by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
@@ -144,7 +146,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         // A catch-up moves the cursor on the server, so take it from there again.
         scope.launch { model.refreshCursor() }
         val id = result.data?.getStringExtra(BriefActivity.EXTRA_JUMP_TO_MESSAGE)
-        if (result.resultCode == Activity.RESULT_OK && id != null) jumpRequest = id
+        if (result.resultCode == Activity.RESULT_OK && id != null) jumps.trySend(id)
     }
     fun openBrief() {
         brief.launch(BriefActivity.intent(context, BriefSource.Chat(chat.id, chat.name)))
@@ -203,9 +205,13 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
             val divider = rows.indexOfFirst { it is ThreadRow.Unread }
             if (divider >= 0) {
                 list.scrollToItem(divider)
+                // Offsets run up from the bottom here: lift the line until its top meets the viewport's.
                 val info = list.layoutInfo
                 val item = info.visibleItemsInfo.firstOrNull { it.index == divider }
-                if (item != null) list.scrollBy(-(info.viewportSize.height - item.size - 8f).coerceAtLeast(0f))
+                if (item != null) {
+                    val gap = info.viewportEndOffset - (item.offset + item.size)
+                    if (gap > 0) list.scrollBy(-gap.toFloat())
+                }
             } else {
                 list.scrollToItem(0)
             }
@@ -213,7 +219,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         positioned = true
         // A short thread fits on screen: the bottom is already in view, so it counts as seen.
         if (!list.canScrollBackward && !userScrolled) model.sawBottom = true
-        start.jumpTo?.let { jumpRequest = it }
+        start.jumpTo?.let { jumps.trySend(it) }
     }
     LaunchedEffect(atBottom, positioned) {
         if (!atBottom || !positioned) return@LaunchedEffect
@@ -238,27 +244,32 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
     LaunchedEffect(nearTop, state.messages.size, positioned, state.hasOlder) {
         if (nearTop && positioned && state.hasOlder) model.loadOlder()
     }
-    // The jump back from a brief.
-    LaunchedEffect(jumpRequest) {
-        val id = jumpRequest ?: return@LaunchedEffect
-        jumpRequest = null
-        if (!model.ensureLoaded(id)) {
-            toast = tooFarBack
-            return@LaunchedEffect
+    // The jump back from a brief: page back until the message is here, bring
+    // it to the middle, and sweep the marker behind it for a moment.
+    LaunchedEffect(jumps) {
+        for (id in jumps) {
+            if (!model.ensureLoaded(id)) {
+                toast = tooFarBack
+                continue
+            }
+            val s = model.state.value
+            val index = threadRows(s.messages, s.firstUnreadId, s.unreadAtOpen).asReversed().indexOfFirst { it.key == id }
+            if (index < 0) continue
+            // Wait for the list to have the rows a page back just added.
+            withTimeoutOrNull(2_000) { snapshotFlow { list.layoutInfo.totalItemsCount }.first { it > index } }
+            if (list.layoutInfo.visibleItemsInfo.none { it.index == index }) list.scrollToItem(index)
+            // Offsets run up from the bottom here.
+            val info = list.layoutInfo
+            val item = info.visibleItemsInfo.firstOrNull { it.index == index }
+            if (item != null) {
+                val middle = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+                list.animateScrollBy(-(middle - (item.offset + item.size / 2f)))
+            }
+            delay(120)
+            highlighted = id
+            delay(1_800)
+            if (highlighted == id) highlighted = null
         }
-        val index = threadRows(model.state.value.messages, model.state.value.firstUnreadId, model.state.value.unreadAtOpen)
-            .asReversed().indexOfFirst { it.key == id }
-        if (index < 0) return@LaunchedEffect
-        // Wait for the list to have the rows a page back just added.
-        withTimeoutOrNull(2_000) { snapshotFlow { list.layoutInfo.totalItemsCount }.first { it > index } }
-        list.scrollToItem(index)
-        val info = list.layoutInfo
-        val item = info.visibleItemsInfo.firstOrNull { it.index == index }
-        if (item != null) list.animateScrollBy(-((info.viewportSize.height - item.size) / 2f).coerceAtLeast(0f))
-        delay(120)
-        highlighted = id
-        delay(1_800)
-        if (highlighted == id) highlighted = null
     }
     LaunchedEffect(toast) {
         if (toast != null) {

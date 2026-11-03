@@ -39,7 +39,7 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 | Name | File | Shows |
 |---|---|---|
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
-| `chat-breck` | `debug/ChatPreviews.kt` | The end of the Breck thread on fixtures |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-jump`, `info`, `settings` | `debug/ChatPreviews.kt` | The chat slice, under iOS's `-screen` names: sign-in and its code step (countdown running), the name step, the pager on each page, the inbox (full, skeleton, empty) and its New chat and Join sheets, the Breck chat (302 new; `chat-jump` stages a brief's jump to Maya's "$540 total"), Members and invite, Settings. `chat-breck` is the old name for `chat`. Sends in a preview settle after 400 ms and never leave the phone |
 | `brief-breck` | `debug/BriefPreviews.kt` | Muse Spark's real Breck brief: gist and highlights, each with its source |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
