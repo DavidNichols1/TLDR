@@ -59,9 +59,10 @@ internal class Page(
  * - A text leaf is the deepest node that has text; a node with no text
  *   whose description says photo, video, voice, GIF or sticker (or a big
  *   image) is a placeholder like "[photo]".
- * - A bubble is the nearest tappable or long-pressable box around a leaf
- *   that isn't the full width: chat apps open the react and reply menu on
- *   a long press. Everything in one bubble is one message.
+ * - A bubble is the nearest long-pressable box around a leaf that isn't
+ *   the full width (chat apps open the react and reply menu on a long
+ *   press), else the nearest tappable one. Everything in one bubble is one
+ *   message.
  * - Right of center is the reader's own; centered is a time stamp or a
  *   notice.
  * - Reactions (small emoji pills on a bubble's edge, or anything described
@@ -241,11 +242,17 @@ internal object PageParser {
             node.children.forEach { visit(it, inner, out) }
         }
 
-        /** The nearest tappable box around [node] (itself included) that isn't the full width. */
+        /**
+         * The box around [node] (itself included) that isn't the full width:
+         * the nearest long-pressable one (a message's react and reply menu),
+         * else the nearest tappable one. A play button inside a voice note's
+         * bubble is tappable, not long-pressable, so it stays part of it.
+         */
         private fun bubbleOf(node: ReaderNode, path: List<ReaderNode>): ReaderNode? {
             val narrow = list.width * 0.92f
-            if ((node.isClickable || node.isLongClickable) && node.bounds.width <= narrow) return node
-            return path.asReversed().firstOrNull { (it.isClickable || it.isLongClickable) && it.bounds.width <= narrow }
+            val around = sequenceOf(node) + path.asReversed().asSequence()
+            return around.firstOrNull { it.isLongClickable && it.bounds.width <= narrow }
+                ?: around.firstOrNull { it.isClickable && it.bounds.width <= narrow }
         }
 
         private fun isAvatar(node: ReaderNode, description: String): Boolean {

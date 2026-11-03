@@ -1,19 +1,36 @@
 package com.vibetemp.ketchup.debug
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.vibetemp.ketchup.R
+import com.vibetemp.ketchup.data.TextSource
+import com.vibetemp.ketchup.reader.PanelState
+import com.vibetemp.ketchup.reader.ReadProgress
+import com.vibetemp.ketchup.reader.ReaderBubble
+import com.vibetemp.ketchup.reader.ReaderConsent
+import com.vibetemp.ketchup.reader.ReaderPage
+import com.vibetemp.ketchup.reader.ReaderPageContent
+import com.vibetemp.ketchup.reader.ReaderPanel
 import com.vibetemp.ketchup.ui.brief.BriefActivity
 import com.vibetemp.ketchup.ui.design.CapsuleButton
 import com.vibetemp.ketchup.ui.design.Kicker
@@ -21,18 +38,95 @@ import com.vibetemp.ketchup.ui.design.paperCard
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 import com.vibetemp.ketchup.ui.theme.person
 
-// The reader slice's preview screens (the trigger, reading, errors, ...).
-// Add a name and its screen to the map; the index picks it up. Names start
-// with "reader-".
+// The reader slice's preview screens. Names start with "reader-".
+//
+//   reader-instagram-page   the home pager's Instagram page, live: is the bubble on, is Instagram installed
+//   reader-snapchat-page    the same for Snapchat, with its "not tested on a real phone" note
+//   reader-page-on          the Instagram page with the bubble on and Instagram installed
+//   reader-consent          the disclosure before Android's accessibility settings
+//   reader-panel            the bubble and each state of its panel, over an Instagram-white page
+//   reader-fixture          opens the synthetic Instagram thread the service reads on an emulator
+//   reader-instagram        the synthetic thread as catch-up-text will see it
 
 val ReaderPreviews: Map<String, @Composable () -> Unit> = mapOf(
+    "reader-instagram-page" to { ReaderPage(TextSource.INSTAGRAM, Modifier.safeDrawingPadding()) },
+    "reader-snapchat-page" to { ReaderPage(TextSource.SNAPCHAT, Modifier.safeDrawingPadding()) },
+    "reader-page-on" to {
+        ReaderPageContent(
+            TextSource.INSTAGRAM, on = true, installed = true,
+            onTurnOn = {}, onTurnOff = {}, onOpenApp = {}, onAppInfo = {},
+            modifier = Modifier.safeDrawingPadding(),
+        )
+    },
+    "reader-consent" to { ReaderConsent(onAgree = {}, onNotNow = {}, modifier = Modifier.safeDrawingPadding()) },
+    "reader-panel" to { PanelStates() },
+    "reader-fixture" to { FixtureLauncher() },
     "reader-instagram" to { InstagramThreadSample() },
 )
 
+/** The bubble and each panel state as they float over another app. */
+@Composable
+private fun PanelStates() {
+    val states = listOf(
+        "Tap the bubble" to PanelState.Pick,
+        "Reading" to PanelState.Reading(ReadProgress(found = 18, wanted = 30)),
+        "Not signed in" to PanelState.SignIn,
+        "Not set up" to PanelState.Setup,
+        "Nothing found" to PanelState.Problem(R.string.reader_problem_nothing, 30),
+    )
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ReaderBubble()
+            Text("The bubble, over an Instagram thread", style = KetchupTheme.type.footnote, color = Color(0xFF737373))
+        }
+        states.forEach { (label, state) ->
+            Text(label, style = KetchupTheme.type.monoCaption, color = Color(0xFF737373))
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                ReaderPanel(state, TextSource.INSTAGRAM, onPick = {}, onStop = {}, onClose = {}, onOpenApp = {})
+            }
+        }
+    }
+}
+
+/** Opens debug/ReaderFixtureActivity, the thread the service reads on an emulator. */
+@Composable
+private fun FixtureLauncher() {
+    val context = LocalContext.current
+    val colors = KetchupTheme.colors
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(colors.cream)
+            .safeDrawingPadding()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Kicker("Reader fixture")
+        Text("A synthetic Instagram thread", style = KetchupTheme.type.serifTitle2, color = colors.ink)
+        Text(
+            "Breck Crew 🎿, made-up people, drawn the way Instagram's app draws a DM thread. With the reader " +
+                "service on, the Ketchup bubble shows over it and reads it offline.",
+            style = KetchupTheme.type.subheadline,
+            color = colors.ink,
+        )
+        CapsuleButton("Open the test thread", onClick = {
+            context.startActivity(Intent(context, ReaderFixtureActivity::class.java))
+        })
+    }
+}
+
 /**
- * A starting point: the synthetic Instagram thread as the reader would hand
- * it to the brief, each message as catch-up-text will see it. The button
- * hands it to BriefActivity the way the service will.
+ * The synthetic Instagram thread as the reader hands it to the brief, each
+ * message as catch-up-text will see it. The button hands it to
+ * BriefActivity the way the service does.
  */
 @Composable
 private fun InstagramThreadSample() {
