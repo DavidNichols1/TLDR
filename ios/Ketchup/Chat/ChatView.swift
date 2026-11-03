@@ -84,7 +84,11 @@ struct ChatView: View {
                     Task { await jump(to: id, proxy: proxy) }
                 }
                 .task {
-                    await model.open()
+                    async let opened: Void = model.open()
+                    // The copy the phone kept is already current: place it while the server answers.
+                    if model.showsCurrentCopy { await position(proxy) }
+                    await opened
+                    if model.loaded, model.loadError != nil { show("Couldn't refresh. Showing saved messages.") }
                     await position(proxy)
                     #if DEBUG
                     if let id = previewJump {
@@ -217,7 +221,7 @@ struct ChatView: View {
                 model.sawBottom = true
             }
         }
-        .overlay { emptyState }
+        .overlay { ZStack { emptyState }.motion(Motion.fade, value: model.loaded) }
     }
 
     @ViewBuilder
@@ -228,8 +232,7 @@ struct ChatView: View {
                     .buttonStyle(.outline(.compact))
             }
         } else if !model.loaded {
-            ProgressView()
-                .tint(Theme.inkSoft)
+            ThreadSkeleton()
         } else if model.messages.isEmpty {
             let code = Text(model.chat.inviteCode).font(.mono(.body, weight: .semibold)).foregroundStyle(Theme.ink)
             ThreadNote(title: "Quiet in here",
@@ -323,12 +326,15 @@ struct ChatView: View {
     private func position(_ proxy: ScrollViewProxy) async {
         guard !positioned else { return }
         try? await Task.sleep(for: .milliseconds(60))
-        if model.firstUnreadId != nil {
-            proxy.scrollTo(Self.unreadId, anchor: .top)
-        } else {
-            proxy.scrollTo(Self.bottomId, anchor: .bottom)
+        // Already scrolling the saved copy while the server answered: leave them be.
+        if !userScrolled {
+            if model.firstUnreadId != nil {
+                proxy.scrollTo(Self.unreadId, anchor: .top)
+            } else {
+                proxy.scrollTo(Self.bottomId, anchor: .bottom)
+            }
+            try? await Task.sleep(for: .milliseconds(350))
         }
-        try? await Task.sleep(for: .milliseconds(350))
         positioned = true
         // A short thread fits on screen: the bottom is already visible and
         // won't "change" into view, so count it as seen now.
