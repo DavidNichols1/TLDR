@@ -2,12 +2,13 @@
 //  WebChatTab.swift
 //  Ketchup
 //
-//  EXPERIMENTAL, NOT RELEASED. One page of the signed-in home per source
+//  EXPERIMENTAL, NOT RELEASED. One tab of the signed-in home per source
 //  (`WebChatTab(source: .instagram)`): the site's own web page under a slim
-//  bar, and Catch me up for the thread that's open. No navigation stack and
-//  nothing to dismiss, so it sits in a pager page as it is. The site's
-//  terms don't allow reading chats this way, so it stays out of the
-//  released app unless the site's owner is fine with it.
+//  bar, and Catch me up for the thread that's open, a small ketchup circle
+//  on the right edge. No navigation stack and nothing to dismiss, so it sits
+//  in a tab as it is. The site's terms don't allow reading chats this way,
+//  so it stays out of the released app unless the site's owner is fine
+//  with it.
 //
 
 import SwiftUI
@@ -76,7 +77,8 @@ private struct WebChatPage: View {
                 } else {
                     Theme.cream
                 }
-                VStack(spacing: 12) {
+                // On the right edge, just above the site's message box.
+                VStack(alignment: .trailing, spacing: 12) {
                     if let failure {
                         AIErrorCard(message: failure.message, note: "Nothing from the chat was saved.", prominent: false) {
                             if let browser { Task { await catchUp(browser, last: failure.last) } }
@@ -88,8 +90,9 @@ private struct WebChatPage: View {
                             .transition(.opacity)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 84)
+                .padding(.bottom, 76)
             }
         }
         .background(Theme.cream)
@@ -100,6 +103,7 @@ private struct WebChatPage: View {
             }
         }
         .motion(Motion.settle, value: failure)
+        .motion(Motion.settle, value: reading)
         .motion(Motion.fade, value: introSeen)
         .onAppear(perform: start)
         .onChange(of: browser?.url) { _, _ in failure = nil }
@@ -132,7 +136,9 @@ private struct WebChatPage: View {
 
     // MARK: Catch me up
 
-    /// The page's one ketchup thing: picks how many of the newest messages to read.
+    /// The page's one ketchup thing: a small circle with the drop, so it
+    /// covers little of the chat. It picks how many of the newest messages
+    /// to read.
     private func catchUpButton(_ browser: WebChatBrowser) -> some View {
         Menu {
             Section("Catch me up on the") {
@@ -141,29 +147,7 @@ private struct WebChatPage: View {
                 }
             }
         } label: {
-            HStack(spacing: 12) {
-                if reading {
-                    ProgressView()
-                        .tint(Theme.onKetchup)
-                } else {
-                    KetchupDrop()
-                        .fill(Theme.onKetchup)
-                        .frame(width: 18, height: 18)
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(reading ? "Reading the chat" : "Catch me up")
-                        .font(.headline)
-                    Text(reading ? "Scrolling back for older messages" : "Last 30, 80 or 120 messages")
-                        .font(.mono(.caption))
-                }
-            }
-            .foregroundStyle(Theme.onKetchup)
-            .padding(.leading, 18)
-            .padding(.trailing, 22)
-            .padding(.vertical, 12)
-            .background(Theme.ketchup, in: Capsule())
-            .contentShape(Capsule())
+            CatchUpCircle(reading: reading)
         }
         .menuOrder(.fixed)
         .disabled(reading)
@@ -223,6 +207,39 @@ private struct WebChatPage: View {
 }
 
 // MARK: - Pieces
+
+/// The Catch me up button's face: a ketchup circle with the drop. While the
+/// chat is read it opens into a pill with a spinner and "Reading the chat",
+/// then closes again.
+private struct CatchUpCircle: View {
+    let reading: Bool
+
+    @ScaledMetric(relativeTo: .title3) private var size: CGFloat = 54
+
+    var body: some View {
+        // Grows with the text size, to a point: it shouldn't hide the chat.
+        let side = min(size, 72)
+        HStack(spacing: 10) {
+            if reading {
+                ProgressView()
+                    .tint(Theme.onKetchup)
+                Text("Reading the chat")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize()
+            } else {
+                KetchupDrop()
+                    .fill(Theme.onKetchup)
+                    .frame(width: side * 0.44, height: side * 0.44)
+            }
+        }
+        .foregroundStyle(Theme.onKetchup)
+        .padding(.horizontal, reading ? 18 : 0)
+        .frame(minWidth: side, minHeight: side)
+        .background(Theme.ketchup, in: Capsule())
+        .contentShape(Capsule())
+    }
+}
 
 /// The slim bar over the site: its name in New York, a quiet "Experimental",
 /// and the page's own buttons on the right.
@@ -296,7 +313,7 @@ struct WebChatIntro: View {
                         .fixedSize(horizontal: false, vertical: true)
                     VStack(alignment: .leading, spacing: 14) {
                         point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
-                        point("hand.tap", "Open a chat, tap Catch me up, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
+                        point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
                         point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Ketchup's server.")
                         if let note = source.note {
                             point("plus.magnifyingglass", note)
