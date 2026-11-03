@@ -3,7 +3,8 @@
 //  Ketchup
 //
 //  Ported from AurariaGO's ChatComponents.ChatInputBar; the cap matches
-//  messages_body_check (2,000 characters).
+//  messages_body_check (2,000 characters). A paper field and a ketchup
+//  send button that only turns red when there's something to send.
 //
 
 import SwiftUI
@@ -14,27 +15,48 @@ struct ChatInputBar: View {
     var disabled = false
     let onSend: () -> Void
 
+    @FocusState private var focused: Bool
+    @ScaledMetric(relativeTo: .body) private var sendSize: CGFloat = 40
+
+    private var canSend: Bool { Self.sendable(text) != nil && !disabled }
+
     var body: some View {
+        let field = RoundedRectangle(cornerRadius: 20, style: .continuous)
         HStack(alignment: .bottom, spacing: 10) {
-            TextField(placeholder, text: $text, axis: .vertical)
+            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.inkFaint), axis: .vertical)
                 .lineLimit(1...5)
-                .padding(.horizontal, 13)
+                .font(.body)
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.ketchupText)
+                .focused($focused)
+                .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .frame(minHeight: sendSize)
+                .background(Theme.card, in: field)
+                .overlay {
+                    field.strokeBorder(focused ? Theme.inkSoft : Theme.rule, lineWidth: 1)
+                }
                 .disabled(disabled)
 
             Button(action: onSend) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(Self.sendable(text) == nil || disabled ? Color.secondary.opacity(0.4) : Theme.accent)
+                Image(systemName: "arrow.up")
+                    .font(.body.weight(.bold))
+                    .foregroundStyle(canSend ? Theme.onKetchup : Theme.inkFaint)
+                    .frame(width: sendSize, height: sendSize)
+                    .background(canSend ? Theme.ketchup : Theme.rule, in: Circle())
             }
-            .buttonStyle(.plain)
-            .disabled(Self.sendable(text) == nil || disabled)
+            .buttonStyle(.pressable)
+            .disabled(!canSend)
             .accessibilityLabel("Send")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(Theme.cream)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Theme.rule).frame(height: 1)
+        }
+        .motion(value: canSend)
+        .motion(value: focused)
     }
 
     /// The trimmed text, or nil when it's empty or over the cap.

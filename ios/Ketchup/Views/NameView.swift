@@ -14,52 +14,67 @@ struct NameView: View {
     @State private var busy = false
     @State private var error: String?
     @FocusState private var focused: Bool
+    @ScaledMetric(relativeTo: .body) private var monogramSize: CGFloat = 30
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer()
-            Image(systemName: "person.crop.circle.badge.checkmark")
-                .font(.system(size: 54))
-                .foregroundStyle(Theme.accent)
-            Text("What should we call you?")
-                .font(.title2.bold())
-            Text("Your friends see this name in chats, and Muse Spark uses it in catch-ups.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Kicker("Last step")
+                Text("What do your friends call you?")
+                    .font(.serif(.largeTitle))
+                    .foregroundStyle(Theme.ink)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 8)
+                Text("They see it in your chats, and \(Theme.modelName) uses it in catch-ups.")
+                    .font(.body)
+                    .foregroundStyle(Theme.inkSoft)
+                    .padding(.top, 10)
 
-            TextField("Your name", text: $name)
-                .textContentType(.givenName)
-                .focused($focused)
-                .submitLabel(.done)
-                .onSubmit { Task { await save() } }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                // The monogram follows what you type: how you'll look in member lists.
+                HStack(spacing: 12) {
+                    Monogram(name: trimmed.isEmpty ? "?" : trimmed, size: monogramSize)
+                    TextField("Your name", text: $name, prompt: Text("Your name").foregroundStyle(Theme.inkFaint))
+                        .textContentType(.givenName)
+                        .focused($focused)
+                        .submitLabel(.done)
+                        .onSubmit { Task { await save() } }
+                }
+                .paperField(focused: focused)
+                .padding(.top, 28)
 
-            if let error {
-                Text(error).font(.footnote).foregroundStyle(.red)
-            }
+                if let error {
+                    FormError(text: error)
+                        .padding(.top, 12)
+                }
 
-            Button {
-                Task { await save() }
-            } label: {
-                Text("Continue")
-                    .font(.headline)
+                Button {
+                    Task { await save() }
+                } label: {
+                    ZStack {
+                        Text("Save my name").opacity(busy ? 0 : 1)
+                        if busy { ProgressView().tint(Theme.onKetchup) }
+                    }
+                }
+                .buttonStyle(.ketchup)
+                .disabled(trimmed.isEmpty || trimmed.count > 30 || busy)
+                .padding(.top, 12)
+
+                Button("Keep “\(app.defaultName)”") { app.confirmName() }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.ink)
+                    .buttonStyle(.plain)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    .padding(.top, 18)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(trimmed.isEmpty || trimmed.count > 30 || busy)
-
-            Button("Keep “\(app.defaultName)”") { app.confirmName() }
-                .font(.footnote)
-            Spacer()
-            Spacer()
+            .padding(.horizontal, 24)
+            .padding(.top, 48)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 24)
+        .scrollDismissesKeyboard(.interactively)
+        .background(Theme.cream)
         .onAppear {
             name = app.defaultName
             focused = true

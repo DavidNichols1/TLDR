@@ -2,34 +2,68 @@
 //  ThreadDivider.swift
 //  Ketchup
 //
-//  The centered lines between bubbles: a day ("Yesterday") or the start of
-//  what's new ("312 new messages").
+//  The lines between bubbles: a day ("YESTERDAY") as a mono kicker, and the
+//  start of what's new ("302 NEW") on a mustard mark between hairlines.
 //
 
 import SwiftUI
 
+/// A day in the thread: "TODAY", "YESTERDAY", "MONDAY, NOV 2".
 struct ThreadDivider: View {
     let text: String
-    var isUnread = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            if isUnread { line }
-            Text(text)
-                .font(.caption.weight(isUnread ? .bold : .semibold))
-                .foregroundStyle(isUnread ? AnyShapeStyle(Theme.aiGradient) : AnyShapeStyle(.secondary))
-                .padding(.horizontal, isUnread ? 0 : 10)
-                .padding(.vertical, isUnread ? 0 : 4)
-                .background(isUnread ? Color.clear : Color.primary.opacity(0.05), in: Capsule())
-            if isUnread { line }
+        Kicker(text)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 18)
+            .padding(.bottom, 6)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Where the unread part starts. The mark is full mustard with dark
+/// `onMustard` type in both modes (a dimmed mark under light type reads
+/// muddy in dark mode). It sweeps in when it first shows, and is simply
+/// there with Reduce Motion on.
+struct UnreadDivider: View {
+    let count: Int
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var progress: CGFloat = 0
+
+    var body: some View {
+        HStack(spacing: 12) {
+            hairline
+            Text("\(count) new")
+                .font(.mono(.caption2, weight: .bold))
+                .textCase(.uppercase)
+                .tracking(1.4)
+                .foregroundStyle(Theme.onMustard)
+                .fixedSize()
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background {
+                    MarkerStroke(progress: progress)
+                        .fill(Theme.mustard)
+                }
+            hairline
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .padding(.vertical, 14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(count == 1 ? "1 new message" : "\(count) new messages")
+        .onAppear {
+            guard progress < 1 else { return }
+            if reduceMotion {
+                progress = 1
+            } else {
+                withAnimation(Motion.sweep.delay(0.2)) { progress = 1 }
+            }
+        }
     }
 
-    private var line: some View {
+    private var hairline: some View {
         Rectangle()
-            .fill(Theme.aiGradient.opacity(0.5))
+            .fill(Theme.rule)
             .frame(height: 1)
     }
 }

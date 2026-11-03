@@ -3,8 +3,10 @@
 //  Ketchup
 //
 //  Ported from AurariaGO's ChatComponents.ChatBubble, slimmed down: no
-//  reactions or report menu, and a highlight ring for when a Muse Spark
-//  ref chip jumps here.
+//  reactions or report menu. Other people's bubbles are card paper with a
+//  hairline, mine are ink. A run of messages from one sender tucks its
+//  inside corners in. When a Muse Spark ref chip jumps here, a mustard
+//  marker sweeps behind the bubble.
 //
 
 import SwiftUI
@@ -16,35 +18,49 @@ struct ChatBubble: View {
     var failed = false
     /// Groups: the sender's name on the first bubble of a run.
     var senderName: String? = nil
-    var senderColor: Color = .secondary
+    var senderColor: Color = Theme.inkSoft
     var time: Date? = nil
+    /// Where this bubble sits in a run from one sender, for its corners.
+    var startsRun = true
+    var endsRun = true
     var highlighted = false
     let onRetry: () -> Void
 
+    private static let round: CGFloat = 18
+    private static let tucked: CGFloat = 6
+
+    /// Round outside corners; the corners that face the rest of the run tuck in.
+    private var shape: UnevenRoundedRectangle {
+        let top = startsRun ? Self.round : Self.tucked
+        let bottom = endsRun ? Self.round : Self.tucked
+        return mine
+            ? UnevenRoundedRectangle(topLeadingRadius: Self.round, bottomLeadingRadius: Self.round,
+                                     bottomTrailingRadius: bottom, topTrailingRadius: top, style: .continuous)
+            : UnevenRoundedRectangle(topLeadingRadius: top, bottomLeadingRadius: bottom,
+                                     bottomTrailingRadius: Self.round, topTrailingRadius: Self.round, style: .continuous)
+    }
+
     var body: some View {
-        VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
+        VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
             if let senderName, !mine {
                 Text(senderName)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(senderColor)
                     .lineLimit(1)
-                    .padding(.leading, 6)
+                    .padding(.leading, 12)
             }
             Text(text)
                 .font(.body)
-                .foregroundStyle(mine ? .white : Color.primary)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 8)
-                .background(mine ? Theme.accent : Color(.secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .foregroundStyle(mine ? Theme.onInk : Theme.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(mine ? Theme.ink : Theme.card, in: shape)
                 .overlay {
-                    if highlighted {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Theme.aiDiagonal, lineWidth: 3)
-                            .shadow(color: Theme.violet.opacity(0.6), radius: 8)
-                    }
+                    if !mine { shape.strokeBorder(Theme.rule, lineWidth: 1) }
                 }
-                .scaleEffect(highlighted ? 1.04 : 1, anchor: mine ? .trailing : .leading)
+                .background {
+                    if highlighted { JumpMark() }
+                }
                 .opacity(pending ? 0.55 : 1)
                 .contextMenu {
                     Button {
@@ -59,15 +75,50 @@ struct ChatBubble: View {
                 .onTapGesture { if failed { onRetry() } }
             if failed {
                 Button(action: onRetry) {
-                    Text("Not sent · tap to retry")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.red)
+                    Label("Not sent. Tap to retry", systemImage: "exclamationmark.circle")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.ketchupText)
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 6)
             }
         }
         .padding(mine ? .leading : .trailing, 56)
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
-        .animation(.spring(duration: 0.35), value: highlighted)
+        .motion(value: highlighted)
+    }
+}
+
+/// The jump-to-message highlight: one mustard marker pass behind the bubble,
+/// reaching a little past it on every side. With Reduce Motion it's a plain
+/// tint that fades in and out.
+private struct JumpMark: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var progress: CGFloat = 0
+
+    /// How far the mark reaches past the bubble.
+    private let reach = CGSize(width: 10, height: 8)
+
+    var body: some View {
+        GeometryReader { geo in
+            if reduceMotion {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Theme.mustard.opacity(0.45))
+                    .padding(-reach.height)
+            } else {
+                // MarkerStroke inks a band from 20% to 96% of its height, so
+                // size its frame for that band to cover the bubble plus `reach`.
+                let height = (geo.size.height + reach.height * 2) / 0.76
+                MarkerStroke(progress: progress)
+                    .fill(Theme.mustard.opacity(0.9))
+                    .frame(width: geo.size.width + reach.width * 2, height: height)
+                    .offset(x: -reach.width, y: -reach.height - height * 0.2)
+            }
+        }
+        .accessibilityHidden(true)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(Motion.sweep) { progress = 1 }
+        }
     }
 }

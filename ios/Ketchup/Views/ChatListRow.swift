@@ -2,8 +2,8 @@
 //  ChatListRow.swift
 //  Ketchup
 //
-//  One inbox row. A chat with a pile of unread messages gets a Muse Spark
-//  nudge under the preview.
+//  One inbox row. A chat with a pile of unread messages gets a catch-up
+//  nudge under the preview, with the ketchup drop.
 //
 
 import SwiftUI
@@ -11,52 +11,81 @@ import SwiftUI
 struct ChatListRow: View {
     let chat: ChatSummary
 
-    private var preview: String {
-        guard let text = chat.lastMessagePreview else { return "No messages yet" }
-        if let who = chat.lastMessageSenderName { return "\(who): \(text)" }
-        return text
+    @ScaledMetric(relativeTo: .headline) private var monogramSize: CGFloat = 48
+    @ScaledMetric(relativeTo: .caption) private var dropSize: CGFloat = 12
+
+    /// Unread count that earns the nudge (ChatModel prefetches a catch-up from here too).
+    static let nudgeAt = 15
+
+    private var unread: Int { chat.unreadCount }
+    private var count: String { unread > 999 ? "999+" : "\(unread)" }
+
+    private var preview: Text {
+        guard let text = chat.lastMessagePreview else { return Text("No messages yet") }
+        if let who = chat.lastMessageSenderName {
+            return Text("\(Text("\(who):").fontWeight(.medium).foregroundStyle(Theme.ink)) \(text)")
+        }
+        return Text(text)
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text(Theme.initials(chat.name))
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background(Theme.personColor(chat.id).gradient, in: Circle())
+        HStack(alignment: .top, spacing: 14) {
+            Monogram(name: chat.name, size: monogramSize)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(chat.name)
                         .font(.headline)
+                        .foregroundStyle(Theme.ink)
                         .lineLimit(1)
-                    Spacer()
+                    Spacer(minLength: 0)
                     Text((chat.lastMessageAt ?? chat.createdAt).inboxStamp)
-                        .font(.caption)
-                        .foregroundStyle(chat.unreadCount > 0 ? Theme.accent : .secondary)
+                        .font(.mono(.caption))
+                        .foregroundStyle(unread > 0 ? Theme.ink : Theme.inkSoft)
                 }
-                HStack(alignment: .top) {
-                    Text(preview)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    preview
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.inkSoft)
                         .lineLimit(2)
-                    Spacer()
-                    if chat.unreadCount > 0 {
-                        Text(chat.unreadCount > 999 ? "999+" : "\(chat.unreadCount)")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                    if unread > 0 {
+                        Text(count)
+                            .font(.mono(.caption, weight: .bold))
+                            .foregroundStyle(Theme.onMustard)
                             .padding(.horizontal, 7)
-                            .frame(minWidth: 22, minHeight: 22)
-                            .background(Theme.accent, in: Capsule())
+                            .padding(.vertical, 2)
+                            .frame(minWidth: 24)
+                            .background(Theme.mustard, in: Capsule())
                     }
                 }
-                if chat.unreadCount >= 10 {
-                    Label("Catch up in seconds", systemImage: Theme.aiSymbol)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.aiGradient)
+                if unread >= Self.nudgeAt {
+                    HStack(spacing: 6) {
+                        KetchupDrop()
+                            .fill(Theme.ketchupText)
+                            .frame(width: dropSize, height: dropSize)
+                        Text("\(count) new · catch up")
+                            .font(.mono(.caption, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.ketchupText)
+                    .padding(.top, 3)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        var parts = [chat.name]
+        if unread > 0 { parts.append(unread == 1 ? "1 unread message" : "\(unread) unread messages") }
+        if let text = chat.lastMessagePreview {
+            parts.append([chat.lastMessageSenderName, text].compactMap { $0 }.joined(separator: ": "))
+        }
+        parts.append((chat.lastMessageAt ?? chat.createdAt).inboxStamp)
+        return parts.joined(separator: ", ")
     }
 }
