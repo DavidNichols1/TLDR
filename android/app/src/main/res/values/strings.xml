@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The chat slice's strings: the app's name, sign-in, the inbox, a chat. -->
+<resources>
+    <string name="app_name">Ketchup</string>
+    <string name="home_coming_soon">Your chats land here soon. Muse Spark will catch you up on them.</string>
+</resources>

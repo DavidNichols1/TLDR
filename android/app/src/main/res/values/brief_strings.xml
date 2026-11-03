@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The brief slice's strings: Catch me up and Ask. -->
+<resources>
+    <string name="brief_kicker">Catch me up</string>
+    <string name="brief_source_chat">Ketchup chat</string>
+    <string name="brief_source_gone">That chat isn\'t open here anymore. Go back to it and tap Catch me up again.</string>
+    <string name="brief_you">You</string>
+    <string name="brief_done">Done</string>
+    <plurals name="brief_message_count">
+        <item quantity="one">%d message read</item>
+        <item quantity="other">%d messages read</item>
+    </plurals>
+</resources>

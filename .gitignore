@@ -24,3 +24,14 @@ build/
 .vscode/
 .idea/
 node_modules/
+
+# Android (android/)
+local.properties
+.gradle/
+.kotlin/
+*.jks
+*.keystore
+keystore.properties
+captures/
+.cxx/
+.externalNativeBuild/

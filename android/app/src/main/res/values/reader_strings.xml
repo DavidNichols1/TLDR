@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The reader slice's strings: the accessibility service and its screens. -->
+<resources>
+    <string name="reader_service_label">Ketchup catch-up</string>
+    <string name="reader_service_description">When you ask, Ketchup reads the Instagram or Snapchat chat you have open and sends it to Muse Spark for a catch-up. It reads only that chat, only when you tap, and nothing is kept on Ketchup\'s server. It works only in the Instagram and Snapchat apps.</string>
+</resources>

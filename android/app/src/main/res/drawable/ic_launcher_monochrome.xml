@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The drop alone, for themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="58"
+        android:scaleY="58"
+        android:translateX="25"
+        android:translateY="25">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M0.53,0.035 C0.625,0.185 0.87,0.37 0.87,0.6 C0.87,0.788 0.718,0.94 0.53,0.94 C0.4,0.94 0.26,0.945 0.17,0.955 C0.215,0.925 0.276,0.839 0.236,0.77 C0.206,0.718 0.19,0.66 0.19,0.6 C0.19,0.37 0.435,0.185 0.53,0.035 Z" />
+    </group>
+</vector>

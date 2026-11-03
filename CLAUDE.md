@@ -358,3 +358,11 @@ site's reader and outline scripts and fixtures. The way in is the signed-in home
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
   `{source, mode, attempt, messages, prompt, completion, reasoning, reader}` and nothing else.
   Usage: `select source, mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
+
+## Android (`android/`, started Nov 3, 2026)
+Kotlin and Compose port of the app, plus an accessibility service that reads the open Instagram or
+Snapchat DM thread for `catch-up-text`. `android/README.md` is the recipe: build with Android Studio's
+JBR as `JAVA_HOME` and `ANDROID_HOME=~/Library/Android/sdk`, `./gradlew :app:assembleDebug
+:app:testDebugUnitTest` (zero Kotlin warnings), AVDs `ketchup_chat`, `ketchup_brief`, `ketchup_reader`,
+offline previews with `adb shell am start -n com.vibetemp.ketchup/.MainActivity --es screen <name>`.
+It also has who owns which files (chat, brief, reader slices) and the frozen `data/BriefSource.kt` contract.
