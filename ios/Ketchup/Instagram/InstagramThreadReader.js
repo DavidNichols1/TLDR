@@ -425,71 +425,57 @@ async function settle(ctx, scroller) {
 /** Visits rows that were never filled in while we looked, newest first, and
  *  reads them. WebKit's scroll anchoring can keep the top of the list in view
  *  while Instagram adds older messages, which moves part of each new batch
- *  out of sight before it is ever filled. Stops once the newest `MAX`
- *  messages are complete, or at the time budget. Returns rows visited. */
+ *  out of sight before it is ever filled. Only rows inside the window (the
+ *  newest `MAX` messages) matter. Stops at the time budget. Returns rows visited. */
 async function fillGaps(ctx, scroller) {
   const view = () => (scroller === document.scrollingElement
     ? { top: 0, height: window.innerHeight } : scroller.getBoundingClientRect());
+  const isBar = (row) => row.matches('[role="progressbar"]') || !!row.querySelector('[role="progressbar"]');
   const tried = new Set();
   let visited = 0;
   for (let pass = 0; pass < 3; pass++) {
-    // Newest first: sorted by where the rows sit, whatever their DOM order.
-    const rows = rowsOf(ctx.list).map((row) => ({ row, r: row.getBoundingClientRect() }))
-      .filter((x) => x.r.height > 0).sort((a, b) => b.r.top - a.r.top);
-    let have = 0, gap = null;
-    for (const { row } of rows) {
-      if (ctx.rows.has(row)) {
-        for (const u of ctx.rows.get(row)) if (isMessageUnit(u)) have++;
-        if (have >= MAX + 10) break;
-        continue;
-      }
-      if (tried.has(row) || row.matches('[role="progressbar"]') || row.querySelector('[role="progressbar"]')) continue;
-      gap = row;
-      break;
-    }
-    if (!gap) return visited;
-    // Bring each unread row to the middle of the view, then read what's there.
-    for (const { row } of rows) {
+    const { messages } = walk(allUnits(ctx));
+    // Height above the list's bottom of the oldest message that will be kept.
+    const edge = messages.length > MAX ? messages[messages.length - MAX].topY : Infinity;
+    const base = ctx.list.getBoundingClientRect().bottom;
+    const gaps = rowsOf(ctx.list).map((row) => ({ row, r: row.getBoundingClientRect() }))
+      .filter(({ row, r }) => r.height > 0 && !ctx.rows.has(row) && !tried.has(row) && !isBar(row) && base - r.top <= edge + 1)
+      .sort((a, b) => b.r.top - a.r.top); // newest first
+    if (!gaps.length) return visited;
+    for (const { row } of gaps) {
       if (Date.now() - started >= BUDGET_MS) return visited;
-      if (ctx.rows.has(row) || tried.has(row)) continue;
-      if (row.matches('[role="progressbar"]') || row.querySelector('[role="progressbar"]')) continue;
+      if (ctx.rows.has(row)) continue; // already read along with a neighbor
       tried.add(row);
       const r = row.getBoundingClientRect(), v = view();
       scroller.scrollTop += r.top - v.top - (v.height - Math.min(r.height, v.height)) / 2;
       await settle(ctx, scroller);
       collect(ctx);
       visited++;
-      let have2 = 0;
-      for (const units of ctx.rows.values()) for (const u of units) if (isMessageUnit(u)) have2++;
-      if (have2 >= MAX + 10 && rowsNewerComplete(ctx, row, tried)) break;
     }
   }
   return visited;
 }
 
-/** True when every row below `row` (newer) has been read, or tried and found empty. */
-function rowsNewerComplete(ctx, row, tried) {
-  const top = row.getBoundingClientRect().top;
-  return rowsOf(ctx.list).every((other) => {
-    const r = other.getBoundingClientRect();
-    return r.height === 0 || r.top <= top || ctx.rows.has(other) || tried.has(other) ||
-      !!other.querySelector('[role="progressbar"]');
-  });
-}
+const allUnits = (ctx) => [...ctx.rows.values()].flat();
 
 /** Turns the pieces, top to bottom, into messages with senders and times. */
 function walk(all) {
-  // A row Instagram re-created while we scrolled is read twice: same text, same place.
-  const seen = new Set();
-  const units = all.filter((u) => {
-    const key = `${u.kind}|${u.text || u.name || ""}|${Math.round(u.topY / 3)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+  // A row Instagram re-created while we scrolled is read twice: same text at
+  // (nearly) the same place. A few pixels of slack, since a rebuilt row can
+  // settle a little differently.
+  const kept = new Map(); // kind|text → heights already kept
+  let dupes = 0;
+  const units = [...all].sort((a, b) => (b.topY - a.topY) || (a.order - b.order)).filter((u) => {
+    const key = `${u.kind}|${u.text || u.name || ""}`;
+    const at = kept.get(key) || [];
+    if (at.some((y) => Math.abs(y - u.topY) <= 6)) { dupes++; return false; }
+    at.push(u.topY);
+    kept.set(key, at);
     return true;
-  }).sort((a, b) => (b.topY - a.topY) || (a.order - b.order));
+  });
 
   const out = [];
-  const stats = { separators: 0, labels: 0, avatars: 0, media: 0, skipped: 0, empty: 0 };
+  const stats = { separators: 0, labels: 0, avatars: 0, media: 0, skipped: 0, empty: 0, dupes };
   const names = new Map(); // username → the display name its label showed
   let at = null, atLabel = null, label = null, labelUser, reply = null;
   const after = (i) => {
@@ -600,8 +586,9 @@ try {
     const step = Math.max(120, Math.round(scroller.clientHeight * 0.9));
     // Why it stopped goes in the stats: "enough", "budget", "steps", "loads" or "start".
     for (;;) {
-      // A few extra, since a reply's quoted bubble counts here but isn't a message of its own.
-      if (messageCount(ctx) >= MAX + 10) { stop = "enough"; break; }
+      // Counted the way they'll be returned: a reply's quote, a status line or a row
+      // Instagram re-created while we scrolled isn't a message of its own.
+      if (walk(allUnits(ctx)).messages.length >= MAX + 2) { stop = "enough"; break; }
       if (Date.now() - started >= BUDGET_MS) { stop = "budget"; break; }
       if (steps >= 250) { stop = "steps"; break; }
       const before = scroller.scrollTop;
@@ -630,7 +617,7 @@ try {
     scroller.scrollTop = reversed ? -fromBottom : scroller.scrollHeight - scroller.clientHeight - fromBottom;
   }
 
-  const { messages, stats } = walk([...ctx.rows.values()].flat());
+  const { messages, stats } = walk(allUnits(ctx));
   const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
   // Only group threads show name labels. A thread with none and only one
   // other person in it is 1:1: that person is named after the thread.
@@ -657,7 +644,7 @@ try {
     stats: { root: how, stop, scrolls: loads, steps, gaps, reachedStart, reversed, placeholders, rows: ctx.rows.size,
              units: messageCount(ctx), found: messages.length, named: named.size, separators: stats.separators,
              labels: stats.labels, avatars: stats.avatars, media: stats.media, skipped: stats.skipped,
-             empty: stats.empty, ms: Date.now() - started },
+             empty: stats.empty, dupes: stats.dupes, ms: Date.now() - started },
   });
 } catch (e) {
   return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });

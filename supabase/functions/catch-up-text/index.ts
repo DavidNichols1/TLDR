@@ -66,7 +66,7 @@ function timeOrNull(v: unknown): string | null {
 
 // The app's reader reports how its read went (steps, loads, why it stopped).
 // Only these keys, as numbers, booleans or fixed words, ever reach the log.
-const READER_NUMBERS = ["scrolls", "steps", "placeholders", "rows", "units", "found", "skipped", "empty", "ms"];
+const READER_NUMBERS = ["scrolls", "steps", "gaps", "placeholders", "rows", "units", "found", "skipped", "empty", "dupes", "ms"];
 const READER_WORDS: Record<string, string[]> = {
   root: ["aria-label", "grid", "scroller", "main"],
   stop: ["enough", "budget", "steps", "loads", "start", "no-scroller"],

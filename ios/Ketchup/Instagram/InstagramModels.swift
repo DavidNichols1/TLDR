@@ -42,6 +42,7 @@ struct IGReaderResult: Decodable {
         let stop: String?
         let scrolls: Int
         let steps: Int?
+        let gaps: Int?
         let reachedStart: Bool
         let placeholders: Int?
         let rows: Int?
@@ -49,14 +50,15 @@ struct IGReaderResult: Decodable {
         let found: Int
         let skipped: Int?
         let empty: Int?
+        let dupes: Int?
         let ms: Int
 
         /// For the request body: numbers and fixed words only, never page text.
         var report: [String: Any] {
             var out: [String: Any] = ["root": root, "scrolls": scrolls, "reachedStart": reachedStart, "found": found, "ms": ms]
             if let stop { out["stop"] = stop }
-            for (key, value) in [("steps", steps), ("placeholders", placeholders), ("rows", rows),
-                                 ("units", units), ("skipped", skipped), ("empty", empty)] {
+            for (key, value) in [("steps", steps), ("gaps", gaps), ("placeholders", placeholders), ("rows", rows),
+                                 ("units", units), ("skipped", skipped), ("empty", empty), ("dupes", dupes)] {
                 if let value { out[key] = value }
             }
             return out
