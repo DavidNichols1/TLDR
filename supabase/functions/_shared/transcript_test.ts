@@ -53,3 +53,18 @@ Deno.test("index 0 is a real ref; unknown and repeated refs are dropped", () => 
   const answer = cleanAnswer({ answer: "6am", found: true, refs: ["m2"] }, refs);
   assertEquals(answer, { answer: "6am", found: true, refs: [1] });
 });
+
+Deno.test("a photo's line says [photo], then its caption", () => {
+  const names = new Map([["u1", "Maya"]]);
+  const t = buildTranscript([], [
+    { id: "p", sender: "u1", body: "", created_at: "2026-11-07T02:00:00Z", image_path: "c/p.jpg" },
+    { id: "q", sender: "u1", body: "the cabin", created_at: "2026-11-07T02:01:00Z", image_path: "c/q.jpg" },
+    { id: "r", sender: "u1", body: "no photo", created_at: "2026-11-07T02:02:00Z", image_path: null },
+  ], names, "America/Denver");
+  assertEquals(t.text.split("\n"), [
+    "=== MESSAGES ===",
+    "[m1] Fri, Nov 6, 7:00 PM · Maya: [photo]",
+    "[m2] Fri, Nov 6, 7:01 PM · Maya: [photo] the cabin",
+    "[m3] Fri, Nov 6, 7:02 PM · Maya: no photo",
+  ]);
+});
