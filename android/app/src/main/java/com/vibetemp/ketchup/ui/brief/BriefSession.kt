@@ -62,12 +62,17 @@ interface BriefBackend {
  * Owned by BriefActivity's ViewModel (so a rotation keeps a request that's
  * running) or by a preview. Compose state, written on the main thread.
  * Nothing here is written to disk; a thread's messages stay in memory.
+ *
+ * [askFirst] is the chat's Ask button: the page opens on Ask the chat and
+ * no catch-up runs until the reader asks for one ([runCatchUp]), like iOS's
+ * Ask sheet, which never catches up on its own.
  */
 @Stable
 class BriefSession(
     val source: BriefSource,
     private val backend: BriefBackend,
     private val scope: CoroutineScope,
+    val askFirst: Boolean = false,
 ) {
     var signedOut by mutableStateOf(false)
         internal set
@@ -91,7 +96,10 @@ class BriefSession(
         catching { backend.readerName() }.getOrDefault("").also { readerName = it }
     }
 
-    /** Starts the catch-up unless one is running or already here. Safe to call again. */
+    /**
+     * Starts the catch-up unless one is running or already here, or the page
+     * opened for Ask. Safe to call again.
+     */
     fun start() {
         if (started) return
         started = true
@@ -102,7 +110,7 @@ class BriefSession(
         scope.launch { catching { backend.skim() }.onSuccess { skim = it } }
         scope.launch { reader.await() }
         when (val phase = catchUp) {
-            Phase.Idle -> runCatchUp()
+            Phase.Idle -> if (!askFirst) runCatchUp()
             is Phase.Done -> phase.value.result?.let { loadCited(Refs.all(it)) }
             else -> Unit
         }

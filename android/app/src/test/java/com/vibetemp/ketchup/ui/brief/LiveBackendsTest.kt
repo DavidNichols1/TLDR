@@ -90,6 +90,38 @@ class LiveBackendsTest {
     }
 
     @Test
+    fun theAskEntrySendsOnlyQuestions() {
+        val routes = Routes { request ->
+            when (request.url.substringAfter(".supabase.co").substringBefore('?')) {
+                "/rest/v1/chat_members" -> HttpResponse(
+                    200,
+                    """[{"user_id":"$me","joined_at":"2026-10-28T18:00:00Z","last_read_at":"2026-10-28T18:00:00Z",
+                        "profile":{"id":"$me","display_name":"David"}}]""",
+                )
+                "/rest/v1/messages", "/rest/v1/rpc/my_chats" -> HttpResponse(200, "[]")
+                "/functions/v1/catch-up" -> {
+                    val mode = KetchupJson.parseToJsonElement(request.body!!).jsonObject.getValue("mode").jsonPrimitive.content
+                    if (mode == "ask") HttpResponse(200, Fixtures.asset("ask.json")) else HttpResponse(500, """{"error":"caught up"}""")
+                }
+                else -> error("Unexpected ${request.method} ${request.url}")
+            }
+        }
+        val api = api(routes)
+        val session = BriefSession(chat, liveBackend(api, chat), CoroutineScope(Dispatchers.Unconfined), askFirst = true)
+        session.start()
+        assertEquals(BriefStage.Ask, session.stage())
+        assertTrue(routes.to("/functions/v1/catch-up").isEmpty())
+
+        session.ask("How much do I owe and to who?")
+        assertEquals(true, session.answer.done?.result?.found)
+        val modes = routes.to("/functions/v1/catch-up").map {
+            KetchupJson.parseToJsonElement(it.body!!).jsonObject.getValue("mode").jsonPrimitive.content
+        }
+        assertEquals(listOf("ask"), modes)
+        assertTrue(routes.sent.none { "mark_read" in it.url })
+    }
+
+    @Test
     fun nothingNewOrAFailureMarksNothing() {
         val empty = chatRoutes(HttpResponse(200, """{"kind":"catch_up","empty":true,"message_count":0}"""))
         assertEquals(BriefStage.Empty, run(chat, api(empty)).stage())

@@ -152,6 +152,9 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
     fun openBrief() {
         brief.launch(BriefActivity.intent(context, BriefSource.Chat(chat.id, chat.name)))
     }
+    fun openAsk() {
+        brief.launch(BriefActivity.askIntent(context, BriefSource.Chat(chat.id, chat.name)))
+    }
 
     // Loading, Realtime and the polling fallback, only while the app is on screen.
     LaunchedEffect(model) {
@@ -302,11 +305,11 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
             menu = menu,
             onMenu = { menu = it },
             onCatchUp = ::openBrief,
-            onAsk = ::openBrief,
+            onAsk = ::openAsk,
             onInfo = { showInfo = true },
         )
         if (state.loaded && state.messages.isNotEmpty()) {
-            CatchUpBar(state.unreadCount, onCatchUp = ::openBrief, onAsk = ::openBrief)
+            CatchUpBar(state.unreadCount, onCatchUp = ::openBrief, onAsk = ::openAsk)
         }
         Box(Modifier.weight(1f)) {
             LazyColumn(

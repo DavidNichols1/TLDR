@@ -24,8 +24,8 @@ import com.vibetemp.ketchup.ui.theme.KetchupTheme
  * Catch me up and Ask, for a [BriefSource]. Started from the app (a Ketchup
  * chat) or from the reader service over Instagram or Snapchat (a
  * [TextThread], in a task of its own, so Back returns to that app). The
- * brief slice owns this file; the two `start`/`intent` functions and
- * [EXTRA_JUMP_TO_MESSAGE] are the contract the other slices call.
+ * brief slice owns this file; the `start`/`intent`/`askIntent` functions
+ * and [EXTRA_JUMP_TO_MESSAGE] are the contract the other slices call.
  *
  * The catch-up starts as the page opens and survives a rotation (it lives
  * in a ViewModel). For a chat, a tapped source finishes with RESULT_OK and
@@ -57,6 +57,18 @@ class BriefActivity : ComponentActivity() {
          */
         const val EXTRA_JUMP_TO_MESSAGE = "com.vibetemp.ketchup.extra.JUMP_TO_MESSAGE"
 
+        /**
+         * An Intent that opens straight to Ask the chat for [source], with no
+         * catch-up until the reader taps Catch me up there (the chat's Ask
+         * button, like iOS's Ask sheet). Cited messages come back the same
+         * way, as [EXTRA_JUMP_TO_MESSAGE].
+         */
+        fun askIntent(context: Context, source: BriefSource): Intent =
+            intent(context, source).putExtra(EXTRA_ASK_FIRST, true)
+
+        /** Set by [askIntent]: open on Ask, no catch-up. */
+        private const val EXTRA_ASK_FIRST = "com.vibetemp.ketchup.extra.BRIEF_ASK_FIRST"
+
         /** A chat's finished brief, kept across the process dying while the page was in the background. */
         private const val STATE_BRIEF = "brief"
     }
@@ -72,9 +84,10 @@ class BriefActivity : ComponentActivity() {
         val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
         val source = BriefSourceIntent.from(intent)
             ?.takeUnless { it is TextThread && fromHistory && savedInstanceState == null }
+        val askFirst = intent.getBooleanExtra(EXTRA_ASK_FIRST, false)
         session = source?.let { s ->
             val restored = if (s is BriefSource.Chat) savedInstanceState?.getString(STATE_BRIEF)?.let(::decode) else null
-            val factory = BriefViewModel.Factory(KetchupApi.get(applicationContext), s, restored)
+            val factory = BriefViewModel.Factory(KetchupApi.get(applicationContext), s, restored, askFirst)
             ViewModelProvider(this, factory)[BriefViewModel::class.java].session
         }
         setContent {
@@ -112,8 +125,8 @@ class BriefActivity : ComponentActivity() {
 private val SERIALIZER = BriefResponse.serializer(CatchUp.serializer())
 
 /** Holds the page's [BriefSession], so a rotation keeps a catch-up that's running. */
-internal class BriefViewModel(api: KetchupApi, source: BriefSource, restored: CatchUpResponse?) : ViewModel() {
-    val session = BriefSession(source, liveBackend(api, source), viewModelScope).apply {
+internal class BriefViewModel(api: KetchupApi, source: BriefSource, restored: CatchUpResponse?, askFirst: Boolean) : ViewModel() {
+    val session = BriefSession(source, liveBackend(api, source), viewModelScope, askFirst).apply {
         if (restored != null) catchUp = Phase.Done(restored)
         start()
     }
@@ -122,10 +135,11 @@ internal class BriefViewModel(api: KetchupApi, source: BriefSource, restored: Ca
         private val api: KetchupApi,
         private val source: BriefSource,
         private val restored: CatchUpResponse?,
+        private val askFirst: Boolean,
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return BriefViewModel(api, source, restored) as T
+            return BriefViewModel(api, source, restored, askFirst) as T
         }
     }
 }

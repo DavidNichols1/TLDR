@@ -40,7 +40,7 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 |---|---|---|
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
 | `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-jump`, `chat-not-sent`, `info`, `settings` | `debug/ChatPreviews.kt` | The chat slice, under iOS's `-screen` names: sign-in and its code step (countdown running), the name step, the pager on each page, the inbox (full, skeleton, empty) and its New chat and Join sheets, the Breck chat (302 new; `chat-jump` stages a brief's jump to Maya's "$540 total"), Members and invite, Settings. `chat-not-sent` shows a send that failed. `chat-breck` is the old name for `chat`. Sends in a preview settle after 400 ms and never leave the phone |
-| `brief`, `brief-plans`, `brief-owes`, `brief-questions`, `brief-checked`, `brief-cached`, `brief-loading`, `brief-loading-still`, `brief-empty`, `brief-error`, `brief-signed-out`, `brief-gone`, `brief-thread`, `brief-thread-loading`, `brief-citations`, `brief-own-task`, `ask`, `ask-answer`, `ask-notfound` | `debug/BriefPreviews.kt` | Catch me up and Ask on Muse Spark's real Breck brief and answers, and iOS's hand-written brief of the Instagram thread. A scripted backend plays them back: Try again re-reads, Ask answers after a pause ("hot tub" gets the one the chat doesn't say). `-still` is the Reduce Motion skim; `brief-own-task` opens the real `BriefActivity` the way the reader service will |
+| `brief`, `brief-plans`, `brief-owes`, `brief-questions`, `brief-checked`, `brief-cached`, `brief-loading`, `brief-loading-still`, `brief-empty`, `brief-error`, `brief-signed-out`, `brief-gone`, `brief-thread`, `brief-thread-loading`, `brief-citations`, `brief-own-task`, `ask-first`, `ask`, `ask-answer`, `ask-notfound` | `debug/BriefPreviews.kt` | Catch me up and Ask on Muse Spark's real Breck brief and answers, and iOS's hand-written brief of the Instagram thread. A scripted backend plays them back: Try again re-reads, Ask answers after a pause ("hot tub" gets the one the chat doesn't say). `-still` is the Reduce Motion skim; `ask-first` is the page the chat's Ask button opens; `brief-own-task` opens the real `BriefActivity` the way the reader service will |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
 Fixtures are debug-only assets in `app/src/debug/assets/fixtures/`: iOS's `messages.json`, `brief.json`, `ask.json`, `ask-notfound.json`, and `instagram-thread.json` (iOS's synthetic Instagram fixture as a `TextThread`, made-up people). `debug/PreviewData.kt` decodes them with the app's own JSON setup; in a composable, `val data = previewData()`.
@@ -70,11 +70,12 @@ Everything else is shared: the theme (`ui/theme/`, `ui/design/`), `data/` except
 ```kotlin
 BriefActivity.start(context, source)            // from the reader service it adds FLAG_ACTIVITY_NEW_TASK
 BriefActivity.intent(context, source): Intent
+BriefActivity.askIntent(context, source): Intent // the chat's Ask button: opens on Ask, no catch-up
 ```
 
 A chat rides in the Intent's extras; a thread stays in this process's memory with only a key in the Intent (Binder's size limit, and a friend's messages shouldn't sit in the system's copy). `BriefSourceIntent.from(intent)` reads it back, or null after the process died. `BriefActivity` has its own task affinity, so over Instagram, Back returns to Instagram.
 
-What the brief does with it (`ui/brief/`): the catch-up starts as the page opens (a ViewModel keeps it through a rotation), with the skim of the real messages while Muse Spark reads, and Ask the chat sits under the brief on the same page.
+What the brief does with it (`ui/brief/`): the catch-up starts as the page opens (a ViewModel keeps it through a rotation), with the skim of the real messages while Muse Spark reads, and Ask the chat sits under the brief on the same page. Opened with `askIntent`, it's iOS's Ask sheet instead: Ask the chat on its own, field focused, no catch-up call; Catch me up in the top bar runs one, and the brief arrives above Ask.
 
 - **A Ketchup chat**: a tapped source finishes with `RESULT_OK` and `EXTRA_JUMP_TO_MESSAGE` (the message id). Like iOS, a brief that lands moves the read cursor to its `until`, so refresh the chat's unread count when the brief returns. A finished brief survives the process dying in the background (saved state, chats only).
 - **A thread**: a tapped source opens the item's cited messages in a sheet (`thread.message(ref)`), since there's no chat in Ketchup to jump into. `reader_name` is the reader's Ketchup display name, or "Me" without one, like iOS. Nothing from the thread is kept.
@@ -122,7 +123,7 @@ suspend fun ask(source: BriefSource, question: String, readerName: String): AskR
 
 - **Realtime** (`data/realtime/`) is a small hand-rolled WebSocket client (RFC 6455 over the system's TLS, no new dependency) speaking the Phoenix frames iOS `Net/Realtime.swift` sends: one socket per open chat, `realtime:chat-<id>` with the postgres_changes INSERT filter and the member's token, a heartbeat every 25 s, `access_token` when the token refreshes, iOS's backoff. The chat polls every 4 s while it isn't live, and only while the app is on screen.
 - **`ChatModel`** ports iOS's: the first page reaches back past the unread part, your cursor comes from your member row, pages and Realtime rows merge by id, sends are optimistic under the row's own id. The read-cursor rules are at the top of the file.
-- **The brief**: Catch me up and Ask both open `BriefActivity.intent(context, BriefSource.Chat(id, name))`; on the way back the chat re-reads your cursor (the brief moves it) and jumps to `EXTRA_JUMP_TO_MESSAGE` if there is one.
+- **The brief**: Catch me up opens `BriefActivity.intent(context, BriefSource.Chat(id, name))` and Ask opens `BriefActivity.askIntent(...)` (Ask first, no catch-up); on the way back the chat re-reads your cursor (a catch-up moves it) and jumps to `EXTRA_JUMP_TO_MESSAGE` if there is one.
 - **Not ported yet**: photos, the copy kept on the phone, saved catch-ups, profiles, block and report, your people, invite friends.
 
 ## Rules

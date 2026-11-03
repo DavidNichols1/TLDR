@@ -67,6 +67,7 @@ val BriefPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "brief-error" to { BriefPreview(Script.breck(), failed = "Request failed (502). Try again.") },
     "brief-signed-out" to { BriefPreview(Script.breck(signedIn = false)) },
     "brief-gone" to { BriefPage(null, onDone = {}, onJump = {}, onOpenApp = {}) },
+    "ask-first" to { BriefPreview(Script.breck(), askFirst = true) },
     "ask" to { BriefPreview(Script.breck(), landed = true, section = BriefSection.Ask) },
     "ask-answer" to { BriefPreview(Script.breck(), landed = true, answered = Answered.FOUND, section = BriefSection.Ask) },
     "ask-notfound" to { BriefPreview(Script.breck(), landed = true, answered = Answered.NOT_FOUND, section = BriefSection.Ask) },
@@ -101,9 +102,10 @@ private enum class Answered { FOUND, NOT_FOUND }
 /**
  * One brief page on a [Script]. [landed] starts it with the catch-up
  * already here ([nothingNew] for the empty one), [failed] with a failure,
- * [answered] with an Ask answer; otherwise it plays the script. Try again
- * and Ask play the script too. A tapped source in a chat shows a toast
- * here instead of jumping.
+ * [answered] with an Ask answer, [askFirst] the way the chat's Ask button
+ * opens it (no catch-up until Catch me up is tapped); otherwise it plays
+ * the script. Try again, Catch me up and Ask play the script too. A tapped
+ * source in a chat shows a toast here instead of jumping.
  */
 @Composable
 private fun BriefPreview(
@@ -116,12 +118,13 @@ private fun BriefPreview(
     cited: CitedRequest? = null,
     reduceMotion: Boolean? = null,
     done: Set<Int> = emptySet(),
+    askFirst: Boolean = false,
 ) {
     val data = previewData()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val session = remember {
-        BriefSession(script.source, script, scope).apply {
+        BriefSession(script.source, script, scope, askFirst).apply {
             readerName = script.reader
             when {
                 nothingNew -> catchUp = Phase.Done(Script.NOTHING_NEW)

@@ -83,11 +83,18 @@ fun count(n: Int): String = NumberFormat.getIntegerInstance(Locale.getDefault())
 
 /**
  * Pinned across the top: the chat's name (or the app and the thread) as a
- * running head, an Ask button when Ask is on the page, and Done. A hairline
- * shows once the page scrolls under it.
+ * running head, Catch me up while the page is only Ask, an Ask button when
+ * Ask is further down, and Done. A hairline shows once the page scrolls
+ * under it.
  */
 @Composable
-fun BriefTopBar(title: String, scrolled: Boolean, onDone: () -> Unit, onAsk: (() -> Unit)? = null) {
+fun BriefTopBar(
+    title: String,
+    scrolled: Boolean,
+    onDone: () -> Unit,
+    onAsk: (() -> Unit)? = null,
+    onCatchUp: (() -> Unit)? = null,
+) {
     val colors = KetchupTheme.colors
     val line by animateFloatAsState(if (scrolled) 1f else 0f, Motion.fade(), label = "hairline")
     Row(
@@ -112,19 +119,9 @@ fun BriefTopBar(title: String, scrolled: Boolean, onDone: () -> Unit, onAsk: (()
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (onAsk != null) {
-            // A quiet pill: Done stays the bar's strong word, and Ask's own button is the page's ketchup.
-            Text(
-                stringResource(R.string.brief_ask_short),
-                style = KetchupTheme.type.subheadline.copy(fontWeight = FontWeight.SemiBold),
-                color = colors.ink,
-                modifier = Modifier
-                    .pressable(onClick = onAsk)
-                    .semantics { role = Role.Button }
-                    .border(1.dp, colors.rule, RoundedCornerShape(50))
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            )
-        }
+        // Quiet pills: Done stays the bar's strong word, and Ask's own button is the page's ketchup.
+        if (onCatchUp != null) BarPill(stringResource(R.string.brief_catch_me_up), onCatchUp)
+        if (onAsk != null) BarPill(stringResource(R.string.brief_ask_short), onAsk)
         Text(
             stringResource(R.string.brief_done),
             style = KetchupTheme.type.body.copy(fontWeight = FontWeight.SemiBold),
@@ -134,6 +131,23 @@ fun BriefTopBar(title: String, scrolled: Boolean, onDone: () -> Unit, onAsk: (()
                 .padding(horizontal = 8.dp, vertical = 12.dp),
         )
     }
+}
+
+/** A quiet outline pill in the top bar. */
+@Composable
+private fun BarPill(text: String, onClick: () -> Unit) {
+    val colors = KetchupTheme.colors
+    Text(
+        text,
+        style = KetchupTheme.type.subheadline.copy(fontWeight = FontWeight.SemiBold),
+        color = colors.ink,
+        maxLines = 1,
+        modifier = Modifier
+            .pressable(onClick = onClick)
+            .semantics { role = Role.Button }
+            .border(1.dp, colors.rule, RoundedCornerShape(50))
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    )
 }
 
 /**

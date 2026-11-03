@@ -97,6 +97,31 @@ class BriefSessionTest {
     }
 
     @Test
+    fun anAskFirstOpenNeverCatchesUpUntilAskedTo() {
+        val fake = Fake(catchUps = mutableListOf({ brief }), asks = mutableListOf({ _ -> answer }))
+        val s = BriefSession(chat, fake, CoroutineScope(Dispatchers.Unconfined), askFirst = true).apply { start() }
+        assertEquals(BriefStage.Ask, s.stage())
+        assertEquals(Phase.Idle, s.catchUp)
+        assertTrue(fake.readersSent.isEmpty())
+        assertTrue(fake.caughtUpTo.isEmpty())
+        // Ready to ask: the reader's name and the skim for the wait are in.
+        assertEquals("David", s.readerName)
+        assertEquals(302, s.skim?.unread)
+
+        s.ask("How much do I owe and to who?")
+        assertEquals(answer, s.answer.done)
+        s.start()
+        assertTrue("Asking and starting again never catch up", fake.readersSent.isEmpty())
+
+        // Catch me up, tapped on the Ask page: the brief arrives and the answer stays.
+        s.runCatchUp()
+        assertEquals(BriefStage.Brief, s.stage())
+        assertEquals(1, fake.readersSent.size)
+        assertEquals(listOf(Instant.parse("2026-11-03T04:08:44Z")), fake.caughtUpTo)
+        assertEquals(answer, s.answer.done)
+    }
+
+    @Test
     fun anErrorInTheEnvelopeFails() {
         val fake = Fake(catchUps = mutableListOf({ CatchUpResponse(error = "You're not in this chat") }))
         val s = session(fake).apply { start() }

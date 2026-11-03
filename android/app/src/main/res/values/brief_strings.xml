@@ -5,6 +5,8 @@
     <string name="brief_kicker">Catch me up</string>
     <string name="brief_done">Done</string>
     <string name="brief_ask_short">Ask</string>
+    <!-- Opened for Ask: runs the catch-up from there -->
+    <string name="brief_catch_me_up">Catch me up</string>
     <!-- Over Instagram or Snapchat: "Instagram · Breck Crew" -->
     <string name="brief_running_head_thread">%1$s · %2$s</string>
 

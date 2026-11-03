@@ -3,7 +3,9 @@ package com.vibetemp.ketchup.ui.brief
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -39,6 +41,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -59,14 +62,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Where the page is: what the bar and the content show. */
-enum class BriefStage { SignedOut, Gone, Reading, Failed, Empty, Brief }
+/** Where the page is: what the bar and the content show. [Ask] is Ask the chat on its own, before any catch-up. */
+enum class BriefStage { SignedOut, Gone, Ask, Reading, Failed, Empty, Brief }
 
 fun BriefSession?.stage(): BriefStage = when {
     this == null -> BriefStage.Gone
     signedOut -> BriefStage.SignedOut
     else -> when (val phase = catchUp) {
-        Phase.Idle, Phase.Loading -> BriefStage.Reading
+        Phase.Idle -> if (askFirst) BriefStage.Ask else BriefStage.Reading
+        Phase.Loading -> BriefStage.Reading
         is Phase.Failed -> BriefStage.Failed
         is Phase.Done -> if (phase.value.result == null) BriefStage.Empty else BriefStage.Brief
     }
@@ -96,6 +100,7 @@ fun BriefPage(
     val focus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val view = LocalView.current
+    val focusManager = LocalFocusManager.current
     val margin = with(LocalDensity.current) { 12.dp.toPx() }
     var sheet by remember { mutableStateOf(initialCited) }
     // Where the scrolling content starts on screen, and where each section starts in it.
@@ -110,7 +115,12 @@ fun BriefPage(
     val stage = session.stage()
     val thread = session?.source as? TextThread
     val app = thread?.source?.appName
-    val askShown = session != null && (stage == BriefStage.Brief || (stage == BriefStage.Empty && thread == null))
+    // Opened for Ask, Ask stays on the page whatever the catch-up does; otherwise it comes with the brief.
+    val askShown = session != null && when {
+        stage == BriefStage.SignedOut -> false
+        session.askFirst -> true
+        else -> stage == BriefStage.Brief || (stage == BriefStage.Empty && thread == null)
+    }
     // A tapped source: jump into the chat, or show a thread's messages in the sheet.
     val open: (String, List<String>) -> Unit = remember(thread, onJump) {
         { ref, all -> if (thread != null) sheet = CitedRequest(ref, all) else onJump(ref) }
@@ -163,7 +173,15 @@ fun BriefPage(
                 title = title,
                 scrolled = scrolled,
                 onDone = onDone,
-                onAsk = if (!askShown) null else {
+                // Opened for Ask: Catch me up runs it from here, and the brief arrives above Ask.
+                onCatchUp = if (stage != BriefStage.Ask || session == null) null else {
+                    {
+                        focusManager.clearFocus()
+                        session.runCatchUp()
+                        scope.launch { scroll.glideTo(0) }
+                    }
+                },
+                onAsk = if (!askShown || stage == BriefStage.Ask) null else {
                     {
                         scope.launch {
                             sections[BriefSection.Ask]?.let { scroll.glideTo((it - margin).toInt()) }
@@ -182,20 +200,27 @@ fun BriefPage(
                     .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(40.dp),
             ) {
-                AnimatedContent(
-                    targetState = stage,
-                    transitionSpec = {
-                        val enter = when {
-                            // The brief's sections rise in on their own.
-                            targetState == BriefStage.Brief -> EnterTransition.None
-                            reduceMotion -> fadeIn(Motion.fade())
-                            else -> fadeIn(Motion.settle())
-                        }
-                        (enter togetherWith fadeOut(Motion.fade())).using(null)
-                    },
-                    label = "stage",
-                ) { shown ->
-                    StageContent(shown, session, onOpenApp, initiallyDone, reduceMotion, onSection = place, open = open)
+                // Nothing above Ask until a catch-up is asked for (the page opened for Ask).
+                AnimatedVisibility(
+                    visible = stage != BriefStage.Ask,
+                    enter = if (reduceMotion) fadeIn(Motion.fade()) else fadeIn(Motion.settle()) + expandVertically(Motion.settle()),
+                    exit = fadeOut(Motion.fade()),
+                ) {
+                    AnimatedContent(
+                        targetState = stage,
+                        transitionSpec = {
+                            val enter = when {
+                                // The brief's sections rise in on their own.
+                                targetState == BriefStage.Brief -> EnterTransition.None
+                                reduceMotion -> fadeIn(Motion.fade())
+                                else -> fadeIn(Motion.settle())
+                            }
+                            (enter togetherWith fadeOut(Motion.fade())).using(null)
+                        },
+                        label = "stage",
+                    ) { shown ->
+                        StageContent(shown, session, onOpenApp, initiallyDone, reduceMotion, onSection = place, open = open)
+                    }
                 }
                 if (askShown) {
                     AskSection(
@@ -203,6 +228,7 @@ fun BriefPage(
                         rememberRefContext(session, open),
                         focus,
                         app = app,
+                        prominent = stage == BriefStage.Ask,
                         modifier = Modifier
                             .onGloballyPositioned { place(BriefSection.Ask, it.positionInRoot().y) }
                             .riseIn(7, HAND_OVER_MS),
@@ -232,6 +258,7 @@ private fun StageContent(
 ) {
     val thread = session?.source as? TextThread
     when (stage) {
+        BriefStage.Ask -> Unit
         BriefStage.Gone -> GoneCard()
         BriefStage.SignedOut -> DropNote(
             stringResource(R.string.brief_signed_out),

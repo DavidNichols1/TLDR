@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -69,6 +71,8 @@ fun AskSection(
     focus: FocusRequester,
     modifier: Modifier = Modifier,
     app: String? = null,
+    /** The page is only Ask (the chat's Ask button): iOS's Ask sheet header, and the field focused. */
+    prominent: Boolean = false,
 ) {
     val colors = KetchupTheme.colors
     val focusManager = LocalFocusManager.current
@@ -80,9 +84,22 @@ fun AskSection(
         focusManager.clearFocus()
         session.ask(q)
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    // Opened for Ask, the field is ready to type in (iOS focuses it too), unless an answer is showing.
+    LaunchedEffect(Unit) {
+        if (prominent && session.answer == Phase.Idle) focus.requestFocus()
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(if (prominent) 24.dp else 16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            SectionTitle(stringResource(R.string.brief_ask_title))
+            if (prominent) {
+                Text(
+                    stringResource(R.string.brief_ask_title),
+                    style = KetchupTheme.type.serifLargeTitle,
+                    color = colors.ink,
+                    modifier = Modifier.semantics { heading() },
+                )
+            } else {
+                SectionTitle(stringResource(R.string.brief_ask_title))
+            }
             Text(stringResource(R.string.brief_ask_subtitle), style = KetchupTheme.type.subheadline, color = colors.inkSoft)
         }
         NotepadField(question, { question = it }, canAsk, focus, onSubmit = { submit() })
