@@ -192,7 +192,7 @@ struct OwesCheck: View {
         .buttonStyle(.pressable)
         .disabled(line.refs.isEmpty)
         .accessibilityLabel(Tab.spoken(line))
-        .accessibilityHint("Shows it in the chat")
+        .accessibilityHint(refs.hint)
     }
 
     private func title(_ line: Tab.Line) -> Text {

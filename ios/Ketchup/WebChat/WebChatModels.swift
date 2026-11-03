@@ -1,41 +1,46 @@
 //
-//  InstagramModels.swift
+//  WebChatModels.swift
 //  Ketchup
 //
-//  EXPERIMENTAL, NOT RELEASED. What InstagramThreadReader.js reads off an
-//  Instagram DM thread, and how catch-up-text's refs (indexes into the
-//  messages the app sent) fit the CatchUp model Ketchup's own chats use.
-//  None of this is ever written to disk.
+//  EXPERIMENTAL, NOT RELEASED. What a source's reader script reads off a
+//  chat thread, and how catch-up-text's refs (indexes into the messages
+//  the app sent) fit the CatchUp model Ketchup's own chats use. None of
+//  this is ever written to disk.
 //
 
 import Foundation
 
-/// One message as the reader script saw it on the page.
-struct IGMessage: Decodable, Equatable {
+/// One message as the reader saw it on the page.
+struct WebMessage: Decodable, Equatable {
     let sender: String
     let text: String
     let isMe: Bool
-    /// ISO 8601: the last time Instagram printed above this message (approximate).
+    /// ISO 8601: the last time the page printed above this message (approximate).
     let at: String?
 }
 
-/// A DM thread read off the page. Held in memory for one catch-up only.
-struct IGThread: Equatable {
+/// A thread read off the page. Held in memory for one catch-up only.
+struct WebThread: Equatable {
+    let source: WebChatSource
     let title: String
     let isGroup: Bool
-    let messages: [IGMessage]
-    /// Instagram had nothing older to load; otherwise this is the newest part.
+    let messages: [WebMessage]
+    /// The site had nothing older to load; otherwise this is the newest part.
     let reachedStart: Bool
     /// More messages were loaded than the reader keeps (it keeps the newest).
     let truncated: Bool
     /// How the read went, in counts only (sent along so the server log can show it).
-    let stats: IGReaderResult.Stats?
+    let stats: WebReaderResult.Stats?
 
-    var displayTitle: String { title.isEmpty ? "Instagram chat" : title }
+    var displayTitle: String { title.isEmpty ? source.fallbackTitle : title }
+
+    func message(_ ref: UUID) -> WebMessage? {
+        WebRef.index(ref).flatMap { messages.indices.contains($0) ? messages[$0] : nil }
+    }
 }
 
-/// The reader script's JSON.
-struct IGReaderResult: Decodable {
+/// A reader script's JSON.
+struct WebReaderResult: Decodable {
     /// Counts only: safe to log.
     struct Stats: Decodable, Equatable {
         let root: String
@@ -69,23 +74,15 @@ struct IGReaderResult: Decodable {
     let error: String?
     let title: String?
     let isGroup: Bool?
-    let messages: [IGMessage]?
+    let messages: [WebMessage]?
     let truncated: Bool?
     let stats: Stats?
-}
-
-/// A finished catch-up, for the result sheet.
-struct IGCatchUpResult: Identifiable {
-    let id = UUID()
-    let thread: IGThread
-    let brief: CatchUp
-    let latencyMs: Int?
 }
 
 /// catch-up-text cites messages by their index in the request. The CatchUp
 /// model holds refs as UUIDs (for Ketchup's own messages), so each index
 /// travels as a fixed UUID whose last 12 hex digits are the index.
-enum IGRef {
+enum WebRef {
     private static let prefix = "00000000-0000-0000-0000-"
 
     static func id(_ index: Int) -> UUID {
@@ -118,7 +115,7 @@ enum IGRef {
     }
 }
 
-enum InstagramError: LocalizedError {
+enum WebChatError: LocalizedError {
     case notAThread
     case readerMissing
     case unreadable
@@ -127,28 +124,17 @@ enum InstagramError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAThread:    return "Open a chat first, then tap Catch me up."
-        case .readerMissing: return "This build is missing the Instagram reader."
+        case .readerMissing: return "This build is missing the reader for this app."
         case .unreadable:    return "Couldn't read this chat. Scroll to the newest message and try again."
         case .nothingFound:  return "Couldn't find any messages on this page. Scroll to the newest message and try again."
         }
     }
 
-    /// A readable sentence for anything that goes wrong on the way.
+    /// A readable sentence for anything that goes wrong on the way: the
+    /// reader's own errors and the page's, then AIErrors for the rest.
     static func message(for error: Error) -> String {
-        if let url = error as? URLError {
-            switch url.code {
-            case .timedOut: return "Muse Spark took too long. Try again."
-            case .notConnectedToInternet, .networkConnectionLost: return "You're offline. Reconnect and try again."
-            default: return "Couldn't reach Muse Spark. Try again."
-            }
-        }
-        if error is DecodingError { return "Muse Spark sent back something unexpected. Try again." }
-        if case APIError.server(let raw) = error {
-            if raw.lowercased().hasPrefix("request failed (50") { return "Muse Spark is busy right now. Try again in a moment." }
-            return raw
-        }
-        if let known = error as? InstagramError { return known.errorDescription ?? "Something went wrong." }
-        if (error as NSError).domain == "WKErrorDomain" { return InstagramError.unreadable.errorDescription! }
-        return error.localizedDescription
+        if let known = error as? WebChatError { return known.errorDescription ?? "Something went wrong." }
+        if (error as NSError).domain == "WKErrorDomain" { return WebChatError.unreadable.errorDescription! }
+        return AIErrors.message(for: error)
     }
 }
