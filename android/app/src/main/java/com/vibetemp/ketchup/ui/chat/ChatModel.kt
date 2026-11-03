@@ -29,6 +29,13 @@ interface ChatBackend {
     suspend fun members(chatId: String): List<Member>
     suspend fun send(chatId: String, body: String, id: String): Message
     suspend fun markRead(chatId: String, at: Instant?)
+
+    /**
+     * Offline previews hold a slice of a longer chat (44 of Breck's 302
+     * messages): the unread count stays the inbox row's instead of being
+     * recounted from your member row, as iOS's previews do.
+     */
+    val partial: Boolean get() = false
 }
 
 class LiveChatBackend(private val api: KetchupApi) : ChatBackend {
@@ -135,7 +142,7 @@ class ChatModel(
                 _state.update { it.copy(loadError = readable(e)) }
             }
             var exact = false
-            if (loadMembers() && paged) exact = readFromServerCursor()
+            if (loadMembers() && paged && !backend.partial) exact = readFromServerCursor()
             computeUnread(exact)
             if (paged) _state.update { it.copy(synced = true) }
         } finally {
