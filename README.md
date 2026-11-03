@@ -39,6 +39,20 @@ time are we leaving?" and get groaned at.
 - **A real group chat underneath.** Sign in with an email code, create a chat, and
   invite friends with a 6-character code. Messages arrive in real time.
 
+<table>
+  <tr>
+    <td><img src="docs/screens/redesign/chat-light.png" width="200" alt="A group chat with 302 unread and the Catch me up button"></td>
+    <td><img src="docs/screens/redesign/ai-catchup-light.png" width="200" alt="The catch-up: a headline summary and a For you checklist"></td>
+    <td><img src="docs/screens/redesign/ai-catchup-plans-light.png" width="200" alt="Plans as order tickets with Add to calendar"></td>
+    <td><img src="docs/screens/redesign/ai-catchup-owes-light.png" width="200" alt="Who owes what as a diner check"></td>
+  </tr>
+</table>
+
+The look is a diner counter: cream paper, ketchup red for the one button that matters,
+mustard for what matters to you, plans as order tickets and money as the check. Every
+screen opens offline on real demo data with `-screen <name>`; see
+[docs/DESIGN.md](docs/DESIGN.md).
+
 ## How it uses Muse Spark
 
 Ketchup doesn't just summarize, and it isn't basic RAG either. One Muse Spark call turns
