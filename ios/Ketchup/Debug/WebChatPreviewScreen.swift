@@ -22,6 +22,7 @@ struct WebChatPreviewScreen: View {
         case error = "web-error"
         case quote = "web-quote"
         case snapchat = "web-snapchat"
+        case snapchatTrial = "web-snapchat-trial"
     }
 
     static var names: [String] { Screen.allCases.map(\.rawValue) }
@@ -55,6 +56,8 @@ struct WebChatPreviewScreen: View {
                 WebQuoteCard(message: Self.thread.messages[84], source: .instagram)
             case .snapchat:
                 WebChatTab(source: .snapchat)
+            case .snapchatTrial:
+                SnapchatTrialScreen()
             case nil:
                 PreviewIndex(unknown: name)
             }
