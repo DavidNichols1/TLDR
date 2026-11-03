@@ -55,6 +55,12 @@ class BriefActivity : ComponentActivity() {
             if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }
+
+        /**
+         * What a brief for a Ketchup chat returns (with RESULT_OK) when a cited
+         * message is tapped: that message's id, so the chat scrolls to it.
+         */
+        const val EXTRA_JUMP_TO_MESSAGE = "com.vibetemp.ketchup.extra.JUMP_TO_MESSAGE"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
