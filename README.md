@@ -43,7 +43,8 @@ time are we leaving?" and get groaned at.
   initials stand in.
 - **Photos in the chat.** Send a photo with a caption or without one. It shows in your
   bubble straight away with a ring filling as it uploads, keeps its shape in the thread,
-  and opens full screen to zoom and share. Only the chat's members can see it.
+  and opens full screen to zoom and share. Only the chat's members can see it, and Catch
+  me up reads it along with the messages: a door code in a photo makes the brief.
 
 <table>
   <tr>
@@ -97,6 +98,15 @@ checks that every claim is backed by a real message.
 8. **Ready before you tap.** Opening a chat with 15+ unread starts the catch-up in the
    background, so the tap usually shows the result instantly. The read cursor still only
    moves when you actually open the result.
+9. **It reads the photos too.** The newest 6 photos among the messages it reads go along
+   as images ([`photos.ts`](supabase/functions/_shared/photos.ts)): their 768 px copies,
+   downloaded with the reader's own token (so RLS still decides) and sent inline, never
+   as a link Meta would fetch. Each one is labelled with its message ref and sender, so a
+   bullet can cite a photo like any message, and its source chip shows the photo. If
+   Meta refuses a photo, the call runs again without them. On the demo chat with two
+   made-up photos (November 3, 2026), the brief said "Maya shared the cabin door code
+   early: 4471, hit # after", a code that was only in the photo, and Ask answered "what's
+   the code for the cabin door?" from it in 3.3 seconds.
 
 Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 
@@ -108,6 +118,9 @@ Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
   planted plan, debt and open question came back correct. `minimal` effort halves the
   time (12 s) but invented a time the chat never gave, so `low` stays the default and the
   background prefetch hides the wait. "Ask the chat" takes about 3 seconds.
+- Photos are `image_url` parts with a `data:` URL in the user message. A 768 px photo is
+  about 640 tokens: the demo catch-up went from 9,634 to 10,917 tokens in with two photos
+  (about a tenth of a cent each) and took no longer (17.1 s without, 16.0 s with).
 - It retries once on 429/500/503 and honors `Retry-After`. The key is read from the edge
   function's secrets and is never sent to the app.
 
@@ -172,7 +185,8 @@ flowchart LR
   JPEG (66 to 153 KB on the simulator's sample photos). A chat photo goes up as two
   JPEGs: at most 2048 px for the viewer, and a 768 px copy for the thread. The bubble is
   laid out from the photo's stored size, so the thread doesn't jump as photos load. In
-  the transcript Muse Spark reads, a photo is a `[photo]` line with its caption.
+  the transcript Muse Spark reads, a photo is a `[photo N]` line with its caption, and the
+  photo itself goes along as an image (see "How it uses Muse Spark").
 
 ### Security
 
