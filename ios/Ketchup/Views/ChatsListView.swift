@@ -3,7 +3,7 @@
 //  Ketchup
 //
 //  The inbox (my_chats): newest activity first, unread badges, new chat,
-//  join with a code, pull to refresh, sign out. The first page of
+//  join with a code, pull to refresh, Settings (top left). The first page of
 //  HomePager, whose switcher sits in the middle of this top bar.
 //
 
@@ -16,6 +16,8 @@ struct ChatsListView: View {
     @State private var path: [UUID] = []
     @State private var showNew = false
     @State private var showJoin = false
+    @State private var showSettings = false
+    @State private var settingsExit: SettingsExit?
     @State private var newName = ""
     @State private var joinCode = ""
     @State private var busy = false
@@ -73,12 +75,27 @@ struct ChatsListView: View {
                     Task { await join() }
                 }
             }
+            // Signing out waits for the sheet to go, so it isn't left over sign-in.
+            .sheet(isPresented: $showSettings, onDismiss: {
+                guard let exit = settingsExit else { return }
+                settingsExit = nil
+                Task { await app.leave(exit) }
+            }) {
+                SettingsView { exit in
+                    settingsExit = exit
+                    showSettings = false
+                }
+            }
             .alert("Something went wrong", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(error ?? "")
             }
         }
+        #if DEBUG
+        // `-screen settings-sheet` opens Settings over the inbox (PeoplePreviewScreen).
+        .onAppear { if UserDefaults.standard.bool(forKey: "KetchupOpenSettings") { showSettings = true } }
+        #endif
         // Keep the inbox fresh while it's on screen (badges, previews).
         .task {
             while !Task.isCancelled {
@@ -124,18 +141,7 @@ struct ChatsListView: View {
             Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
         }
         ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                if let me = app.me {
-                    Text("Signed in as \(me.displayName)")
-                }
-                Button(role: .destructive) {
-                    Task { await app.signOut() }
-                } label: {
-                    Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                }
-            } label: {
-                profileLabel
-            }
+            Button { showSettings = true } label: { profileLabel }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -156,11 +162,11 @@ struct ChatsListView: View {
             Text(Theme.initials(me.displayName))
                 .font(.system(.subheadline, design: .serif, weight: .bold))
                 .foregroundStyle(Theme.personColor(name: me.displayName))
-                .accessibilityLabel("Profile, \(me.displayName)")
+                .accessibilityLabel("Settings, \(me.displayName)")
         } else {
             Image(systemName: "person")
                 .foregroundStyle(Theme.ink)
-                .accessibilityLabel("Profile")
+                .accessibilityLabel("Settings")
         }
     }
 
