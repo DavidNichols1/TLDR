@@ -308,7 +308,8 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
             onAsk = ::openAsk,
             onInfo = { showInfo = true },
         )
-        if (state.loaded && state.messages.isNotEmpty()) {
+        // Something someone said: a new chat with only "You joined" in it is still quiet.
+        if (state.loaded && state.messages.any { !it.isJoin }) {
             CatchUpBar(state.unreadCount, onCatchUp = ::openBrief, onAsk = ::openAsk)
         }
         Box(Modifier.weight(1f)) {
@@ -322,6 +323,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
                     when (row) {
                         is ThreadRow.Day -> DayDivider(row.day)
                         is ThreadRow.Unread -> UnreadDivider(row.count)
+                        is ThreadRow.Joined -> JoinedRow(model, row)
                         is ThreadRow.Bubble -> BubbleRow(model, row, highlighted = highlighted == row.message.id)
                     }
                 }
@@ -435,6 +437,13 @@ private fun MenuItem(text: String, icon: Int, onClick: () -> Unit) {
     )
 }
 
+/** "Maya joined", or "You joined" in ink. */
+@Composable
+private fun JoinedRow(model: ChatModel, row: ThreadRow.Joined) {
+    val name = model.name(row.message.sender)
+    JoinedLine(name, if (row.message.sender == model.myId) KetchupTheme.colors.ink else KetchupTheme.colors.person(name))
+}
+
 /** A bubble with its sender's monogram by the last of each run (other people's only). */
 @Composable
 private fun BubbleRow(model: ChatModel, row: ThreadRow.Bubble, highlighted: Boolean) {
@@ -495,7 +504,7 @@ private fun ThreadNote(state: ChatState, chat: ChatSummary, onRetry: () -> Unit)
             CapsuleButton(stringResource(R.string.chat_try_again), onClick = onRetry, fill = ButtonFill.Outline, compact = true)
         }
         !state.loaded -> ThreadSkeleton(stringResource(R.string.chat_loading), Modifier.background(colors.cream))
-        state.messages.isEmpty() -> {
+        state.messages.all { it.isJoin } -> {
             val line = stringResource(R.string.chat_empty_body, chat.inviteCode)
             val at = line.indexOf(chat.inviteCode)
             val text = buildAnnotatedString {

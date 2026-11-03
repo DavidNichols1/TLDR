@@ -2,12 +2,14 @@ package com.vibetemp.ketchup.ui.chat
 
 import com.vibetemp.ketchup.data.ApiException
 import com.vibetemp.ketchup.data.ChatSummary
+import com.vibetemp.ketchup.data.KetchupJson
 import com.vibetemp.ketchup.data.Member
 import com.vibetemp.ketchup.data.Message
 import com.vibetemp.ketchup.data.Profile
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import kotlinx.serialization.builtins.ListSerializer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -109,6 +111,40 @@ class ChatModelTest {
         assertEquals((126..450).map { "m%04d".format(it) }, s.messages.map { it.id })
         assertEquals("Maya", model.name(maya))
         assertEquals("You", model.name(me))
+    }
+
+    @Test
+    fun aJoinLineStartsTheNewPartButIsNeverCounted() = runBlocking {
+        // Maya joins (a "Maya joined" line, migration 0009), then says two things, all after your cursor.
+        val joined = Message("j0001", chatId, maya, "joined", t0.plusSeconds(30), kind = Message.JOINED)
+        val server = FakeServer(listOf(joined, msg(1), msg(2)), myCursor = t0, me = me, maya = maya)
+        val model = ChatModel(summary(unread = 2, lastRead = t0), me, server, this)
+        model.open()
+        val s = model.state.value
+        assertEquals(2, s.unreadCount)
+        assertEquals(2, s.unreadAtOpen)
+        assertEquals("j0001", s.firstUnreadId)
+
+        // Only a join line since your cursor: nothing new, and no "N new" line.
+        val quiet = FakeServer(listOf(msg(1), joined.copy(createdAt = t0.plusSeconds(90))), myCursor = t0.plusSeconds(60), me = me, maya = maya)
+        val other = ChatModel(summary(unread = 0, lastRead = t0.plusSeconds(60)), me, quiet, this)
+        other.open()
+        assertEquals(0, other.state.value.unreadCount)
+        assertNull(other.state.value.firstUnreadId)
+    }
+
+    @Test
+    fun rowsFromBeforeKindReadAsText() {
+        val rows = KetchupJson.decodeFromString(
+            ListSerializer(Message.serializer()),
+            """[
+              {"id":"a","chat_id":"c","sender":"s","body":"hi","created_at":"2026-11-01T12:00:00Z"},
+              {"id":"b","chat_id":"c","sender":"s","body":"joined","created_at":"2026-11-01T12:01:00Z","kind":"joined"},
+              {"id":"c","chat_id":"c","sender":"s","body":"yo","created_at":"2026-11-01T12:02:00Z","kind":"text"}
+            ]""",
+        )
+        assertEquals(listOf(Message.TEXT, Message.JOINED, Message.TEXT), rows.map { it.kind })
+        assertEquals(listOf(false, true, false), rows.map { it.isJoin })
     }
 
     @Test

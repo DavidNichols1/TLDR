@@ -45,7 +45,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +63,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 // What a thread is drawn from (iOS Chat/ChatBubble.swift and
-// ThreadDivider.swift): its rows, the day and "N new" lines, and bubbles.
+// ThreadDivider.swift): its rows, the day, "N new" and "Maya joined"
+// lines, and bubbles.
 
 /** One row of a thread, oldest first. [key] is stable for the list. */
 sealed interface ThreadRow {
@@ -74,6 +78,11 @@ sealed interface ThreadRow {
         override val key: String get() = UNREAD_KEY
     }
 
+    /** "Maya joined" (migration 0009). */
+    data class Joined(val message: Message) : ThreadRow {
+        override val key: String get() = message.id
+    }
+
     /** [startsRun]: first of a run from one sender; [endsRun]: last of it. */
     data class Bubble(val message: Message, val startsRun: Boolean, val endsRun: Boolean) : ThreadRow {
         override val key: String get() = message.id
@@ -84,21 +93,37 @@ sealed interface ThreadRow {
     }
 }
 
-/** The thread's rows: a day line at each new day, the "N new" line before the first unread, and runs. */
+/**
+ * The thread's rows: a day line at each new day, the "N new" line before the
+ * first unread, "Maya joined" lines, and runs. One join line per person, as
+ * the server keeps it: when someone leaves and comes back while the chat is
+ * open, only their newest line shows.
+ */
 fun threadRows(messages: List<Message>, firstUnreadId: String?, unreadAtOpen: Int, zone: ZoneId = ZoneId.systemDefault()): List<ThreadRow> {
     val out = ArrayList<ThreadRow>(messages.size + 8)
     var lastDay: LocalDate? = null
     var lastSender: String? = null
+    var unreadDue = false
+    val newestJoin = messages.filter { it.isJoin }.associate { it.sender to it.id }
     for (m in messages) {
+        if (m.id == firstUnreadId && unreadAtOpen > 0) unreadDue = true
+        if (m.isJoin && newestJoin[m.sender] != m.id) continue
         val day = m.createdAt.atZone(zone).toLocalDate()
         if (day != lastDay) {
             out += ThreadRow.Day(day)
             lastDay = day
             lastSender = null
         }
-        if (m.id == firstUnreadId && unreadAtOpen > 0) {
+        if (unreadDue) {
             out += ThreadRow.Unread(unreadAtOpen)
+            unreadDue = false
             lastSender = null
+        }
+        // A join line sits between runs: the next bubble starts a new one.
+        if (m.isJoin) {
+            out += ThreadRow.Joined(m)
+            lastSender = null
+            continue
         }
         val continues = m.sender == lastSender
         // The bubble before this one is the same sender's, so its run goes on.
@@ -125,6 +150,32 @@ fun DayDivider(day: LocalDate) {
     ) {
         Kicker(text)
     }
+}
+
+/**
+ * Someone joined the chat: "Maya joined", small and centered like a day line,
+ * the name in their chat color ("You joined" in ink). The server writes one
+ * when someone joins, starts the chat or is added (iOS `JoinedLine`).
+ */
+@Composable
+fun JoinedLine(name: String, color: Color) {
+    val line = stringResource(R.string.chat_joined, name)
+    val at = line.indexOf(name)
+    val text = buildAnnotatedString {
+        append(line)
+        if (at >= 0) addStyle(SpanStyle(color = color, fontWeight = FontWeight.SemiBold), at, at + name.length)
+    }
+    Text(
+        text,
+        style = KetchupTheme.type.footnote,
+        color = KetchupTheme.colors.inkSoft,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 12.dp, bottom = 4.dp)
+            .clearAndSetSemantics { contentDescription = line },
+    )
 }
 
 /**

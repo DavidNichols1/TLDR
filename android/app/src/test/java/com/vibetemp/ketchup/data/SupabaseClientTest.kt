@@ -87,7 +87,8 @@ class SupabaseClientTest {
 
         val messages = api.messages("c", before = Instant.parse("2026-11-03T05:00:00Z"), limit = 2)
         assertEquals(
-            "$base/rest/v1/messages?chat_id=eq.c&select=id,chat_id,sender,body,created_at,image_path,image_width,image_height" +
+            // Every column: rows have a kind ("Maya joined") only once migration 0009 is applied.
+            "$base/rest/v1/messages?chat_id=eq.c&select=*" +
                 "&order=created_at.desc&limit=2&created_at=lt.2026-11-03T05:00:00Z",
             transport.sent[1].url,
         )

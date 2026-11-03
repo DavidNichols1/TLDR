@@ -68,7 +68,17 @@ data class Message(
     /** App only, never sent: an optimistic bubble not yet confirmed, or one that failed. */
     @Transient val pending: Boolean = false,
     @Transient val failed: Boolean = false,
-)
+    /** [TEXT], or [JOINED] for a "Maya joined" line the server writes (migration 0009). Rows from before it have none. */
+    val kind: String = TEXT,
+) {
+    /** A "Maya joined" line: drawn small and centered, never counted as unread. */
+    val isJoin: Boolean get() = kind == JOINED
+
+    companion object {
+        const val TEXT = "text"
+        const val JOINED = "joined"
+    }
+}
 
 // MARK: Muse Spark
 
