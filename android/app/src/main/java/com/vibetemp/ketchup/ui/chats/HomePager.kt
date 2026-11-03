@@ -119,7 +119,8 @@ fun HomePager(
                             .statusBarsPadding()
                             .height(BAR_ROW),
                     )
-                    if (page in built) ReaderPage(source, Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
+                    // The reader slice's page, in the one form the contract promises.
+                    Box(Modifier.weight(1f)) { if (page in built) ReaderPage(source) }
                 }
             }
         }

@@ -39,7 +39,7 @@ opens one screen on fixture data: no sign-in, no network, no Muse Spark. While a
 | Name | File | Shows |
 |---|---|---|
 | `design` | `debug/DesignPreviews.kt` (shared) | The drop, wordmark, buttons, monograms, paper, colors |
-| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-jump`, `info`, `settings` | `debug/ChatPreviews.kt` | The chat slice, under iOS's `-screen` names: sign-in and its code step (countdown running), the name step, the pager on each page, the inbox (full, skeleton, empty) and its New chat and Join sheets, the Breck chat (302 new; `chat-jump` stages a brief's jump to Maya's "$540 total"), Members and invite, Settings. `chat-breck` is the old name for `chat`. Sends in a preview settle after 400 ms and never leave the phone |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-jump`, `chat-not-sent`, `info`, `settings` | `debug/ChatPreviews.kt` | The chat slice, under iOS's `-screen` names: sign-in and its code step (countdown running), the name step, the pager on each page, the inbox (full, skeleton, empty) and its New chat and Join sheets, the Breck chat (302 new; `chat-jump` stages a brief's jump to Maya's "$540 total"), Members and invite, Settings. `chat-not-sent` shows a send that failed. `chat-breck` is the old name for `chat`. Sends in a preview settle after 400 ms and never leave the phone |
 | `brief-breck` | `debug/BriefPreviews.kt` | Muse Spark's real Breck brief: gist and highlights, each with its source |
 | `reader-instagram` | `debug/ReaderPreviews.kt` | The synthetic Instagram thread as catch-up-text will see it; "Open the brief" hands it to `BriefActivity` |
 
@@ -110,6 +110,15 @@ suspend fun ask(source: BriefSource, question: String, readerName: String): AskR
 `ui/theme/`: `KetchupTheme { }` wraps a screen; `KetchupTheme.colors` (cream, card, rule, ink, inkSoft, inkFaint, onInk, ketchup, ketchupText, onKetchup, mustard, onMustard, pickle, people), `KetchupTheme.type` (serif, mono and sans styles in sp, after iOS's text styles), `KetchupTheme.reduceMotion`, `Motion`. Values match iOS `Theme.swift`; `colors.person(name)` uses iOS's hash, so Maya is the same teal on both phones. Android's built-in serif and monospace stand in for New York and SF Mono.
 
 `ui/design/`: `Modifier.paperCard()`, `Kicker`, `SectionTitle`, `Wordmark`, `KetchupDrop` and `KetchupDropShape`, `CapsuleButton` (`ButtonFill.Ketchup`, `Ink`, `Outline`; `compact`), `Modifier.pressable { }`, `Monogram`. `docs/DESIGN.md` has the rules: one ketchup thing per screen, mustard only for what's yours, no gradients or shadows, never em dashes.
+
+## The chat slice
+
+`ui/auth/` (sign-in, the name step, form pieces), `ui/chats/` (`AppModel`, the nav graph in `KetchupRoot.kt`, the pager, the inbox, New chat and Join, Settings), `ui/chat/` (`ChatModel`, the thread, the composer, the Catch me up bar, Members & invite).
+
+- **Realtime** (`data/realtime/`) is a small hand-rolled WebSocket client (RFC 6455 over the system's TLS, no new dependency) speaking the Phoenix frames iOS `Net/Realtime.swift` sends: one socket per open chat, `realtime:chat-<id>` with the postgres_changes INSERT filter and the member's token, a heartbeat every 25 s, `access_token` when the token refreshes, iOS's backoff. The chat polls every 4 s while it isn't live, and only while the app is on screen.
+- **`ChatModel`** ports iOS's: the first page reaches back past the unread part, your cursor comes from your member row, pages and Realtime rows merge by id, sends are optimistic under the row's own id. The read-cursor rules are at the top of the file.
+- **The brief**: Catch me up and Ask both open `BriefActivity.intent(context, BriefSource.Chat(id, name))`; on the way back the chat re-reads your cursor (the brief moves it) and jumps to `EXTRA_JUMP_TO_MESSAGE` if there is one.
+- **Not ported yet**: photos, the copy kept on the phone, saved catch-ups, profiles, block and report, your people, invite friends.
 
 ## Rules
 

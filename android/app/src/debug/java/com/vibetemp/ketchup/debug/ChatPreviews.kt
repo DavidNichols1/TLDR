@@ -29,7 +29,8 @@ import java.time.Instant
 // signin, signin-code, name, home (the pager on Chats), home-instagram,
 // home-snapchat, inbox-loading, inbox-empty, new-chat, join, chat (Breck,
 // 302 new), chat-loading, chat-jump (a brief's jump to Maya's "$540 total"),
-// info (Members and invite), settings. chat-breck is the old name for chat.
+// info (Members and invite), settings, and chat-not-sent (a send that fails
+// and offers a retry). chat-breck is the old name for chat.
 
 val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "signin" to { SignInScreen(api = null) },
@@ -49,6 +50,7 @@ val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "chat-loading" to { BreckChat(holdsLoading = true) },
     "chat-jump" to { BreckChat(ChatStart(jumpTo = JUMP_TARGET)) },
     "info" to { BreckChat(ChatStart(info = true)) },
+    "chat-not-sent" to { BreckChat(ChatStart(send = "on my way"), sendsFail = true) },
     "settings" to { Home(rememberPreviewApp(), HomeStart(page = HomePage.CHATS, remembers = false, stack = listOf("settings"))) },
 )
 
@@ -57,8 +59,8 @@ private const val JUMP_TARGET = "6fe6a3cc-7a99-5aa3-a3dd-be8a6a18adb5"
 
 /** The pager with Breck open over it, so Back goes to the inbox. */
 @Composable
-private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = false) {
-    val app = rememberPreviewApp(holdsLoading = holdsLoading)
+private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = false, sendsFail: Boolean = false) {
+    val app = rememberPreviewApp(holdsLoading = holdsLoading, sendsFail = sendsFail)
     Home(app, HomeStart(page = HomePage.CHATS, remembers = false, stack = listOf("chat:${PreviewData.BRECK_ID}"), chat = start))
 }
 
@@ -73,13 +75,14 @@ private fun rememberPreviewApp(
     chats: List<ChatSummary>? = null,
     loading: Boolean = false,
     holdsLoading: Boolean = false,
+    sendsFail: Boolean = false,
 ): AppModel {
     val context = LocalContext.current
     val data = previewData()
-    return remember(name, chats, loading, holdsLoading) {
+    return remember(name, chats, loading, holdsLoading, sendsFail) {
         val inbox = PreviewInbox(data)
         AppModel.offline(context, Profile(PreviewData.ME, name), chats ?: inbox.chats, loading).apply {
-            chatBackend = FixtureChatBackend(inbox.messages, inbox.members, holdsLoading)
+            chatBackend = FixtureChatBackend(inbox.messages, inbox.members, holdsLoading, sendsFail)
         }
     }
 }
@@ -175,6 +178,8 @@ private class FixtureChatBackend(
     private val messages: Map<String, List<Message>>,
     private val members: Map<String, List<Member>>,
     private val holdsLoading: Boolean,
+    /** Every send fails, as if offline (`chat-not-sent`). */
+    private val sendsFail: Boolean = false,
 ) : ChatBackend {
     private val sent = mutableMapOf<String, MutableList<Message>>()
 
@@ -195,6 +200,7 @@ private class FixtureChatBackend(
 
     override suspend fun send(chatId: String, body: String, id: String): Message {
         delay(400)
+        if (sendsFail) throw java.io.IOException("Offline preview: this send fails on purpose.")
         val row = Message(id = id, chatId = chatId, sender = PreviewData.ME, body = body, createdAt = Instant.now())
         sent.getOrPut(chatId) { mutableListOf() } += row
         return row
