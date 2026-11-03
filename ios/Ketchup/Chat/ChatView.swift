@@ -4,7 +4,8 @@
 //
 //  One group chat: bubbles with sender names and day separators, the
 //  pinned Muse Spark bar, and the sheets it opens. A ref chip in a sheet
-//  closes it and scrolls here to the cited message, which glows briefly.
+//  closes it and scrolls here to the cited message, where a mustard marker
+//  sweeps behind the bubble for a moment.
 //
 //  When and why the read cursor moves is explained at the top of
 //  ChatModel.swift; this view only reports scrolling and leaving.
@@ -30,6 +31,11 @@ struct ChatView: View {
     @State private var positioned = false
     @State private var leftChat = false
     @State private var notice: String?
+    #if DEBUG
+    /// Offline previews: a message to jump to once the thread is in place,
+    /// as if a ref chip asked for it.
+    @State private var previewJump: UUID?
+    #endif
 
     private static let bottomId = "bottom"
     private static let unreadId = "unread-divider"
@@ -55,6 +61,14 @@ struct ChatView: View {
         _model = State(initialValue: model)
     }
 
+    #if DEBUG
+    /// Offline preview that jumps to `message` after opening, like a ref chip.
+    init(model: ChatModel, jumpingTo message: UUID) {
+        _model = State(initialValue: model)
+        _previewJump = State(initialValue: message)
+    }
+    #endif
+
     var body: some View {
         ScrollViewReader { proxy in
             thread
@@ -72,6 +86,12 @@ struct ChatView: View {
                 .task {
                     await model.open()
                     await position(proxy)
+                    #if DEBUG
+                    if let id = previewJump {
+                        previewJump = nil
+                        jumpRequest = id
+                    }
+                    #endif
                 }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -80,7 +100,6 @@ struct ChatView: View {
                            hasBrief: model.catchUp.value != nil,
                            onCatchUp: { sheet = .catchUp },
                            onAsk: { sheet = .ask })
-                    .background(.bar)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -94,15 +113,30 @@ struct ChatView: View {
         .navigationTitle(model.chat.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(model.chat.name)
+                        .font(.serif(.headline))
+                        .foregroundStyle(Theme.ink)
+                    Text(peopleLine)
+                        .font(.mono(.caption2))
+                        .foregroundStyle(Theme.inkSoft)
+                }
+                .lineLimit(1)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button { sheet = .catchUp } label: { Label("Catch me up", systemImage: Theme.aiSymbol) }
+                    Button { sheet = .catchUp } label: { Label("Catch me up", systemImage: "drop") }
                     Button { sheet = .ask } label: { Label("Ask the chat", systemImage: "questionmark.bubble") }
                     Divider()
                     Button { sheet = .info } label: { Label("Members & invite", systemImage: "person.2") }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(Theme.ink)
                 }
+                .accessibilityLabel("Chat options")
             }
         }
         .sheet(item: $sheet, onDismiss: sheetDismissed) { which in
@@ -147,9 +181,14 @@ struct ChatView: View {
                     Button {
                         Task { await model.loadOlder() }
                     } label: {
-                        if model.loadingOlder { ProgressView() } else { Text("Load earlier messages") }
+                        if model.loadingOlder {
+                            ProgressView().tint(Theme.inkSoft)
+                        } else {
+                            Text("Load earlier messages")
+                        }
                     }
-                    .font(.footnote)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.ketchupText)
                     .padding(.vertical, 10)
                 }
                 ForEach(rows) { row in
@@ -158,9 +197,10 @@ struct ChatView: View {
                 }
                 Color.clear.frame(height: 1).id(Self.bottomId)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 8)
         }
+        .background(Theme.cream)
         .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
         .onScrollPhaseChange { _, phase in
@@ -183,22 +223,25 @@ struct ChatView: View {
     @ViewBuilder
     private var emptyState: some View {
         if !model.loaded, let error = model.loadError {
-            ContentUnavailableView {
-                Label("Couldn't load this chat", systemImage: "wifi.exclamationmark")
-            } description: {
-                Text(error)
-            } actions: {
+            ThreadNote(title: "Couldn't load this chat", message: Text(error)) {
                 Button("Try again") { Task { await model.open() } }
+                    .buttonStyle(.outline(.compact))
             }
         } else if !model.loaded {
             ProgressView()
+                .tint(Theme.inkSoft)
         } else if model.messages.isEmpty {
-            ContentUnavailableView {
-                Label("No messages yet", systemImage: "bubble.left.and.bubble.right")
-            } description: {
-                Text("Say hi, or share invite code \(model.chat.inviteCode) so friends can join.")
+            let code = Text(model.chat.inviteCode).font(.mono(.body, weight: .semibold)).foregroundStyle(Theme.ink)
+            ThreadNote(title: "Quiet in here",
+                       message: Text("Say hi, or share invite code \(code) so friends can join.")) {
+                EmptyView()
             }
         }
+    }
+
+    private var peopleLine: String {
+        let count = model.members.isEmpty ? model.chat.memberCount : model.members.count
+        return count == 1 ? "1 person" : "\(count) people"
     }
 
     @ViewBuilder
@@ -207,27 +250,25 @@ struct ChatView: View {
         case .day(let day):
             ThreadDivider(text: day.daySeparator)
         case .unread(let count):
-            ThreadDivider(text: count == 1 ? "1 new message" : "\(count) new messages", isUnread: true)
-        case .message(let m, let newRun):
+            UnreadDivider(count: count)
+        case .message(let m, let newRun, let endsRun):
             let mine = m.sender == model.myId
+            let name = model.name(of: m.sender)
             ChatBubble(text: m.body,
                        mine: mine,
                        pending: m.pending,
                        failed: m.failed,
-                       senderName: newRun && !mine ? model.name(of: m.sender) : nil,
-                       senderColor: Theme.personColor(m.sender),
+                       senderName: newRun && !mine ? name : nil,
+                       senderColor: Theme.personColor(name: name),
                        time: m.createdAt,
+                       startsRun: newRun,
+                       endsRun: endsRun,
                        highlighted: highlighted == m.id,
                        onRetry: { model.retry(m.id) })
-                .padding(.top, newRun ? 8 : 2)
-                .padding(.vertical, 2)
-                .background {
-                    if highlighted == m.id {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Theme.aiWash)
-                            .padding(.horizontal, -8)
-                    }
-                }
+                .padding(.top, newRun ? 10 : 0)
+                .padding(.vertical, 1.5)
+                // Under its neighbors, so the jump mark stays behind every bubble.
+                .zIndex(highlighted == m.id ? -1 : 0)
         }
     }
 
@@ -236,13 +277,14 @@ struct ChatView: View {
     private enum Row: Identifiable {
         case day(Date)
         case unread(Int)
-        case message(Message, newRun: Bool)
+        /// `newRun`: first of a run from one sender; `endsRun`: last of it.
+        case message(Message, newRun: Bool, endsRun: Bool)
 
         var id: String {
             switch self {
             case .day(let d): "day-\(Int(d.timeIntervalSince1970))"
             case .unread: ChatView.unreadId
-            case .message(let m, _): m.id.uuidString
+            case .message(let m, _, _): m.id.uuidString
             }
         }
     }
@@ -263,7 +305,12 @@ struct ChatView: View {
                 out.append(.unread(model.unreadAtOpen))
                 lastSender = nil
             }
-            out.append(.message(m, newRun: m.sender != lastSender))
+            let continues = m.sender == lastSender
+            // The bubble before this one is from the same sender, so its run goes on.
+            if continues, case .message(let previous, let newRun, _)? = out.last {
+                out[out.count - 1] = .message(previous, newRun: newRun, endsRun: false)
+            }
+            out.append(.message(m, newRun: !continues, endsRun: true))
             lastSender = m.sender
         }
         return out
@@ -332,9 +379,10 @@ struct ChatView: View {
         if let notice {
             Text(notice)
                 .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 14)
+                .foregroundStyle(Theme.onInk)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(.thinMaterial, in: Capsule())
+                .background(Theme.ink, in: Capsule())
                 .padding(.bottom, 70)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
@@ -346,5 +394,29 @@ struct ChatView: View {
             try? await Task.sleep(for: .seconds(2.5))
             withAnimation { if notice == text { notice = nil } }
         }
+    }
+}
+
+/// What the thread says when there's nothing to show: a serif line, a
+/// sentence, and maybe a button.
+private struct ThreadNote<Actions: View>: View {
+    let title: String
+    let message: Text
+    @ViewBuilder let actions: Actions
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text(title)
+                .font(.serif(.title3))
+                .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
+            message
+                .font(.body)
+                .foregroundStyle(Theme.inkSoft)
+            actions
+                .padding(.top, 4)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 40)
     }
 }

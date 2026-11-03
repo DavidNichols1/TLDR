@@ -2,8 +2,9 @@
 //  CatchUpBar.swift
 //  Ketchup
 //
-//  Pinned under the chat's title: the big "Catch me up · N unread" button
-//  while there's something to catch up on, and "Ask the chat" always.
+//  Pinned under the chat's title: the big ketchup "Catch me up · 302 new"
+//  button while there's something to catch up on, and "Ask" always. Once
+//  the background catch-up has landed, the count quietly adds "ready".
 //
 
 import SwiftUI
@@ -15,44 +16,71 @@ struct CatchUpBar: View {
     let onCatchUp: () -> Void
     let onAsk: () -> Void
 
+    @ScaledMetric(relativeTo: .headline) private var dropSize: CGFloat = 18
+
+    /// The prefetched catch-up is in, so the tap opens it straight away.
+    private var ready: Bool { unread > 0 && hasBrief }
+
     var body: some View {
         HStack(spacing: 10) {
             if unread > 0 {
                 Button(action: onCatchUp) {
-                    HStack(spacing: 8) {
-                        Image(systemName: Theme.aiSymbol)
-                            .symbolEffect(.pulse, options: .repeating)
-                        Text("Catch me up")
-                        Text("· \(unread) unread")
-                            .fontWeight(.regular)
-                            .opacity(0.9)
+                    HStack(spacing: 12) {
+                        drop(Theme.onKetchup)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Catch me up")
+                            count
+                                .font(.mono(.caption))
+                        }
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.aiPill)
-                .transition(.scale.combined(with: .opacity))
+                .buttonStyle(.ketchup)
+                .accessibilityLabel("Catch me up")
+                .accessibilityValue(ready ? "\(unread) new messages, ready" : "\(unread) new messages")
+                .transition(.opacity)
             } else if hasBrief {
                 Button(action: onCatchUp) {
-                    Label("Your catch-up", systemImage: Theme.aiSymbol)
+                    Label {
+                        Text("Your catch-up")
+                    } icon: {
+                        drop(Theme.ketchup)
+                    }
                 }
-                .buttonStyle(.aiPillCompact)
+                .buttonStyle(.outline(.compact))
             }
 
             if unread == 0 { Spacer(minLength: 0) }
 
             Button(action: onAsk) {
                 Label(unread > 0 ? "Ask" : "Ask the chat", systemImage: "questionmark.bubble")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.aiGradient)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Theme.aiGradient.opacity(0.6), lineWidth: 1))
+                    .frame(maxHeight: .infinity)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.outline(.compact))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .animation(.spring(duration: 0.4), value: unread)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.cream)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Theme.rule).frame(height: 1)
+        }
+        .motion(Motion.settle, value: unread)
+        .motion(Motion.fade, value: ready)
+    }
+
+    /// "302 new", then "302 new · ready" once the prefetch is in. It sits on
+    /// its own line under the title, so the button never changes size.
+    private var count: some View {
+        Text(ready ? "\(unread) new · ready" : "\(unread) new")
+            .lineLimit(1)
+            .contentTransition(.opacity)
+    }
+
+    private func drop(_ color: Color) -> some View {
+        KetchupDrop()
+            .fill(color)
+            .frame(width: dropSize, height: dropSize)
+            .accessibilityHidden(true)
     }
 }
