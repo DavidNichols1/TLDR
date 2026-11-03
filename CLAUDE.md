@@ -20,6 +20,10 @@ the technical recipe. README.md is the judge-facing overview.
 - Migrations in `supabase/migrations/` are also applied live (Supabase MCP
   `apply_migration`); keep both in step. RLS is the security boundary.
 - RLS tests: run `supabase/tests/rls_check.sql` via `execute_sql` (rolls back; expect all checks pass).
+- Speed check: run `supabase/tests/speed_check.sql` via `execute_sql` (rolls back). It times the
+  hot paths (open a chat, members, `my_chats()`, catch-up's reads, its hourly cap, every send's
+  rate check) on today's data and on a busy account it builds and throws away, and names the
+  index each used. Compare with the numbers in `0008_speed_indexes.sql` after a schema change.
 - Deploy the edge function without Docker:
   `supabase functions deploy catch-up --project-ref cfqlnthmqwkhjbhylvgu --use-api`
   (verify_jwt stays on). Check with `list_edge_functions` → `verify_jwt: true`, and an

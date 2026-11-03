@@ -41,6 +41,13 @@ do $$ begin
   select id, 'spoof', '00000000-0000-0000-0000-0000000000a1' from ctx;
   insert into results values ('cannot spoof sender', false);
 exception when others then insert into results values ('cannot spoof sender', true); end $$;
+-- catch-up's claim on a brief (_shared/once.ts) is an ai_briefs row only the
+-- service role writes, so a member can't plant one to stall someone's catch-up.
+do $$ begin
+  insert into public.ai_briefs (chat_id, user_id, kind, since, until, message_count, model, result)
+  select id, auth.uid(), 'catch_up', now(), now(), 0, 'pending', '{}' from ctx;
+  insert into results values ('members cannot write a catch-up claim', false);
+exception when insufficient_privilege then insert into results values ('members cannot write a catch-up claim', true); end $$;
 
 -- Eve: outsider.
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
