@@ -91,8 +91,9 @@ becomes a pager with a page per source. Edge function `catch-up-text`, migration
   shrunk page the first tap on a chat row can act as a hover; tap again. First real run
   (Nov 3, 2026, 3:14 AM, David's phone and account, a busy group chat): "Last 30" sent 30 of
   67 messages found, 0 loads, stop "enough", 16 ms of reading, about 10 s in all, attempt 0.
-  Not yet seen on the real page: older messages loading at the top (a "Last 120"), and a
-  fresh sign-in in app-bound mode (David signed in during the trial, before it).
+  "Last 120" (3:19 AM) sent exactly 120: found 145 after 2 loads of older messages, 1.1 s of
+  reading, about 15 s in all. Not yet seen: a fresh sign-in in app-bound mode (David signed
+  in during the trial, before it).
 - Adding a source: a `WebChatSource` (id is catch-up-text's `source`, also in `SOURCES` there and
   in the `text_brief_usage` source check, which needs a migration), a reader script that returns
   the same JSON, fixtures plus `.expected.json`, harness runs, and its domain in the plist.
