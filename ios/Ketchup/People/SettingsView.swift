@@ -22,6 +22,8 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var confirmSignOut = false
+    /// A delete is on its way: Done and swipe-down wait for it.
+    @State private var deleting = false
     @State private var choosingPhoto = false
     @State private var photoProblem: String?
 
@@ -64,6 +66,7 @@ struct SettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .disabled(deleting)
                 }
             }
             .confirmationDialog("Sign out of Ketchup?", isPresented: $confirmSignOut, titleVisibility: .visible) {
@@ -71,10 +74,11 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 if let email = app.accountEmail {
-                    Text("To get back in, you'll sign in with a code sent to \(email).")
+                    Text("Ketchup also forgets your Instagram and Snapchat sign-ins on this iPhone. To get back in, you'll sign in with a code sent to \(email).")
                 }
             }
         }
+        .interactiveDismissDisabled(deleting)
         .profilePhotoPicker(isPresented: $choosingPhoto)
         .alert("Couldn't remove your photo", isPresented: Binding(get: { photoProblem != nil },
                                                                   set: { if !$0 { photoProblem = nil } })) {
@@ -154,12 +158,22 @@ struct SettingsView: View {
 
     private var privacy: some View {
         SettingsSection("Privacy") {
-            blockedPeopleSlot
+            NavigationLink {
+                BlockedPeopleView()
+            } label: {
+                SettingsRow("Blocked people", systemImage: "hand.raised", value: blockedCount, chevron: true)
+            }
+            .buttonStyle(.pressable)
         }
+        .task { await PeopleStore.shared.load() }
     }
 
-    /// SLOT (People session, slice 2): "Blocked people", with Unblock.
-    @ViewBuilder private var blockedPeopleSlot: some View {}
+    /// "None" or how many, once the list has loaded.
+    private var blockedCount: String? {
+        let store = PeopleStore.shared
+        guard store.loaded else { return nil }
+        return store.blocked.isEmpty ? "None" : "\(store.blocked.count)"
+    }
 
     // MARK: On this iPhone
 
@@ -186,7 +200,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.pressable)
             NavigationLink {
-                DeleteAccountView { close(.accountDeleted) }
+                DeleteAccountView(deleting: $deleting) { close(.accountDeleted) }
             } label: {
                 SettingsRow("Delete account", systemImage: "trash", destructive: true, chevron: true)
             }
@@ -239,7 +253,7 @@ struct SettingsView: View {
 private struct WebChatSignOutSection: View {
     var body: some View {
         SettingsSection("Web chats", kicker: "Experimental",
-                        footer: "Ketchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched.") {
+                        footer: "Ketchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched. Signing out of Ketchup forgets both.") {
             ForEach(WebChatSource.all) { source in
                 WebChatSignOutRow(source: source)
             }
@@ -299,7 +313,8 @@ private struct WebChatSignOutRow: View {
 
     private func forget() async {
         status = .working
-        await source.forgetSavedData()
+        // Offline previews share the phone's real website data: leave it be.
+        if !Previewing.isOn { await source.forgetSavedData() }
         status = .done
     }
 }

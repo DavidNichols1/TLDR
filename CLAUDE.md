@@ -100,31 +100,70 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 302 unread. `--rearm` resets David to all-unread between video takes.
 
 ## Settings and people (migration 0007)
-Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`),
-`Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`. Settings opens from the inbox's top-left
+Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,
+`ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleStore`, `PeopleModels`),
+`Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`, edge functions `delete-account` and
+`report-alert`. Settings opens from the inbox's top-left
 photo (your initial until you add one) as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
 `onDismiss` in `ChatsListView`), so it can't be left over sign-in.
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
-  named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`).
+  named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`,
+  `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`).
   Append, never rewrite: a fresh project runs the whole file once.
-- `delete_account()` (security definer, `authenticated` only): deletes friends' saved
-  catch-ups that read the caller's messages, then the auth user (profile, memberships,
-  messages, own briefs cascade; a chat they were last in goes through `apply_member_change`),
-  then recomputes `last_message_*` on the chats they wrote in, with `apply_message`'s photo
-  rule ("📷 Photo"). Tested only by the RLS suite's "deleted account" checks (rolled back). A
-  live test deletes a real account: use a throwaway account, never a seed one. SQL can't
-  delete Storage files, so `AppModel.deleteAccount()` (People/Account.swift) calls
-  `ChatPhotos.deleteMine()` first.
+- Delete account is the `delete-account` edge function (verify_jwt on): it calls
+  `delete_account()` as the person (security definer, `authenticated` only), which deletes
+  friends' saved catch-ups that read their messages, then the auth user (profile,
+  memberships, messages, own briefs cascade; a chat they were last in goes through
+  `apply_member_change`), recomputes `last_message_*` on the chats they wrote in with
+  `apply_message`'s photo rule, and returns their files (`{"avatars": [...], "chat-media":
+  [...]}`). The function then deletes those with the service role. Rows first, so a failed
+  delete changes nothing; files server side, because once the rows are gone the person can't
+  read (so can't delete) their chat photos. Deploy:
+  `supabase functions deploy delete-account --project-ref cfqlnthmqwkhjbhylvgu --use-api`; an
+  unauthenticated POST must return 401. Logs: `"fn":"delete-account"`, counts only. Tested by
+  the RLS suite's "deleted account" checks (rolled back). A live test deletes a real account:
+  use a throwaway account, never a seed one (their messages are the demo chat) or David's.
+- While a delete is on its way, its page hides Back and Settings holds Done and swipe-down;
+  if the sheet is gone anyway when it finishes, ChatsListView signs out at once. Leaving
+  (Sign out or a deleted account) forgets the Instagram and Snapchat sign-ins in Ketchup
+  (`AppModel.leave`). Offline previews never touch the real website data: `leave` and the
+  web-chat rows skip it while previewing.
 - "Sign out of Instagram/Snapchat in Ketchup" removes the `WKWebsiteDataStore.default()`
   records whose name matches that source's `domains`, then posts `webChatForgotten` and the
   open page goes back to its start URL. The first check after a fresh install can take a few
   seconds (WebKit starting); the row works meanwhile.
+- Block is RLS: `messages_select_member` is `chat_id = any(my_chat_ids())` and
+  `sender <> all(my_blocked_ids())`, each wrapped in `(select …)` so it's an InitPlan run once
+  per query (keep that shape; a bare function call runs per row). `my_chats` leaves blocked
+  senders out of unread counts and inbox lines. `block_person` / `unblock_person` /
+  `my_blocks()` are the only way in; a trigger drops the blocker's `ai_briefs` that could have
+  read that person. `mark_read` is unchanged: the cursor is a time, and every count and
+  catch-up window is read through the policy. In the app, `PeopleStore.block` also forgets
+  the phone's kept thread copies (`DeviceStore.keepThreads([])`) and the open chat calls
+  `ChatModel.blockChanged`. The RLS suite's "blocked:" checks cover it.
+- Timing the read path (rolled back, as a seed member, here Maya): `set local role
+  authenticated`, her jwt claims, then `explain (analyze, format json)` of
+  `select … from messages where chat_id = '<breck>' order by created_at desc limit 200`
+  seven times; take the median. Nov 3, 2026: 6.4 ms before 0007 part 2, 0.49 ms after.
+- New reports (David, in the SQL editor; nobody can read them through the API):
+  `select created_at, reason, reported_name, message_body, message_image, note, id from
+  reports where reviewed_at is null order by created_at desc;` then
+  `update reports set reviewed_at = now() where id = '<id>';` once looked at. Blocks:
+  `select * from blocks;`.
+- Report email: after a report the app calls `report-alert` (verify_jwt on), which emails
+  `REPORTS_EMAIL` through Resend (reason, message or person, the SQL to read it; no names or
+  text). It does nothing until David sets `RESEND_API_KEY` and `REPORTS_EMAIL` (optional
+  `REPORTS_FROM`, default `Ketchup <noreply@vibetemp.com>`). Deploy:
+  `supabase functions deploy report-alert --project-ref cfqlnthmqwkhjbhylvgu --use-api`; an
+  unauthenticated POST must return 401. Logs: `"fn":"report-alert"`, counts only.
 - Previews: `-screen settings` (add `-section web`, `account` or `about`), `settings-sheet`
-  (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`.
-  The account email in previews is `david@example.com`.
-- Rows still to come are marked `SLOT` in `SettingsView.swift`: Blocked people (People,
-  slice 2), and Saved catch-ups and Clear cache under "On this iPhone" (Speed). A section
-  whose rows are all empty doesn't show.
+  (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`,
+  `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`,
+  `chat-profile` and `chat-report` (the sheets opened from the thread). The account email in
+  previews is `david@example.com`.
+- Still marked `SLOT`: Saved catch-ups and Clear cache under "On this iPhone" in
+  `SettingsView.swift` (Speed), and "Add to your people" on a profile (People, slice 3). A
+  section whose rows are all empty doesn't show.
 
 ## Photos (profile photos and photos in chats)
 Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with

@@ -35,6 +35,8 @@ struct ChatView: View {
     @State private var pickingPhoto = false
     @State private var attachment: PreparedPhoto?
     @State private var viewing: Message?
+    /// Someone's profile, or a report, from a name or a long press (People/).
+    @State private var peopleSheet: PeopleSheet?
     #if DEBUG
     /// Offline previews: a message to jump to once the thread is in place,
     /// as if a ref chip asked for it.
@@ -79,6 +81,12 @@ struct ChatView: View {
         _model = State(initialValue: model)
         _attachment = State(initialValue: photo)
         _draft = State(initialValue: caption)
+    }
+
+    /// Offline preview with someone's profile or a report open over the thread.
+    init(model: ChatModel, showing people: PeopleSheet) {
+        _model = State(initialValue: model)
+        _peopleSheet = State(initialValue: people)
     }
     #endif
 
@@ -250,6 +258,29 @@ struct ChatView: View {
             }
         }
         .overlay { ZStack { emptyState }.motion(Motion.fade, value: model.loaded) }
+        .sheet(item: $peopleSheet) { which in
+            switch which {
+            case .profile(let person):
+                ProfileSheet(person: person, chat: model.chat) { blocked in
+                    Task { await model.blockChanged(person.id, blocked: blocked) }
+                }
+            case .report(let target):
+                ReportSheet(target: target) {
+                    Task { await model.blockChanged(target.person.id, blocked: true) }
+                }
+            }
+        }
+    }
+
+    /// Someone in this chat, for their profile or a report.
+    private func person(_ id: UUID) -> Person {
+        Person(id: id, name: model.name(of: id), avatarPath: model.avatarPath(of: id))
+    }
+
+    /// Report, on someone else's message once it's on the server.
+    private func reportAction(_ m: Message) -> (() -> Void)? {
+        guard m.sender != model.myId, !m.pending, !m.failed else { return nil }
+        return { peopleSheet = .report(.message(m, from: person(m.sender))) }
     }
 
     @ViewBuilder
@@ -290,6 +321,7 @@ struct ChatView: View {
                 if !mine {
                     if endsRun {
                         Avatar(name: name, path: model.avatarPath(of: m.sender), size: avatarSize)
+                            .onTapGesture { peopleSheet = .profile(person(m.sender)) }
                     } else {
                         Color.clear.frame(width: avatarSize, height: 1)
                     }
@@ -302,6 +334,8 @@ struct ChatView: View {
                                 startsRun: newRun,
                                 endsRun: endsRun,
                                 highlighted: highlighted == m.id,
+                                onSenderTap: mine ? nil : { peopleSheet = .profile(person(m.sender)) },
+                                onReport: reportAction(m),
                                 onOpen: { viewing = m },
                                 onRetry: { model.retry(m.id) })
                 } else {
@@ -315,6 +349,8 @@ struct ChatView: View {
                                startsRun: newRun,
                                endsRun: endsRun,
                                highlighted: highlighted == m.id,
+                               onSenderTap: mine ? nil : { peopleSheet = .profile(person(m.sender)) },
+                               onReport: reportAction(m),
                                onRetry: { model.retry(m.id) })
                 }
             }

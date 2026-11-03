@@ -2,7 +2,8 @@
 //  ChatInfoSheet.swift
 //  Ketchup
 //
-//  Members, the invite code (share or copy), and Leave chat.
+//  Members (tap one for their profile), the invite code (share or copy),
+//  and Leave chat.
 //
 
 import SwiftUI
@@ -55,7 +56,10 @@ struct ChatInfoSheet: View {
             } message: {
                 Text("You'll stop getting its messages. You can rejoin with the invite code.")
             }
-            .task { await model.loadMembers() }
+            .task {
+                await model.loadMembers()
+                await PeopleStore.shared.load()
+            }
         }
         .presentationBackground(Theme.cream)
     }
@@ -119,18 +123,19 @@ struct ChatInfoSheet: View {
             SectionTitle("People", count: model.members.isEmpty ? nil : model.members.count)
             VStack(spacing: 0) {
                 ForEach(model.members) { member in
-                    HStack(spacing: 12) {
-                        Avatar(name: member.name, path: member.profile?.avatarPath, size: monogramSize)
-                        Text(member.name)
-                            .font(.body)
-                            .foregroundStyle(Theme.ink)
-                        if member.userId == model.myId {
-                            Kicker("You")
+                    // Anyone but you opens their profile (People/ProfileView.swift).
+                    if member.userId == model.myId {
+                        memberRow(member)
+                    } else {
+                        NavigationLink {
+                            ProfileView(person: Person(member), in: model.chat) { blocked in
+                                Task { await model.blockChanged(member.userId, blocked: blocked) }
+                            }
+                        } label: {
+                            memberRow(member)
                         }
-                        Spacer(minLength: 0)
+                        .buttonStyle(.pressable)
                     }
-                    .padding(.vertical, 10)
-                    .accessibilityElement(children: .combine)
                     if member.id != model.members.last?.id {
                         Rectangle()
                             .fill(Theme.rule)
@@ -141,6 +146,31 @@ struct ChatInfoSheet: View {
             }
             .paperCard(padding: 14)
         }
+    }
+
+    private func memberRow(_ member: Member) -> some View {
+        let me = member.userId == model.myId
+        return HStack(spacing: 12) {
+            Avatar(name: member.name, path: member.profile?.avatarPath, size: monogramSize)
+            Text(member.name)
+                .font(.body)
+                .foregroundStyle(Theme.ink)
+            if me {
+                Kicker("You")
+            } else if PeopleStore.shared.isBlocked(member.userId) {
+                Kicker("Blocked", color: Theme.ketchupText)
+            }
+            Spacer(minLength: 0)
+            if !me {
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.inkFaint)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.vertical, 10)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Leave

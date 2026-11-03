@@ -101,14 +101,23 @@ struct EditNameView: View {
 // MARK: - Delete account
 
 struct DeleteAccountView: View {
+    /// True while the delete is on its way: no Back, and Settings holds its
+    /// Done and swipe-down, so it can't close before the app signs out.
+    @Binding var deleting: Bool
     /// Runs once the server has deleted the account: Settings closes and
     /// the app signs out.
     let deleted: () -> Void
 
     @Environment(AppModel.self) private var app
     @State private var confirm = false
-    @State private var busy = false
     @State private var error: String?
+
+    init(deleting: Binding<Bool> = .constant(false), deleted: @escaping () -> Void) {
+        _deleting = deleting
+        self.deleted = deleted
+    }
+
+    private var busy: Bool { deleting }
 
     var body: some View {
         ScrollView {
@@ -177,6 +186,7 @@ struct DeleteAccountView: View {
         } message: {
             Text("Your messages and catch-ups are deleted for good.")
         }
+        .navigationBarBackButtonHidden(busy)
         .interactiveDismissDisabled(busy)
     }
 
@@ -195,14 +205,14 @@ struct DeleteAccountView: View {
     }
 
     private func delete() async {
-        guard !busy else { return }
-        busy = true
+        guard !deleting else { return }
+        deleting = true
         error = nil
         do {
             try await app.deleteAccount()
             deleted()
         } catch {
-            busy = false
+            deleting = false
             self.error = error.localizedDescription
         }
     }
