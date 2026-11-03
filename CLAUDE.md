@@ -102,15 +102,16 @@ safe to re-run) adds two made-up photos on the last day, so a catch-up can cite 
 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,
-`ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleStore`, `PeopleModels`),
+`ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleView` with `PeoplePicker`, `InviteView`,
+`PeopleStore`, `PeopleModels`),
 `Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`, edge functions `delete-account` and
 `report-alert`. Settings opens from the inbox's top-left
 photo (your initial until you add one) as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
 `onDismiss` in `ChatsListView`), so it can't be left over sign-in.
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
   named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`,
-  `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`).
-  Append, never rewrite: a fresh project runs the whole file once.
+  `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`,
+  `0007_people_contacts`). Append, never rewrite: a fresh project runs the whole file once.
 - Delete account is the `delete-account` edge function (verify_jwt on): it calls
   `delete_account()` as the person (security definer, `authenticated` only), which deletes
   friends' saved catch-ups that read their messages, then the auth user (profile,
@@ -157,14 +158,26 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
   `REPORTS_FROM`, default `Ketchup <noreply@vibetemp.com>`). Deploy:
   `supabase functions deploy report-alert --project-ref cfqlnthmqwkhjbhylvgu --use-api`; an
   unauthenticated POST must return 401. Logs: `"fn":"report-alert"`, counts only.
+- Your people: `contacts` (owner-only select; writes through `add_contact`, which needs a
+  shared chat, and `remove_contact`), `my_contacts()` by name, and `create_chat_with(name,
+  people)`, which adds only your contacts and skips anyone who has blocked you (or whom you
+  blocked) without saying so. `block_person` also removes the contact. New chat
+  (`NewChatSheet(name:people:picked:)`) lists them; ChatsListView calls
+  `KetchupAPI.createChat(name:with:)` when any are picked. No lookup by email or phone, by
+  design. The RLS suite's last section covers it.
+- Invite friends (`InviteView`, also `InviteSheet` from the inbox's +): a chat's code in
+  `InviteMessage.text(for:)`; `InviteMessage.appLink` is nil until there's a TestFlight or
+  App Store link. Text a friend presents `CNContactPickerViewController` (no permission)
+  from the top view controller, then `MFMessageComposeViewController`; the simulator can't
+  text, so it falls back to the share sheet. Tap-through needs a real phone.
 - Previews: `-screen settings` (add `-section web`, `account` or `about`), `settings-sheet`
   (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`,
   `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`,
-  `chat-profile` and `chat-report` (the sheets opened from the thread). The account email in
+  `chat-profile` and `chat-report` (the sheets opened from the thread), `people`,
+  `people-empty`, `profile-contact`, `new-chat-people`, `invite`. The account email in
   previews is `david@example.com`.
 - Still marked `SLOT`: Saved catch-ups and Clear cache under "On this iPhone" in
-  `SettingsView.swift` (Speed), and "Add to your people" on a profile (People, slice 3). A
-  section whose rows are all empty doesn't show.
+  `SettingsView.swift` (Speed). A section whose rows are all empty doesn't show.
 
 ## Photos (profile photos and photos in chats)
 Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with

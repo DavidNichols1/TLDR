@@ -270,6 +270,23 @@ A profile opens from a name or photo in the thread (a sheet) or a member in Chat
 - **Say who's told.** Every block and report screen says it plainly: they aren't told, they won't know it was you.
 - **In Chat info,** a blocked member gets a ketchup "Blocked" kicker, and everyone but you has a chevron.
 
+### Your people and Invite friends
+
+<p>
+<img src="screens/people/people-light.png" width="200" alt="Your people: Maya, Priya and Theo, each in 1 chat with you">
+<img src="screens/people/new-chat-people-light.png" width="200" alt="New chat with Maya and Theo picked to add straight in">
+<img src="screens/people/invite-light.png" width="200" alt="Invite friends: which chat, what they'll get, Text a friend">
+<img src="screens/people/profile-contact-dark.png" width="200" alt="A profile with Remove from your people, dark">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `PeopleView` | A kicker count over "Your people" in New York, then each person's avatar, name and "In 2 chats with you" in mono, with a chevron to their profile. An outline Invite friends under it. |
+| `PeoplePicker(people:picked:)` | Your people with an ink check each, for New chat. |
+| `InviteView` | Which chat (one ink check, its code in mono), the exact message on paper under "What they'll get", Text a friend (the one ketchup button) and an outline Share another way, and a footnote on what Ketchup sees. |
+
+- **Say what's shared.** The invite page names what Ketchup gets from the contact picker: the one number, used once.
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -294,7 +311,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `saved`, `saved-brief`, `saved-empty`, `saved-quote`, `saved-all` | Saved catch-ups (`Debug/SavedPreviewScreen.swift`) on a scratch store: Breck's Earlier catch-ups, opened on its catch-up, empty, a source shown as kept, and every chat's list in its Settings bar |
 | `store-check` | Not a screen: runs the on-device copy and saved catch-ups (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
-| `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report`, `people`, `people-empty`, `profile-contact`, `new-chat-people`, `invite` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`, `photo-catchup`, `photo-answer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin; `photo-catchup` (add `-section highlights`) and `photo-answer` cite Maya's door-code photo with its thumbnail |
 
 Light and dark screenshots:
