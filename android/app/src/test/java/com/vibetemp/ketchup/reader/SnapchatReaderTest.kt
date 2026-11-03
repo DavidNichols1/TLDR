@@ -167,6 +167,28 @@ class SnapchatReaderTest {
     }
 
     @Test
+    fun aListThatDoesNotMoveNeverRepeatsAMessage() {
+        // The Snapchat read of Nov 3, 2026, 1:53 PM: no headers on screen, the list said it scrolled
+        // back but didn't move, and one message came back over and over (34 steps, 0 dupes).
+        val single = FakeSnapThread("Rosa").apply { message("see you at noon") }
+        val once = runBlocking { ThreadReader(TextSource.SNAPCHAT, FakeScreen(single.thread, snapchat = true, stuck = true), { now }, Random(1)).read(30) }
+        assertEquals(listOf("see you at noon"), (once as ThreadReader.Result.Read).thread.messages.map { it.text })
+
+        // Several messages saying the same thing, and a page with headers: each still read once.
+        val same = FakeSnapThread("Rosa").apply { repeat(3) { message("ok") } }
+        val sameRead = runBlocking { ThreadReader(TextSource.SNAPCHAT, FakeScreen(same.thread, snapchat = true, stuck = true), { now }, Random(1)).read(30) }
+        assertEquals(3, (sameRead as ThreadReader.Result.Read).thread.messages.size)
+        val headed = FakeSnapThread("Trail Crew").apply {
+            header("Theo", "8:01 AM", "2026-11-03T15:01:00Z")
+            message("sunrise hike sunday?")
+            header("ME", "8:02 AM", "2026-11-03T15:02:00Z")
+            message("in")
+        }
+        val headedRead = runBlocking { ThreadReader(TextSource.SNAPCHAT, FakeScreen(headed.thread, snapchat = true, stuck = true), { now }, Random(1)).read(30) }
+        assertMessages(headed.thread.expected, (headedRead as ThreadReader.Result.Read).thread.messages)
+    }
+
+    @Test
     fun saysWhyThereIsNoThreadWithoutText() {
         fun screen(vararg kids: SnapshotNode) = SnapshotNode(bounds = Bounds(0, 0, 1080, 2400), children = kids.toList())
         val list = SnapshotNode(bounds = Bounds(0, 236, 1080, 2300), className = "androidx.recyclerview.widget.RecyclerView", viewId = "com.snapchat.android:id/chat_message_list", isScrollable = true)

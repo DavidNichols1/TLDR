@@ -93,6 +93,19 @@ internal class Stitcher(density: Float) {
      */
     private fun shift(before: Page, after: Page): Int {
         val expected = after.list.height
+        // The same pieces in the same order: the list didn't move (or less than a piece), whatever the
+        // scroll said. A Snapchat page with one message on it otherwise read as a whole new page each
+        // time, and that message came back over and over (Nov 3, 2026).
+        if (before.pieces.isNotEmpty() && before.pieces.map { it.key } == after.pieces.map { it.key }) {
+            val moves = before.pieces.zip(after.pieces).mapNotNull { (a, b) ->
+                when {
+                    !a.clipTop && !b.clipTop -> b.bounds.top - a.bounds.top
+                    !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bounds.bottom
+                    else -> null
+                }
+            }.sorted()
+            return moves.getOrNull(moves.size / 2) ?: 0
+        }
         val proposals = sortedSetOf<Int>()
         for (a in before.pieces) for (b in after.pieces) {
             // A reply's quote cut off from its words says nothing to line up on.

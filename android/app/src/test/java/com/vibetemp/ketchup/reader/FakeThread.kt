@@ -213,6 +213,8 @@ class FakeScreen(
     /** How long each wait takes, on the virtual clock. */
     private val waitMs: Long = 250,
     private val snapchat: Boolean = false,
+    /** A list that says it scrolled back but didn't move, and still offers to (what a Snapchat read hit on Nov 3, 2026). */
+    private val stuck: Boolean = false,
 ) : ReaderScreen {
     override val density = thread.density
     val list = Bounds(0, 236, thread.width, if (snapchat) 2300 else 2148)
@@ -241,6 +243,10 @@ class FakeScreen(
     override suspend fun snapshot(): ReaderNode = window()
 
     override suspend fun scrollBack(): Boolean {
+        if (stuck) {
+            scrollsBack++
+            return true
+        }
         if (y <= 0) {
             loadAsked = pending.isNotEmpty()
             return false
@@ -333,7 +339,7 @@ class FakeScreen(
             className = "androidx.recyclerview.widget.RecyclerView",
             viewId = id("chat_message_list"),
             isScrollable = true,
-            canScrollBack = y > 0,
+            canScrollBack = y > 0 || stuck,
             children = kids,
         )
         val chips = SnapshotNode(
