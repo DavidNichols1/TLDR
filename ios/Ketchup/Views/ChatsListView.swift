@@ -28,6 +28,9 @@ struct ChatsListView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     header
+                    if waitingForChats {
+                        InboxSkeleton()
+                    }
                     ForEach(app.chats) { chat in
                         NavigationLink(value: chat.id) {
                             ChatListRow(chat: chat)
@@ -42,6 +45,7 @@ struct ChatsListView: View {
                     }
                 }
                 .padding(.bottom, 24)
+                .motion(Motion.fade, value: app.chatsLoaded)
             }
             .background(Theme.cream)
             .overlay { emptyState }
@@ -166,6 +170,11 @@ struct ChatsListView: View {
 
     // MARK: Empty, loading, offline
 
+    /// First launch only: after that the inbox the phone kept shows at once.
+    private var waitingForChats: Bool {
+        !app.chatsLoaded && app.chats.isEmpty && app.notice == nil
+    }
+
     @ViewBuilder
     private var emptyState: some View {
         if !app.chatsLoaded && app.chats.isEmpty {
@@ -174,9 +183,6 @@ struct ChatsListView: View {
                     Button("Try again") { Task { await app.refreshChats() } }
                         .buttonStyle(.outline(.compact))
                 }
-            } else {
-                ProgressView()
-                    .tint(Theme.inkSoft)
             }
         } else if app.chats.isEmpty {
             EmptyCounter(title: "Nothing on the counter yet",
