@@ -74,6 +74,8 @@ final class ChatModel {
     /// server's first page replaces them; `synced` once that page is in.
     private var keptIds: Set<UUID> = []
     private var synced = false
+    private var opening = false
+    private var prefetched = false
 
     /// Offline preview mode (DEBUG only, see Debug/PreviewData.swift): the
     /// network calls below are skipped and Muse Spark answers are canned.
@@ -105,7 +107,9 @@ final class ChatModel {
         }
         #endif
         realtime.start()
-        guard !synced else { return }
+        guard !synced, !opening else { return }
+        opening = true
+        defer { opening = false }
         do {
             // Reach back past the first unread message (plus a little context),
             // so the "N new messages" divider lands where the unread part starts.
@@ -126,8 +130,10 @@ final class ChatModel {
         if await loadMembers(), synced { exact = await readFromServerCursor() }
         computeUnread(exact: exact)
         keepOnDevice()
-        // A big backlog: start Muse Spark now so the tap feels instant.
-        if unreadCount >= Self.prefetchAt {
+        // A big backlog: start Muse Spark now so the tap feels instant. Once:
+        // poll() runs open() again until the first page is in.
+        if !prefetched, unreadCount >= Self.prefetchAt {
+            prefetched = true
             Task { await runCatchUp(prefetch: true) }
         }
     }
@@ -183,8 +189,11 @@ final class ChatModel {
     }
 
     /// The fallback while Realtime is down: everything newer than what we have.
+    /// Until the first page is in (opened offline on the kept copy), it
+    /// tries that page again instead.
     func poll() async {
-        guard synced, !isPreview else { return }
+        guard !isPreview else { return }
+        guard synced else { return await open() }
         let newest = messages.last(where: { !$0.pending && !$0.failed })?.createdAt ?? chat.createdAt
         guard let fresh = try? await KetchupAPI.messages(in: chat.id, after: newest) else { return }
         merge(fresh)
