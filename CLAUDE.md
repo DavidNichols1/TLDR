@@ -77,8 +77,10 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
   `-destination 'id=<udid>' -allowProvisioningUpdates`, then
   `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`.
   Real runs (Nov 3, 2026, David's account): before the virtualization fix about 31 messages
-  with every sender shown as the group's name; after it, 136 messages with real names, 200 in
-  about 16 s (5,727 prompt tokens), logs held counts only.
+  with every sender shown as the group's name; after it, real names, and "Last 120" returns
+  exactly 120 (found 122, stop "enough", 6 loads, 56 steps, 9 s of reading). The log line's
+  `reader` object explains a short count: `stop` says why it ended, `units` vs `found` shows
+  pieces that weren't messages, `dupes` shows rows read twice.
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
   `{source, mode, attempt, messages, prompt, completion, reasoning}` and nothing else. Usage:
   `select mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
