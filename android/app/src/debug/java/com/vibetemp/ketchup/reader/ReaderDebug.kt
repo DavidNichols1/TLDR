@@ -86,12 +86,22 @@ internal object ReaderDebug {
 
     /** Counts only: how many of the read messages are the fixture's, in order. */
     fun checkFixture(context: Context, thread: TextThread) {
-        val fixture = PreviewData.get(context).instagramThread.messages.takeLast(thread.messages.size)
+        val all = PreviewData.get(context).instagramThread.messages
+        val fixture = all.takeLast(thread.messages.size)
         val same = thread.messages.zip(fixture).count { (read, expected) -> read.copy(at = null) == expected.copy(at = null) }
+        // For a read that followed the person's scrolling (it may skip what they flung past): how many
+        // read messages are the fixture's, in its order, each once.
+        var at = 0
+        var inOrder = 0
+        for (m in thread.messages) {
+            val i = (at until all.size).firstOrNull { all[it].text == m.text && all[it].isMine == m.isMine } ?: continue
+            inOrder++
+            at = i + 1
+        }
         Log.i(
             KetchupReaderService.TAG,
             "fixture check: $same of ${thread.messages.size} match the fixture's newest ${fixture.size}; " +
-                "${thread.messages.count { it.at != null }} carry a time, ${thread.messages.count { it.quote != null }} a quote",
+                "$inOrder in the fixture's order; ${thread.messages.count { it.at != null }} carry a time, ${thread.messages.count { it.quote != null }} a quote",
         )
     }
 }

@@ -222,18 +222,37 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         stopRequested = true
     }
 
-    override fun onPick(last: Int) {
+    /** "Catch me up now": the until-you-stop read finishes with what it has. */
+    @Volatile
+    private var finishRequested = false
+
+    override fun onFinishNow() {
+        finishRequested = true
+    }
+
+    override fun onPick(last: Int) = startRead(last)
+
+    override fun onFollow() = startRead(null)
+
+    /** Reads the newest [last] messages, scrolling back itself, or with null, follows the person's own scrolling. */
+    private fun startRead(last: Int?) {
         if (readJob?.isActive == true) return
         val on = current ?: return
         val overlay = overlay ?: return
-        overlay.showPanel(PanelState.Reading(ReadProgress(0, last)))
+        overlay.showPanel(PanelState.Reading(ReadProgress(0, last ?: 0, following = last == null)))
         readingWindow = on.windowId
         stopRequested = false
+        finishRequested = false
         readJob = scope.launch {
             try {
                 val snapchatName = if (on.source == TextSource.SNAPCHAT) ReaderMemory.snapchatName(this@KetchupReaderService) else null
                 val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), snapchatName = snapchatName)
-                val result = reader.read(last, { overlay.showPanel(PanelState.Reading(it)) }, { stopRequested })
+                val progress = { p: ReadProgress -> overlay.showPanel(PanelState.Reading(p)) }
+                val result = if (last == null) {
+                    reader.follow(progress, { finishRequested }, { stopRequested })
+                } else {
+                    reader.read(last, progress, { stopRequested })
+                }
                 when (result) {
                     is ThreadReader.Result.Read -> handOff(result.thread, on)
                     ThreadReader.Result.NotAThread -> overlay.showPanel(PanelState.Problem(R.string.reader_problem_not_thread, null))
@@ -307,6 +326,22 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
             return true
         }
 
+        /**
+         * The person scrolling: back once the list has been still for a
+         * moment (or after [FOLLOW_SETTLE_MAX_MS] of steady scrolling). Read
+         * mid-scroll, the accessibility cache can still hold a recycled row's
+         * old content, and a page read that way lands in the wrong place.
+         */
+        override suspend fun nextChange(timeoutMs: Long): Boolean {
+            val started = SystemClock.uptimeMillis()
+            val before = changes
+            while (changes == before && SystemClock.uptimeMillis() - started < timeoutMs) delay(POLL_MS)
+            if (changes == before) return false
+            val moving = SystemClock.uptimeMillis()
+            while (SystemClock.uptimeMillis() - lastChangeAt < QUIET_MS && SystemClock.uptimeMillis() - moving < FOLLOW_SETTLE_MAX_MS) delay(POLL_MS)
+            return true
+        }
+
         override suspend fun pause(ms: Long) = delay(ms)
 
         override fun clock(): Long = SystemClock.uptimeMillis()
@@ -318,6 +353,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         private const val CHECK_DELAY_MS = 250L
         private const val WATCH_MS = 1_000L
         private const val POLL_MS = 40L
+        private const val FOLLOW_SETTLE_MAX_MS = 2_000L
 
         /** The list counts as settled after this long without an event. */
         private const val QUIET_MS = 220L

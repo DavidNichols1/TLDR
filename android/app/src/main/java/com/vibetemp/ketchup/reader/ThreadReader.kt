@@ -28,6 +28,12 @@ interface ReaderScreen {
     /** Waits until the list stops changing after a scroll, at most [timeoutMs]. True if it changed at all. */
     suspend fun awaitChange(timeoutMs: Long): Boolean
 
+    /**
+     * Waits for the next change on screen (the person scrolling), at most
+     * [timeoutMs], without waiting for it to settle. True if something changed.
+     */
+    suspend fun nextChange(timeoutMs: Long): Boolean = awaitChange(timeoutMs)
+
     /** A plain wait. */
     suspend fun pause(ms: Long)
 
@@ -35,8 +41,8 @@ interface ReaderScreen {
     fun clock(): Long
 }
 
-/** How far a read got, for the panel. */
-data class ReadProgress(val found: Int, val wanted: Int, val restoring: Boolean = false)
+/** How far a read got, for the panel. [following]: "Until I stop scrolling", which counts with no goal. */
+data class ReadProgress(val found: Int, val wanted: Int, val restoring: Boolean = false, val following: Boolean = false)
 
 /**
  * Reads the newest [last][read] messages of the thread on screen: one tap,
@@ -86,7 +92,7 @@ class ThreadReader(
         stitcher.add(first)
         val title = first.title
         fun walk() = if (source == TextSource.SNAPCHAT) {
-            SnapchatWalk.walk(stitcher.pieces, title, snapchatName, now())
+            SnapchatWalk.walk(stitcher.pieces, title, snapchatName, now(), density)
         } else {
             ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
         }
@@ -200,13 +206,109 @@ class ThreadReader(
         return Result.Read(TextThread(source, title, result.messages.takeLast(wanted), stats))
     }
 
+    /**
+     * "Until I stop scrolling": no scrolling of its own. It reads what's on
+     * screen, then whatever the person scrolls past, laid together with the
+     * same stitching and dedupe as a Last N read ([Stitcher.addFollowing],
+     * which also takes a scroll back down). It finishes about 3 seconds
+     * after the last new message turned up, or 5 seconds after starting if
+     * none ever did, or at 600 messages (what catch-up-text covers) or 3
+     * minutes. [finishNow] ("Catch me up now") finishes at once; [stopped]
+     * hands over nothing.
+     */
+    suspend fun follow(
+        onProgress: (ReadProgress) -> Unit = {},
+        finishNow: () -> Boolean = { false },
+        stopped: () -> Boolean = { false },
+    ): Result {
+        val started = screen.clock()
+        val density = screen.density
+        val first = screen.snapshot()?.let { PageParser.parse(it, source, density) } ?: return Result.NotAThread
+        val stitcher = Stitcher(density)
+        stitcher.add(first)
+        val title = first.title
+        fun walk() = if (source == TextSource.SNAPCHAT) {
+            SnapchatWalk.walk(stitcher.pieces, title, snapchatName, now(), density)
+        } else {
+            ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
+        }
+        var count = walk().messages.size
+        var lastNew: Long? = null
+        var looks = 1
+        onProgress(ReadProgress(count, 0, following = true))
+        val stop: String
+        while (true) {
+            if (stopped()) return Result.Stopped
+            val clock = screen.clock()
+            val newest = lastNew
+            when {
+                finishNow() || count >= MAX_MESSAGES -> {
+                    stop = "enough"
+                    break
+                }
+                clock - started >= FOLLOW_MAX_MS -> {
+                    stop = "budget"
+                    break
+                }
+                // They never scrolled: what's on screen is the read.
+                newest == null && clock - started >= FOLLOW_START_MS -> {
+                    stop = "enough"
+                    break
+                }
+                // They stopped scrolling.
+                newest != null && clock - newest >= FOLLOW_QUIET_MS -> {
+                    stop = "enough"
+                    break
+                }
+            }
+            if (!screen.nextChange(FOLLOW_POLL_MS)) continue
+            // The chat went away (they left the app): nothing goes anywhere.
+            val root = screen.snapshot() ?: return Result.Stopped
+            val page = PageParser.parse(root, source, density) ?: continue
+            looks++
+            if (stitcher.addFollowing(page) == 0) continue
+            val found = walk().messages.size
+            if (found > count) {
+                count = found
+                lastNew = screen.clock()
+                onProgress(ReadProgress(min(count, MAX_MESSAGES), 0, following = true))
+            }
+        }
+        if (stopped()) return Result.Stopped
+        val result = walk()
+        if (result.messages.isEmpty()) return Result.NothingFound
+        val stats = ReaderStats(
+            found = result.messages.size,
+            scrolls = 0,
+            ms = screen.clock() - started,
+            reachedStart = false,
+            stop = stop,
+            root = first.root,
+            steps = looks,
+            gaps = 0,
+            placeholders = result.media,
+            rows = stitcher.rowsSeen,
+            units = stitcher.pieces.count { it.piece.isMessage },
+            skipped = result.skipped,
+            empty = result.empty,
+            dupes = stitcher.dupes,
+        )
+        return Result.Read(TextThread(source, title, result.messages.takeLast(MAX_MESSAGES), stats))
+    }
+
     companion object {
-        /** The three picks the panel offers, as on iOS (WebChatTab.windows). */
-        val WINDOWS = listOf(30, 80, 120)
+        /** The picks the panel offers: iOS's three (WebChatTab.windows) and a quick 10. */
+        val WINDOWS = listOf(10, 30, 80, 120)
 
         const val MAX_MESSAGES = 600
         const val BUDGET_MS = 45_000L
         const val MAX_STEPS = 250
+
+        /** "Until I stop scrolling": done this long after the last new message, or after starting with none. */
+        const val FOLLOW_QUIET_MS = 3_000L
+        const val FOLLOW_START_MS = 5_000L
+        const val FOLLOW_MAX_MS = 180_000L
+        private const val FOLLOW_POLL_MS = 250L
         private const val NAMING_STEPS = 3
         private const val UNNAMED = "Someone"
         private const val SETTLE_MS = 1_500L

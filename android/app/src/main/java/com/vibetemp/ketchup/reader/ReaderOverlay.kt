@@ -46,6 +46,12 @@ internal class ReaderOverlay(private val service: AccessibilityService, private 
         fun onBubbleTap()
         fun onBubbleLongPress()
         fun onPick(last: Int)
+
+        /** "Until I stop scrolling". */
+        fun onFollow()
+
+        /** "Catch me up now", while following the person's scroll. */
+        fun onFinishNow()
         fun onStop()
         fun onClosePanel()
         fun onOpenApp()
@@ -131,6 +137,8 @@ internal class ReaderOverlay(private val service: AccessibilityService, private 
                         onClose = actions::onClosePanel,
                         onOpenApp = actions::onOpenApp,
                         modifier = Modifier.padding(4.dp),
+                        onFollow = actions::onFollow,
+                        onFinishNow = actions::onFinishNow,
                     )
                 },
             )

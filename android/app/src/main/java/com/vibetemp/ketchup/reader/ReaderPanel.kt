@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -91,6 +92,10 @@ fun ReaderPanel(
     onClose: () -> Unit,
     onOpenApp: () -> Unit,
     modifier: Modifier = Modifier,
+    /** "Until I stop scrolling". */
+    onFollow: () -> Unit = {},
+    /** "Catch me up now", while following the person's scroll. */
+    onFinishNow: () -> Unit = {},
 ) {
     val colors = KetchupTheme.colors
     val shape = RoundedCornerShape(20.dp)
@@ -130,21 +135,46 @@ fun ReaderPanel(
         when (state) {
             PanelState.Pick -> {
                 Body(stringResource(R.string.reader_panel_pick_body))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ThreadReader.WINDOWS.forEach { n ->
-                        CapsuleButton(
-                            stringResource(R.string.reader_panel_last, n),
-                            onClick = { onPick(n) },
-                            modifier = Modifier.weight(1f),
-                            fill = ButtonFill.Ink,
-                            compact = true,
-                        )
+                // Last 10, 30, 80, 120 two by two, then the open-ended read across the width.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThreadReader.WINDOWS.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            pair.forEach { n ->
+                                CapsuleButton(
+                                    stringResource(R.string.reader_panel_last, n),
+                                    onClick = { onPick(n) },
+                                    modifier = Modifier.weight(1f),
+                                    fill = ButtonFill.Ink,
+                                    compact = true,
+                                )
+                            }
+                        }
                     }
+                    CapsuleButton(
+                        stringResource(R.string.reader_panel_until_stop),
+                        onClick = onFollow,
+                        modifier = Modifier.fillMaxWidth(),
+                        fill = ButtonFill.Outline,
+                        compact = true,
+                    )
                 }
                 if (source == TextSource.SNAPCHAT) Note(stringResource(R.string.reader_panel_pick_scroll))
                 Note(stringResource(R.string.reader_panel_pick_note))
             }
-            is PanelState.Reading -> {
+            is PanelState.Reading -> if (state.progress.following) {
+                // Until I stop scrolling: a running count, no goal.
+                Text(
+                    pluralStringResource(R.plurals.reader_panel_found, state.progress.found, state.progress.found),
+                    style = KetchupTheme.type.monoFootnote,
+                    color = colors.ink,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                Body(stringResource(R.string.reader_panel_follow))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CapsuleButton(stringResource(R.string.reader_panel_finish_now), onClick = onFinishNow, modifier = Modifier.weight(1f), compact = true)
+                    CapsuleButton(stringResource(R.string.reader_panel_stop), onClick = onStop, fill = ButtonFill.Outline, compact = true)
+                }
+            } else {
                 val p = state.progress
                 Text(
                     stringResource(R.string.reader_panel_progress, p.found, p.wanted),

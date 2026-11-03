@@ -41,6 +41,9 @@ internal object ThreadWalk {
     private val REPLY = Regex("^(?:(.+?)\\s+)?replied to (.+)$", RegexOption.IGNORE_CASE)
     private val SELF = Regex("^(him|her|them)sel(f|ves)$|^themself$", RegexOption.IGNORE_CASE)
     private val STORY = Regex("^(your|their|his|her|my) story$", RegexOption.IGNORE_CASE)
+    /** Empty space this tall between two pieces is a stretch nobody read, not a layout gap ([Stitcher.addFollowing]). */
+    internal const val UNREAD_GAP_DP = 180
+
     private val LABEL_TAIL = Regex("\\s*[·•]\\s*(pinned|edited|forwarded)\\s*$", RegexOption.IGNORE_CASE)
 
     private class Reply(val group: Int, val to: String?, val toMine: Boolean) {
@@ -62,9 +65,17 @@ internal object ThreadWalk {
         var skipped = 0
         var empty = 0
         var media = 0
+        var below: Int? = null
 
         for ((i, u) in units.withIndex()) {
             val p = u.piece
+            // A stretch nobody read (the person flung past it): whose run continues after it is unknown.
+            if (below != null && u.top - below > UNREAD_GAP_DP * density) {
+                label = null
+                labelMine = false
+                reply = null
+            }
+            below = maxOf(below ?: u.bottom, u.bottom)
             if (!p.isMessage) {
                 val t = p.text
                 if (p.centered) {

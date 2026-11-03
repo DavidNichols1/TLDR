@@ -37,6 +37,9 @@ internal class Placed(
 internal class Stitcher(density: Float) {
     private val tolerance = max(4, (3 * density).roundToInt())
 
+    /** Room left above everything read for a page with nothing in common: more than a walk's unread gap. */
+    private val unreadGap = ((ThreadWalk.UNREAD_GAP_DP + 60) * density).roundToInt()
+
     /** A bubble's text sits this far inside it: less of a bubble than this on screen shows no text. */
     private val padding = max(tolerance, (16 * density).roundToInt())
     private val placed = mutableListOf<Placed>()
@@ -59,11 +62,31 @@ internal class Stitcher(density: Float) {
     fun group(p: Placed): Int = find(p.row)
 
     /** Adds the next (older) page. Returns how many pieces were new. */
-    fun add(page: Page): Int {
+    fun add(page: Page): Int = place(page, previous?.let { shift(it, page) } ?: 0)
+
+    /**
+     * Adds a page the person scrolled to themselves ("Until I stop
+     * scrolling"); they were asked to scroll up. Placed by what it shares
+     * with the last page added (two different texts must agree). A page
+     * that moved back down is left out: what's there was read on the way up,
+     * or was flung past, and has no place to go. More than a page from the
+     * last one, it's either something already read (left out) or new and
+     * older, placed just above everything read. Returns how many pieces
+     * were new.
+     */
+    fun addFollowing(page: Page): Int {
+        val before = previous ?: return place(page, 0)
+        unmoved(before, page)?.let { return place(page, it) }
+        followShift(before, page)?.let { moved -> return if (moved < -tolerance) 0 else place(page, moved) }
+        if (realign(page) != null) return 0
+        return place(page, above(page))
+    }
+
+    private fun place(page: Page, moved: Int): Int {
         val base = rowParent.size
         repeat(page.rows) { rowParent += rowParent.size }
         rowsSeen += page.rows
-        previous?.let { offset += shift(it, page) }
+        offset += moved
         var added = 0
         for (p in page.pieces) {
             val next = Placed(p, p.bounds.top - offset, p.bounds.bottom - offset, p.clipTop, p.clipBottom, base + p.row, seq++)
@@ -96,16 +119,7 @@ internal class Stitcher(density: Float) {
         // The same pieces in the same order: the list didn't move (or less than a piece), whatever the
         // scroll said. A Snapchat page with one message on it otherwise read as a whole new page each
         // time, and that message came back over and over (Nov 3, 2026).
-        if (before.pieces.isNotEmpty() && before.pieces.map { it.key } == after.pieces.map { it.key }) {
-            val moves = before.pieces.zip(after.pieces).mapNotNull { (a, b) ->
-                when {
-                    !a.clipTop && !b.clipTop -> b.bounds.top - a.bounds.top
-                    !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bounds.bottom
-                    else -> null
-                }
-            }.sorted()
-            return moves.getOrNull(moves.size / 2) ?: 0
-        }
+        unmoved(before, after)?.let { return it }
         val proposals = sortedSetOf<Int>()
         for (a in before.pieces) for (b in after.pieces) {
             // A reply's quote cut off from its words says nothing to line up on.
@@ -133,6 +147,119 @@ internal class Stitcher(density: Float) {
             }
         }
         return best
+    }
+
+    /** The same pieces in the same order: how far they moved (0 when the list didn't move), or null. */
+    private fun unmoved(before: Page, after: Page): Int? {
+        if (before.pieces.isEmpty() || before.pieces.map { it.key } != after.pieces.map { it.key }) return null
+        val moves = before.pieces.zip(after.pieces).mapNotNull { (a, b) ->
+            when {
+                !a.clipTop && !b.clipTop -> b.bounds.top - a.bounds.top
+                !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bounds.bottom
+                else -> null
+            }
+        }.sorted()
+        return moves.getOrNull(moves.size / 2) ?: 0
+    }
+
+    /**
+     * The person's own scroll since [before]: either way, up to a page.
+     * Every shift two pieces that say the same thing propose must leave the
+     * pages agreeing, with two different texts (one, when a page holds just
+     * one), the smallest standing shift winning a tie.
+     */
+    private fun followShift(before: Page, after: Page): Int? {
+        val reach = after.list.height + tolerance
+        val proposals = sortedSetOf<Int>()
+        for (a in before.pieces) for (b in after.pieces) {
+            if (a.key != b.key || a.text.isEmpty()) continue
+            val moved = when {
+                !a.clipTop && !b.clipTop -> b.bounds.top - a.bounds.top
+                !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bounds.bottom
+                else -> continue
+            }
+            if (abs(moved) <= reach) proposals += moved
+        }
+        val needed = if (before.pieces.map { it.key }.distinct().size <= 1 || after.pieces.map { it.key }.distinct().size <= 1) 1 else 2
+        var best: Int? = null
+        var bestScore = Int.MIN_VALUE
+        for (moved in proposals) {
+            val fit = Fit()
+            check(after, before, -moved, fit)
+            check(before, after, moved, fit)
+            if (fit.texts.size < needed || fit.misses * 3 > fit.matches) continue
+            val score = fit.matches - 2 * fit.misses
+            val current = best
+            if (score > bestScore || (score == bestScore && current != null && abs(moved) < abs(current))) {
+                best = moved
+                bestScore = score
+            }
+        }
+        return best
+    }
+
+    /**
+     * Lines [page] up with everything read so far (the person scrolled back
+     * to something seen before, past the page before). Each offset two
+     * messages propose must hold up: wherever the page would land on
+     * something already read, it must say the same thing there. Two
+     * different messages must agree (names repeat in every run), with few
+     * misses. Null when nothing holds.
+     */
+    private fun realign(page: Page): Int? {
+        val proposals = sortedSetOf<Int>()
+        for (b in page.pieces) {
+            if (!b.isMessage || b.text.isEmpty()) continue
+            for (a in placed) {
+                if (!says(a.piece, b)) continue
+                // The offset that puts b where a is: abs = screen - offset.
+                proposals += when {
+                    !a.clipTop && !b.clipTop -> b.bounds.top - a.top
+                    !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bottom
+                    else -> continue
+                }
+            }
+        }
+        var best: Int? = null
+        var bestScore = Int.MIN_VALUE
+        for (o in proposals) {
+            var matches = 0
+            var misses = 0
+            val texts = HashSet<String>()
+            for (b in page.pieces) {
+                if (b.text.isEmpty()) continue
+                val top = b.bounds.top - o
+                val bottom = b.bounds.bottom - o
+                val there = placed.filter { minOf(it.bottom, bottom) - maxOf(it.top, top) > tolerance }
+                if (there.isEmpty()) continue // not read yet: no evidence either way
+                val same = there.any { a ->
+                    says(a.piece, b) && ((!a.clipTop && !b.clipTop && abs(a.top - top) <= tolerance) ||
+                        (!a.clipBottom && !b.clipBottom && abs(a.bottom - bottom) <= tolerance) ||
+                        a.clipTop || a.clipBottom || b.clipTop || b.clipBottom)
+                }
+                if (same) {
+                    matches++
+                    if (b.isMessage) texts += b.key
+                } else {
+                    misses++
+                }
+            }
+            if (texts.size < 2 || misses * 3 > matches) continue
+            val score = matches - 2 * misses
+            if (score > bestScore) {
+                best = o
+                bestScore = score
+            }
+        }
+        return best?.let { it - offset }
+    }
+
+    /** Nothing in common with anything read: just above everything, since the person scrolls up. */
+    private fun above(page: Page): Int {
+        if (page.pieces.isEmpty() || placed.isEmpty()) return 0
+        val topmost = placed.minOf { it.top }
+        val lowest = page.pieces.maxOf { it.bounds.bottom }
+        return lowest - (topmost - unreadGap) - offset
     }
 
     private class Fit {

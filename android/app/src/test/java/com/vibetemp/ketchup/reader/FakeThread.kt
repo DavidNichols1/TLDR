@@ -215,6 +215,12 @@ class FakeScreen(
     private val snapchat: Boolean = false,
     /** A list that says it scrolled back but didn't move, and still offers to (what a Snapchat read hit on Nov 3, 2026). */
     private val stuck: Boolean = false,
+    /**
+     * The person's own scrolling, for "Until I stop scrolling": at each
+     * virtual time (ms, ascending), scroll by that much of the list's
+     * height, up (older) when positive, down when negative.
+     */
+    private val script: List<Pair<Long, Float>> = emptyList(),
 ) : ReaderScreen {
     override val density = thread.density
     val list = Bounds(0, 236, thread.width, if (snapchat) 2300 else 2148)
@@ -272,6 +278,20 @@ class FakeScreen(
             y += batch.sumOf { it.height }
             loadAsked = false
         }
+        return true
+    }
+
+    private var scripted = 0
+
+    override suspend fun nextChange(timeoutMs: Long): Boolean {
+        val next = script.getOrNull(scripted)
+        if (next == null || next.first > now + timeoutMs) {
+            now += timeoutMs
+            return false
+        }
+        now = max(now, next.first)
+        scripted++
+        y = (y - (next.second * list.height).roundToInt()).coerceIn(0, bottomY)
         return true
     }
 

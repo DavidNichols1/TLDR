@@ -84,6 +84,7 @@ private fun PanelStates(source: TextSource = TextSource.INSTAGRAM) {
     val states = listOf(
         "Tap the bubble" to PanelState.Pick,
         "Reading" to PanelState.Reading(ReadProgress(found = 18, wanted = 30)),
+        "Until I stop scrolling" to PanelState.Reading(ReadProgress(found = 24, wanted = 0, following = true)),
         "Not signed in" to PanelState.SignIn,
         "Not set up" to PanelState.Setup,
         "Nothing found" to PanelState.Problem(R.string.reader_problem_nothing, 30),

@@ -11,6 +11,13 @@
     <string name="reader_panel_pick_title">Catch me up</string>
     <string name="reader_panel_pick_body">Read the newest messages in this chat and catch up with Muse Spark.</string>
     <string name="reader_panel_last">Last %1$d</string>
+    <string name="reader_panel_until_stop">Until I stop scrolling</string>
+    <string name="reader_panel_follow">Scroll up through the chat. Ketchup reads as you go and catches you up when you stop.</string>
+    <string name="reader_panel_finish_now">Catch me up now</string>
+    <plurals name="reader_panel_found">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
     <string name="reader_panel_pick_note">Only this chat, only now. Nothing is kept.</string>
     <string name="reader_panel_reading_title">Reading the chat</string>
     <string name="reader_panel_progress">%1$d of %2$d messages</string>

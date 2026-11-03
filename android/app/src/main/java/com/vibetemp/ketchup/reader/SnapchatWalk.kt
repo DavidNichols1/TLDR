@@ -26,7 +26,7 @@ import java.time.ZonedDateTime
  */
 internal object SnapchatWalk {
 
-    fun walk(pieces: List<Placed>, title: String, snapchatName: String?, now: ZonedDateTime): Walk {
+    fun walk(pieces: List<Placed>, title: String, snapchatName: String?, now: ZonedDateTime, density: Float = 1f): Walk {
         val me = setOfNotNull("me", snapchatName?.let(::norm)?.ifEmpty { null })
         fun isMe(name: String?) = name != null && norm(name) in me
 
@@ -43,11 +43,18 @@ internal object SnapchatWalk {
         var media = 0
         var unnamedBefore = 0
         var cutQuote: TextMessage.Quote? = null
+        var below: Int? = null
 
         for (u in units) {
             val p = u.piece
             val held = cutQuote
             cutQuote = null
+            // A stretch nobody read (the person flung past it): whose run continues after it is unknown.
+            if (below != null && u.top - below > ThreadWalk.UNREAD_GAP_DP * density) {
+                sender = null
+                mine = false
+            }
+            below = maxOf(below ?: u.bottom, u.bottom)
             when {
                 p.header -> {
                     sender = p.text
