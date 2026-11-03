@@ -44,6 +44,16 @@ the technical recipe. README.md is the judge-facing overview.
 - David signs in himself (email + 8-digit code; `Config.otpLength` must match Auth → Email OTP Length); never type his email or codes.
 - Sign-in needs `{{ .Token }}` in the Magic Link and Confirm signup email templates (set Nov 2, 2026). Email goes out through Resend SMTP from noreply@vibetemp.com (30/hour cap).
 
+## Design system and offline previews
+- `docs/DESIGN.md` is the design system (a diner counter: cream, ink, ketchup, mustard, pickle).
+  Colors, type and motion live in `Theme.swift`; shapes, buttons and labels in `ios/Ketchup/Design/`.
+  The old purple names (`Theme.accent`, `aiGradient`, ...) are deprecated aliases until every screen is restyled.
+- DEBUG builds open one screen on fixtures with `-screen <name>`, for example
+  `xcrun simctl launch <udid> com.vibetemp.ketchup -screen list` (tap a name), `chat`, `ai-catchup`, `design`.
+  No sign-in or network: `Supabase.rest`/`sendAuth` and Realtime refuse to connect while previewing.
+  Data: `Debug/PreviewData.swift` over `Debug/Fixtures/`; screens: `Debug/CorePreviewScreen.swift`, `Debug/AIPreviewScreen.swift`.
+- Keep preview code inside `#if DEBUG`; a Release build (`-configuration Release CODE_SIGNING_ALLOWED=NO`) must still compile.
+
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
 the viewer sets display name **David**, joins with the printed invite code, and has
