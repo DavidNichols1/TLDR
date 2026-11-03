@@ -15,9 +15,11 @@ import com.vibetemp.ketchup.data.BriefSource
 import com.vibetemp.ketchup.data.BriefSourceIntent
 import com.vibetemp.ketchup.data.CatchUp
 import com.vibetemp.ketchup.data.CatchUpResponse
+import com.vibetemp.ketchup.data.ConsentGate
 import com.vibetemp.ketchup.data.KetchupApi
 import com.vibetemp.ketchup.data.KetchupJson
 import com.vibetemp.ketchup.data.TextThread
+import com.vibetemp.ketchup.ui.plans.ConsentDialogHost
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 
 /**
@@ -85,6 +87,7 @@ class BriefActivity : ComponentActivity() {
         val source = BriefSourceIntent.from(intent)
             ?.takeUnless { it is TextThread && fromHistory && savedInstanceState == null }
         val askFirst = intent.getBooleanExtra(EXTRA_ASK_FIRST, false)
+        ConsentGate.enabled = true // Plans: ask once before the first brief (data/ConsentGate.kt)
         session = source?.let { s ->
             val restored = if (s is BriefSource.Chat) savedInstanceState?.getString(STATE_BRIEF)?.let(::decode) else null
             val factory = BriefViewModel.Factory(KetchupApi.get(applicationContext), s, restored, askFirst)
@@ -93,6 +96,7 @@ class BriefActivity : ComponentActivity() {
         setContent {
             KetchupTheme {
                 BriefPage(session, onDone = ::finish, onJump = ::jumpTo, onOpenApp = ::openApp)
+                ConsentDialogHost() // Plans: the one-time Muse Spark question (ui/plans/ConsentDialog.kt)
             }
         }
     }

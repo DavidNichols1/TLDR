@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plans: the one-time Muse Spark question (ui/plans/ConsentDialog.kt), the same words as iOS. -->
+<resources>
+    <string name="plans_consent_kicker">Before your first catch-up</string>
+    <string name="plans_consent_title">Muse Spark reads it for you</string>
+    <string name="plans_consent_sends">To write a catch-up or answer a question, Ketchup sends the messages it covers to Meta\'s Muse Spark. That includes your friends\' messages in the chat.</string>
+    <string name="plans_consent_standard">Ketchup uses Meta\'s Standard mode, and Meta doesn\'t train its AI on them.</string>
+    <string name="plans_consent_age">Muse Spark is for people 18 and older.</string>
+    <string name="plans_consent_adult">I\'m 18 or older</string>
+    <string name="plans_consent_allow">Allow and continue</string>
+    <string name="plans_consent_not_now">Not now</string>
+</resources>
