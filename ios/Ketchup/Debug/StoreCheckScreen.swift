@@ -8,8 +8,9 @@
 //  never touched. It checks the round trips, the 400-message cap, one
 //  user's copy hidden from the next, sign-out and launch clean-up, pruning
 //  left chats, the server's page replacing a kept copy, old file shapes,
-//  data protection, backup exclusion, and how long a big thread takes to
-//  read back.
+//  saved catch-ups (kept once, 100 per chat, delete, Clear all, Clear
+//  cache), data protection, backup exclusion, and how long a big thread
+//  takes to read back.
 //
 
 #if DEBUG
@@ -181,7 +182,64 @@ enum StoreCheck {
         try? old.write(to: file)
         check("Ignores an old file shape", store().inbox() == nil, "version 0 file read as nothing")
 
-        // 10. Launch clean-up: only the signed-in user's folder stays, and
+        // 10. Saved catch-ups and answers round trip, with their sources.
+        let place = SavedPlace.chat(breck)
+        let saver = store()
+        if let brief = PreviewData.brief.result, let answer = PreviewData.answer.result {
+            let quotes = messages.prefix(3).map { SavedQuote(id: $0.id, name: "Maya", text: $0.body, at: $0.createdAt) }
+            let caught = SavedBrief(id: UUID(), kind: .catchUp, savedAt: .now, messageCount: 302, catchUp: brief, quotes: quotes)
+            let asked = SavedBrief(id: UUID(), kind: .ask, savedAt: .now, messageCount: 302,
+                                   question: PreviewData.answerQuestion, answer: answer, quotes: [])
+            saver.keep(caught, in: place, name: "Breck")
+            saver.keep(asked, in: place, name: "Breck")
+            await saver.flush()
+            let back = store().saved(place)
+            check("Saved catch-ups round trip", back?.briefs == [asked, caught] && back?.briefs.last?.quotes.count == 3,
+                  "\(back?.briefs.count ?? 0) kept, newest first, \(back?.briefs.last?.quotes.count ?? 0) sources with the catch-up")
+
+            // 11. A server brief (its brief_id) opened twice is kept once; a
+            // chat keeps its newest 100.
+            let briefId = UUID(uuidString: "B1EF0000-0000-4000-8000-000000000001")!
+            let json = #"{"kind":"catch_up","cached":true,"brief_id":"\#(briefId)","message_count":12,"result":{"tldr":"Short.","highlights":[{"text":"x","refs":["\#(messages[0].id)","\#(messages[1].id)"]}],"plans":[],"open_questions":[],"owes":[],"for_you":[]}}"#
+            let fromServer = (try? JSON.decoder.decode(BriefResponse<CatchUp>.self, from: Data(json.utf8)))
+                .flatMap { SavedBrief(catchUp: $0, quote: { id in quotes.first { $0.id == id } }) }
+            if let fromServer {
+                saver.keep(fromServer, in: place, name: "Breck")
+                saver.keep(fromServer, in: place, name: "Breck")
+            }
+            saver.keep(caught, in: place, name: "Breck")
+            let once = saver.saved(place)?.briefs.count ?? 0
+            let decoded = fromServer?.id == briefId && fromServer?.quotes.count == 2
+            for i in 0..<DeviceStore.savedPerChat {
+                saver.keep(SavedBrief(id: UUID(), kind: .ask, savedAt: .now, messageCount: i, question: "q\(i)",
+                                      answer: answer, quotes: []), in: place, name: "Breck")
+            }
+            let capped = saver.saved(place)?.briefs ?? []
+            check("Kept once, newest \(DeviceStore.savedPerChat) per chat",
+                  decoded && once == 3 && capped.count == DeviceStore.savedPerChat && capped.first?.question == "q\(DeviceStore.savedPerChat - 1)",
+                  "brief_id read: \(decoded); twice in, \(once - 2) kept; after \(DeviceStore.savedPerChat) more: \(capped.count), newest on top")
+
+            // 12. Delete one, Clear cache keeps them, Clear all, and a delete
+            // right after a keep stays deleted on disk.
+            let web = SavedPlace.web("instagram")
+            saver.keep(caught, in: web, name: "Instagram")
+            saver.forget(capped[0].id, in: place)
+            let afterDelete = saver.saved(place)?.briefs.count ?? 0
+            saver.saveInbox(inbox)
+            saver.clearCopies()
+            let afterClear = saver.allSaved().count
+            let inboxGone = saver.inbox() == nil
+            saver.forgetAll(in: web)
+            await saver.flush()
+            let webGone = store().saved(web) == nil
+            saver.forgetAllSaved()
+            await saver.flush()
+            check("Delete, Clear all, Clear cache",
+                  afterDelete == capped.count - 1 && afterClear == 2 && inboxGone && webGone && store().allSaved().isEmpty,
+                  "one deleted; clear cache kept \(afterClear) chats' saved; clear all left \(store().allSaved().count)")
+        }
+
+        // 13. Launch clean-up: only the signed-in user's folder stays, and
         // with nobody signed in nothing is touched.
         let b = DeviceStore(root: root) { userB }
         b.saveInbox(inbox)
@@ -197,7 +255,7 @@ enum StoreCheck {
         check("Launch keeps only your folder", untouched == 2 && folders == [userA.uuidString.lowercased()],
               "signed out: \(untouched) folders kept; signed in: \(folders.count) left")
 
-        // 11. Signing out deletes everything.
+        // 14. Signing out deletes everything.
         tidier.saveInbox(inbox)
         tidier.wipe()
         await tidier.flush()

@@ -128,6 +128,13 @@ refreshes from the server behind them.
   from the server, so an out-of-date copy can't hide new messages from Catch me up.
 - **Paper, not spinners.** A first launch shows blank paper in the shape of the inbox's
   rows and a chat's bubbles. It breathes slowly, and holds still with Reduce Motion on.
+- **Every catch-up you open, kept.** Each catch-up and Ask answer stays on the phone with
+  the messages it cites, under **Earlier catch-ups** in the chat's … menu and **Settings →
+  Saved catch-ups**, so you can read it again with no network call. Its sources still jump
+  to the message when the chat has it loaded. Delete one, or Clear all; they stay until
+  you do, the newest 100 per chat ([`SavedBriefs.swift`](ios/Ketchup/Store/SavedBriefs.swift)).
+- **Clear cache** in Settings drops the copy of your chats and the photo cache; both load
+  again from the server, and saved catch-ups stay.
 
 ## Architecture
 
@@ -258,9 +265,10 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   you pick how much to read on a chat. They go by page structure (roles, tags, labels,
   layout), not the sites' class names, which change. Both step up through the chat for
   older messages, then put the scroll back.
-- **Nothing is stored.** No saved catch-up, and no message text in the logs (counts and
-  token usage only). The server keeps one usage count per call, with no content, for an
-  hourly cap of 20.
+- **Nothing is stored on the server.** No message text in the logs (counts and token usage
+  only). The server keeps one usage count per call, with no content, for an hourly cap of 20.
+  The catch-up itself is kept on your phone until you delete it, under Earlier catch-ups in
+  the page's … menu.
 - **It isn't sanctioned by Instagram's or Snapchat's terms.** They don't allow automated
   collection, and the messages, your friends' included, go to Muse Spark to summarize. So
   it's not in the released app, and it won't ship unless Meta and Snap are fine with it.

@@ -9,8 +9,9 @@
 //      jump to the message when the chat has it loaded, and otherwise show
 //      the message as it was kept. Swipe or long-press to delete one, or
 //      Clear all.
-//    - SavedCatchUpsView: every chat's, plus what the phone keeps and
-//      Clear cache, for Settings.
+//    - SavedCatchUpsView: every chat's, pushed from Settings' "Saved
+//      catch-ups" row (SavedCatchUpsRow), next to its "Clear cache" row
+//      (ClearCacheRow).
 //
 
 import SwiftUI
@@ -184,15 +185,15 @@ struct SavedBriefsSheet: View {
 
 // MARK: - Every chat
 
-/// Everything kept on the phone, for Settings: each chat's saved catch-ups
-/// (the most recent chat first), then the space it all takes and Clear cache.
+/// Every chat's saved catch-ups, the most recent chat first, with the room
+/// they take and Delete all. Pushed from Settings.
 struct SavedCatchUpsView: View {
     var store: DeviceStore = .shared
 
     @State private var groups: [SavedGroup] = []
-    @State private var usage: (copies: Int, saved: Int)?
+    @State private var bytes: Int?
     @State private var opened: Opened?
-    @State private var confirm: Confirm?
+    @State private var confirmDelete = false
 
     private struct SavedGroup: Identifiable {
         let place: SavedPlace
@@ -207,108 +208,83 @@ struct SavedCatchUpsView: View {
         var id: UUID { brief }
     }
 
-    private enum Confirm: Identifiable {
-        case saved, copies
-        var id: Self { self }
-    }
-
     var body: some View {
         List {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Saved catch-ups")
-                    .font(.serif(.largeTitle))
-                    .foregroundStyle(Theme.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Text("Every catch-up you've opened and every answer you got, kept on this phone until you delete them.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.inkSoft)
-            }
-            .savedRow(top: 14, bottom: 10)
+            Text("Every catch-up you've opened and every answer you got, kept on this phone until you delete them.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.inkSoft)
+                .savedRow(top: 12, bottom: 6)
             if groups.isEmpty {
                 SavedEmpty(compact: true)
-                    .savedRow(top: 10, bottom: 10)
+                    .savedRow(top: 30, bottom: 10)
             }
             ForEach(groups) { group in
-                Section {
-                    ForEach(group.chat.briefs) { brief in
-                        Button {
-                            opened = Opened(place: group.place, name: group.chat.name, brief: brief.id)
-                        } label: {
-                            SavedBriefRow(brief: brief, showsTitle: group.place.isWeb)
-                        }
-                        .buttonStyle(.pressable)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) { delete(brief, in: group.place) } label: { Label("Delete", systemImage: "trash") }
-                        }
-                        .contextMenu {
-                            Button("Delete", systemImage: "trash", role: .destructive) { delete(brief, in: group.place) }
-                        }
-                        .savedRow(top: 5, bottom: 5)
+                Kicker(group.chat.name)
+                    .accessibilityAddTraits(.isHeader)
+                    .savedRow(top: 18, bottom: 2)
+                ForEach(group.chat.briefs) { brief in
+                    Button {
+                        opened = Opened(place: group.place, name: group.chat.name, brief: brief.id)
+                    } label: {
+                        SavedBriefRow(brief: brief, showsTitle: group.place.isWeb)
                     }
-                } header: {
-                    Kicker(group.chat.name)
-                        .padding(.top, 12)
+                    .buttonStyle(.pressable)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) { delete(brief, in: group.place) } label: { Label("Delete", systemImage: "trash") }
+                    }
+                    .contextMenu {
+                        Button("Delete", systemImage: "trash", role: .destructive) { delete(brief, in: group.place) }
+                    }
+                    .savedRow(top: 5, bottom: 5)
                 }
             }
-            phone
-                .savedRow(top: 26, bottom: 30)
+            if !groups.isEmpty {
+                deleteAll
+                    .savedRow(top: 26, bottom: 30)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Theme.cream)
+        .navigationTitle("Saved catch-ups")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Saved catch-ups")
+                    .font(.serif(.headline))
+                    .foregroundStyle(Theme.ink)
+            }
+        }
         .task { await reload() }
         .sheet(item: $opened, onDismiss: { Task { await reload() } }) { opened in
             SavedBriefsSheet(place: opened.place, title: opened.name, store: store, opening: opened.brief)
         }
-        .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
-                            titleVisibility: .visible, presenting: confirm) { which in
-            Button(which == .saved ? "Delete all" : "Clear", role: .destructive) {
-                if which == .saved { store.forgetAllSaved() } else { store.clearCopies() }
+        .confirmationDialog("Delete every saved catch-up?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete all", role: .destructive) {
+                store.forgetAllSaved()
                 Task { await reload() }
             }
-        } message: { which in
-            Text(which == .saved
-                 ? "They're only on this phone, so they can't come back."
-                 : "Your inbox and messages load from the server again next time. Saved catch-ups stay.")
+        } message: {
+            Text("They're only on this phone, so they can't come back.")
         }
     }
 
-    /// What the phone keeps, how much room it takes, and the two clears.
-    private var phone: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle("On this phone")
-            storageLine("Saved catch-ups", bytes: usage?.saved, action: "Delete all", enabled: !groups.isEmpty) { confirm = .saved }
-            Rectangle().fill(Theme.rule).frame(height: 1)
-            storageLine("Copy of your chats", bytes: usage?.copies, action: "Clear", enabled: (usage?.copies ?? 0) > 0) { confirm = .copies }
-            Text("The copy is your inbox and each chat's newest messages, so the app opens instantly. Signing out deletes everything here.")
-                .font(.footnote)
-                .foregroundStyle(Theme.inkSoft)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .paperCard(padding: 18)
-    }
-
-    private func storageLine(_ name: String, bytes: Int?, action: String, enabled: Bool,
-                             run: @escaping () -> Void) -> some View {
+    /// How much room they take, and Delete all.
+    private var deleteAll: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(name)
+                Text("On this phone")
                     .font(.headline)
                     .foregroundStyle(Theme.ink)
-                Text(bytes.map { Int64($0).formatted(.byteCount(style: .file)) } ?? " ")
+                Text(bytes.map(ByteSize.text) ?? " ")
                     .font(.mono(.caption))
                     .foregroundStyle(Theme.inkSoft)
             }
             Spacer(minLength: 8)
-            Button(action, action: run)
+            Button("Delete all") { confirmDelete = true }
                 .buttonStyle(.outline(.compact))
-                .disabled(!enabled)
         }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var confirmTitle: String {
-        confirm == .saved ? "Delete every saved catch-up?" : "Clear the copy of your chats?"
+        .paperCard(padding: 18)
     }
 
     private func delete(_ brief: SavedBrief, in place: SavedPlace) {
@@ -318,7 +294,75 @@ struct SavedCatchUpsView: View {
 
     private func reload() async {
         groups = store.allSaved().map { SavedGroup(place: $0.place, chat: $0.chat) }
-        usage = await store.usage()
+        bytes = await store.usage().saved
+    }
+}
+
+// MARK: - Settings rows
+
+/// Settings' "Saved catch-ups": how many there are, and the list.
+struct SavedCatchUpsRow: View {
+    @State private var count: Int?
+
+    var body: some View {
+        NavigationLink {
+            SavedCatchUpsView()
+        } label: {
+            SettingsRow("Saved catch-ups", systemImage: "clock.arrow.circlepath",
+                        value: count.map { $0 == 0 ? "None" : $0.formatted() }, chevron: true)
+        }
+        .buttonStyle(.pressable)
+        .onAppear {
+            count = DeviceStore.shared.allSaved().reduce(0) { $0 + $1.chat.briefs.count }
+        }
+    }
+}
+
+/// Settings' "Clear cache": the copy of your chats (DeviceStore) and the
+/// photo cache (RemoteImages). Both load again from the server; saved
+/// catch-ups stay.
+struct ClearCacheRow: View {
+    @State private var bytes: Int?
+    @State private var confirming = false
+
+    var body: some View {
+        Button { confirming = true } label: {
+            SettingsRow("Clear cache", systemImage: "arrow.counterclockwise", detail: detail)
+        }
+        .buttonStyle(.pressable)
+        .disabled(bytes == 0)
+        .task { await measure() }
+        .confirmationDialog("Clear the cache?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("Clear cache", role: .destructive) {
+                DeviceStore.shared.clearCopies()
+                RemoteImages.shared.clear()
+                Task { await measure() }
+            }
+        } message: {
+            Text("Your chats and photos load from the server again next time. Saved catch-ups stay.")
+        }
+    }
+
+    /// "4.2 MB: your inbox, recent messages and photos."
+    private var detail: String {
+        let what = "your inbox, recent messages and photos. Saved catch-ups stay."
+        switch bytes {
+        case 0: return "Nothing to clear right now."
+        case let bytes?: return "\(ByteSize.text(bytes)): \(what)"
+        case nil: return what.prefix(1).uppercased() + what.dropFirst()
+        }
+    }
+
+    private func measure() async {
+        let photos = await Task.detached(priority: .utility) { RemoteImages.shared.diskBytes() }.value
+        bytes = await DeviceStore.shared.usage().copies + photos
+    }
+}
+
+nonisolated enum ByteSize {
+    /// "312 KB", "4.2 MB".
+    static func text(_ bytes: Int) -> String {
+        Int64(bytes).formatted(.byteCount(style: .file))
     }
 }
 

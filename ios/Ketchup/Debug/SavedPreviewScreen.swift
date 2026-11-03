@@ -45,7 +45,9 @@ struct SavedPreviewScreen: View {
                         SavedQuoteCard(quote: Self.quote(CorePreviewScreen.jumpTarget)!)
                     }
             case .all:
-                SavedCatchUpsView(store: store)
+                NavigationStack {
+                    SavedCatchUpsView(store: store)
+                }
             case nil:
                 PreviewIndex(unknown: name)
             }
