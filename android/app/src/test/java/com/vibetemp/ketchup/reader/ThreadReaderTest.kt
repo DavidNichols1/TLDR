@@ -252,6 +252,9 @@ class ThreadReaderTest {
         val thread = FakeScreen(FakeThread("Rosa").apply { them("Rosa", "hi") }).window()
         assertTrue(ThreadLayout.detect(thread, TextSource.INSTAGRAM) != null)
         assertNull(ThreadLayout.detect(thread, TextSource.SNAPCHAT))
+        // The service spots a thread from a structure-only copy: no text, no descriptions.
+        fun strip(n: SnapshotNode): SnapshotNode = n.copy(text = null, contentDescription = null, children = n.children.map(::strip))
+        assertTrue(ThreadLayout.detect(strip(thread), TextSource.INSTAGRAM) != null)
 
         fun screen(field: SnapshotNode) = SnapshotNode(
             bounds = Bounds(0, 0, 1080, 2400),
