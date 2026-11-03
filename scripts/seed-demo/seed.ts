@@ -11,6 +11,8 @@
 //   --end-date=YYYY-MM-DD  put the last day of the conversation on this date
 //   --rearm            make the chat fully unread again for everyone who is not
 //                      a demo friend (you), and clear your cached catch-ups for it
+//   --photos           also add two made-up photos (photos/): Theo's dog, and Maya's
+//                      photo of the cabin door code, which only the photo says
 //
 // Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment or in
 // scripts/seed-demo/.env (gitignored). The service-role key bypasses Row
@@ -41,7 +43,7 @@ function flagValue(name: string): string | null {
 }
 if (flag("help") || flag("h")) {
   console.log(
-    "usage: deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts [--dry-run] [--reset] [--retime] [--end-date=YYYY-MM-DD] [--rearm]",
+    "usage: deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts [--dry-run] [--reset] [--retime] [--end-date=YYYY-MM-DD] [--rearm] [--photos]",
   );
   Deno.exit(0);
 }
@@ -49,7 +51,20 @@ const DRY_RUN = flag("dry-run");
 const RESET = flag("reset");
 const RETIME = flag("retime");
 const REARM = flag("rearm");
+const PHOTOS = flag("photos");
 const END_DATE = flagValue("end-date");
+
+/**
+ * --photos: two made-up photo messages on the last day, each a few minutes
+ * after a script line (photos/make_photos.swift draws them). Theo's is the
+ * Pickles photo he promised that morning; Maya's has the door code, which
+ * the chat said would come later and which no message spells out.
+ */
+const PHOTO_MESSAGES: { file: string; sender: Sender; caption: string; after: string; minutes: number }[] = [
+  { file: "pickles", sender: "theo", caption: "as promised. Pickles, upside down 🐶", after: "she's committing", minutes: 4 },
+  { file: "door-note", sender: "maya", caption: "the host sent the door code early 🙌", after: "👍 locking that in", minutes: 9 },
+];
+const PHOTO_SIZE = { width: 1536, height: 1152 };
 
 // ---------------------------------------------------------------------------
 // Time helpers (America/Denver wall clock ↔ UTC, no libraries)
@@ -449,6 +464,10 @@ async function main() {
     report(plan, place, now);
     console.log(`\nAccounts it would create/reuse:`);
     for (const s of Object.keys(PEOPLE) as Sender[]) console.log(`  ${PEOPLE[s].name.padEnd(7)} ${PEOPLE[s].email}`);
+    if (PHOTOS) {
+      console.log(`\nPhotos it would add:`);
+      for (const p of photoTimes(plan)) console.log(`  ${stamp(p.at).padEnd(22)} ${PEOPLE[p.sender].name}: [photo ${p.file}] ${p.caption}`);
+    }
     console.log(`\nViewer: join with the invite code from an account whose display name is "${VIEWER_NAME}".`);
     return;
   }
@@ -543,6 +562,8 @@ async function main() {
   });
   console.log(`  dated ${toRetime.length} messages`);
 
+  if (PHOTOS) await addPhotos(api, url, key, chat.id, users, plan);
+
   // The chat must look older than its first message: a new member's read
   // cursor starts at chats.created_at, so this is what makes it all unread.
   const chatCreated = new Date(rows[0].at - 25 * 60_000).toISOString();
@@ -593,6 +614,52 @@ async function main() {
   console.log(`\nMessages in chat: ${before} → ${after}`);
   console.log(`\n  INVITE CODE:  ${chat.invite_code}\n`);
   console.log(`In the app: set your display name to "${VIEWER_NAME}", tap Join, enter ${chat.invite_code}, then Catch me up.`);
+}
+
+/** Where each photo goes: a few minutes after its script line. */
+function photoTimes(plan: Planned[]) {
+  return PHOTO_MESSAGES.map((p) => {
+    const anchor = plan.findLast((line) => line.body === p.after);
+    if (!anchor) throw new Error(`--photos: no script line "${p.after}" to put ${p.file} after`);
+    return { ...p, at: anchor.at + p.minutes * 60_000 };
+  });
+}
+
+/**
+ * --photos: uploads each photo (full and small copy, named as the app names
+ * them) to the private chat-media bucket, then adds its message and dates
+ * it. Re-runs overwrite the files and skip the messages.
+ */
+async function addPhotos(api: Api, url: string, key: string, chatId: string, users: Record<Sender, string>, plan: Planned[]) {
+  for (const p of photoTimes(plan)) {
+    const id = await uuidv5(`${chatId}/photo/${p.file}`);
+    const path = `${chatId}/${id}.jpg`;
+    for (const [suffix, name] of [["", path], ["_small", `${chatId}/${id}_small.jpg`]]) {
+      const bytes = await Deno.readFile(new URL(`./photos/${p.file}${suffix}.jpg`, import.meta.url));
+      const res = await fetch(`${url}/storage/v1/object/chat-media/${name}`, {
+        method: "POST",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "max-age=31536000, immutable",
+          "x-upsert": "true",
+        },
+        body: bytes,
+      });
+      if (!res.ok) throw new Error(`upload ${p.file}${suffix} → ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      await res.body?.cancel();
+    }
+    await api.req(
+      "POST",
+      "/rest/v1/messages?on_conflict=id",
+      [{ id, chat_id: chatId, sender: users[p.sender], body: p.caption, image_path: path,
+         image_width: PHOTO_SIZE.width, image_height: PHOTO_SIZE.height }],
+      "resolution=ignore-duplicates,return=minimal",
+    );
+    await api.req("PATCH", `/rest/v1/messages?id=eq.${id}`, { created_at: new Date(p.at).toISOString() }, "return=minimal");
+    console.log(`  photo ${p.file.padEnd(9)} ${stamp(p.at)} from ${PEOPLE[p.sender].name}`);
+  }
 }
 
 function parseYMD(s: string): YMD {

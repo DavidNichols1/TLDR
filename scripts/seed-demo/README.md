@@ -105,9 +105,31 @@ nothing gets duplicated. A re-run keeps the dates it already used.
 | `--retime` | Moves the conversation so it ends just now, for example if you re-record days later. Run it with `--rearm`. |
 | `--end-date=YYYY-MM-DD` | Puts the last day of the conversation on a date you choose. Use a Monday, Tuesday or Wednesday. |
 | `--reset` | Deletes the demo friends' messages in the chat and seeds them again. Use this after editing `conversation.ts`. Your own messages stay. |
+| `--photos` | Also adds two made-up photos on the last day (see below). Opt-in: without it the chat has no photos. |
 
 The script also prints each non-demo member's unread count. If yours says `0 unread`,
 run it with `--rearm`.
+
+## Photos (optional)
+
+`--photos` adds two photo messages, so a catch-up can show Muse Spark reading a photo.
+Both are drawn by [`photos/make_photos.swift`](photos/make_photos.swift), so no real
+people or places:
+
+- **Theo, about 12:20 on the last day:** "as promised. Pickles, upside down 🐶", the photo
+  of his dog he promised that morning. Muse Spark should leave it out.
+- **Maya, about 4:40 on the last day:** "the host sent the door code early 🙌", a sticky
+  note on the cabin door that says **4471, hit # after**. No message says the code, so a
+  catch-up that mentions it read the photo. Ask "what's the code for the cabin door?" too.
+
+```sh
+deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts --photos
+```
+
+Then `--rearm` as usual before a take, so the next Catch me up reads everything fresh
+(the photos count as unread too: 304 messages). Re-running `--photos` is safe: it
+overwrites the two files and skips messages that are already there. The files go in the
+private `chat-media` bucket under the chat's folder, named like the app names them.
 
 ## How it writes (for the curious)
 
