@@ -107,7 +107,7 @@ extension WebChatSource {
         outlineScript: nil,
         userAgentSuffix: nil,
         owner: "Snap",
-        unavailable: "Snapchat for Web only runs on a computer. On a phone it sends you to the Snapchat app, and Ketchup won't pretend to be a computer to get around that.",
+        unavailable: "On a phone, Snapchat for Web sends you to the Snapchat app. Getting around that would mean pretending to be a computer from inside Snapchat's own pages, sign-in included, and Ketchup won't do that.",
         fixtures: [])
 
     static let all: [WebChatSource] = [.instagram, .snapchat]

@@ -105,7 +105,10 @@ struct WebChatSheet: View {
                     ask
                         .transition(.rise(reduceMotion: reduceMotion))
                 }
-                footer
+                if stage == .brief {
+                    footer
+                        .transition(.opacity)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 14)
@@ -304,6 +307,8 @@ struct WebQuoteCard: View {
                 .foregroundStyle(Theme.inkSoft)
         }
         .padding(20)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Theme.cream)
         .presentationDetents([.fraction(0.35), .medium])
         .presentationBackground(Theme.cream)
         .presentationDragIndicator(.visible)
