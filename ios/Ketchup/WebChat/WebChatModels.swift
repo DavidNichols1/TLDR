@@ -72,6 +72,8 @@ struct WebReaderResult: Decodable {
 
     let ok: Bool
     let error: String?
+    /// The reader's own word for what broke ("TypeError", "no-list"), never content.
+    let detail: String?
     let title: String?
     let isGroup: Bool?
     let messages: [WebMessage]?

@@ -77,15 +77,27 @@ final class WebChatBrowser {
     func readThread(readerName: String, last: Int) async throws -> WebThread {
         guard isThread else { throw WebChatError.notAThread }
         let script = try Self.script(source.readerScript)
-        let value = try await webView.callAsyncJavaScript(
-            script,
-            // Older messages come in batches of about 20: a bigger pick may need a few more.
-            arguments: ["maxMessages": last, "maxScrolls": min(10, 2 + last / 20), "readerName": readerName, "debug": false],
-            in: nil,
-            contentWorld: .defaultClient)
+        let value: Any?
+        do {
+            value = try await webView.callAsyncJavaScript(
+                script,
+                // Older messages come in batches of about 20: a bigger pick may need a few more.
+                arguments: ["maxMessages": last, "maxScrolls": min(10, 2 + last / 20), "readerName": readerName, "debug": false],
+                in: nil,
+                contentWorld: .defaultClient)
+        } catch {
+            #if DEBUG
+            let ns = error as NSError  // codes only, never content
+            print("[\(source.id)] reader didn't run: \(ns.domain) \(ns.code)")
+            #endif
+            throw error
+        }
         guard let json = value as? String else { throw WebChatError.unreadable }
         let result = try JSONDecoder().decode(WebReaderResult.self, from: Data(json.utf8))
         guard result.ok, let messages = result.messages else {
+            #if DEBUG
+            print("[\(source.id)] reader said \(result.error ?? "?") (\(result.detail ?? "no detail"))")
+            #endif
             throw result.error == "not_a_thread" ? WebChatError.notAThread : WebChatError.unreadable
         }
         #if DEBUG

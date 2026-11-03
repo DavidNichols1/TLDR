@@ -217,8 +217,9 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   Web sends phones to "Download Snapchat", so Ketchup asks for its desktop page with a Mac
   user agent (what Safari's "Request Desktop Website" does) and lays the page out 1024 points
   wide, shrunk to fit the screen. Signed in, its chat app also needs a service worker, which
-  WebKit only runs for app-bound domains (the app's Info.plist lists them). The page is
-  small, so pinch to zoom; Catch me up is the point anyway.
+  WebKit only runs for app-bound domains (the app's Info.plist lists them). Once an app lists
+  any, WebKit only lets it read pages in web views kept to them, so Instagram's page is kept
+  to its sites too. The Snapchat page is small, so pinch to zoom; Catch me up is the point anyway.
 - **Built to take another app.** The browser, the page and the catch-up sheet are shared
   ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
   (name, start page, allowed sites, thread URL, reader script, user agent, desktop layout).

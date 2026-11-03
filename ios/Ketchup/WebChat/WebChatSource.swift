@@ -38,8 +38,9 @@ struct WebChatSource: Identifiable, Hashable {
     /// page with this user agent, and the page is laid out this wide, then
     /// scaled down to fit. A view transform, nothing in the page.
     let desktop: Desktop?
-    /// Keeps the web view to Info.plist's WKAppBoundDomains, the only way
-    /// WebKit lets a site run its service worker.
+    /// Keeps the web view to Info.plist's WKAppBoundDomains. WebKit only runs
+    /// a site's service worker there (Snapchat needs one), and once the app
+    /// lists any domains, the reader only runs in a web view kept to them.
     let appBound: Bool
     /// Whose terms say no to reading it automatically, for the intro card.
     let owner: String
@@ -95,7 +96,7 @@ extension WebChatSource {
         outlineScript: "InstagramPageOutline",
         userAgentSuffix: "Version/26.0 Mobile/15E148 Safari/604.1",
         desktop: nil,
-        appBound: false,
+        appBound: true,
         owner: "Meta",
         note: nil,
         fixtures: [

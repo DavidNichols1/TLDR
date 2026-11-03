@@ -70,17 +70,24 @@ becomes a pager with a page per source. Edge function `catch-up-text`, migration
   `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
   message instead of jumping.
 - App-bound domains: `ios/Ketchup-Info.plist` (merged with the generated keys, `INFOPLIST_FILE`)
-  lists `WKAppBoundDomains`: instagram.com, snapchat.com, snap.com, sc-cdn.net, sc-static.net
-  (5 of the 10 allowed). It's app-wide: Ketchup's scripts (`callAsyncJavaScript`) then only run
-  on listed domains, so every source's thread pages must be on it. Ketchup uses no message
-  handlers or cookie APIs. The reader harness is its own macOS process, without this plist.
+  lists `WKAppBoundDomains`: Instagram's instagram.com, facebook.com, meta.com, fbsbx.com,
+  fbcdn.net, cdninstagram.com, then Snapchat's snapchat.com, snap.com, sc-cdn.net, sc-static.net.
+  That's the 10 allowed, so a new source needs room first. It's app-wide, and every web-chat
+  web view is kept to it (`limitsNavigationsToAppBoundDomains`), so each source's `domains`
+  must all be listed. Why both: Snapchat needs it for its service worker, and once the app
+  lists any domains, Ketchup's scripts (`callAsyncJavaScript`) only run reliably in a web view
+  kept to them. On Nov 3, 2026, with the list declared and Instagram's web view not kept to it,
+  the Instagram reader failed on the real site ("Couldn't read this chat", Ketchup's message for
+  any WebKit error during a read) while the sim's fixture still read fine; keeping it to the
+  list fixed it. Test the real sites after any change here. Ketchup uses no message handlers
+  or cookie APIs. The reader harness is its own macOS process, without this plist.
 - Each source's web view (all use the default website data store):
 
   | | Instagram | Snapchat |
   |---|---|---|
   | Page | phone version | desktop (`preferredContentMode = .desktop`), laid out 1024 pt wide, scaled to fit (`WebChatWebView`, a view transform) |
   | User agent | WebKit's + `Version/26.0 Mobile/15E148 Safari/604.1` | `customUserAgent`, Mac Safari 27 |
-  | `limitsNavigationsToAppBoundDomains` | false | true (WebKit only runs a service worker in app-bound mode) |
+  | `limitsNavigationsToAppBoundDomains` | true | true |
   | Thread pages | `instagram.com/direct/t/<id>` | `www.snapchat.com/web/<id>` |
 
 - Snapchat, found Nov 3, 2026 (DEBUG trial, commits 0194b44 and c892873): a phone's user agent
@@ -92,8 +99,11 @@ becomes a pager with a page per source. Edge function `catch-up-text`, migration
   (Nov 3, 2026, 3:14 AM, David's phone and account, a busy group chat): "Last 30" sent 30 of
   67 messages found, 0 loads, stop "enough", 16 ms of reading, about 10 s in all, attempt 0.
   "Last 120" (3:19 AM) sent exactly 120: found 145 after 2 loads of older messages, 1.1 s of
-  reading, about 15 s in all. Not yet seen: a fresh sign-in in app-bound mode (David signed
-  in during the trial, before it).
+  reading, about 15 s in all. With both web views app-bound (3:33 AM): Instagram "Last 80" sent
+  80 (found 82, 4 loads, 5.9 s of reading) and Snapchat "Last 80" sent 80 (found 106, 1 load,
+  0.7 s). Not yet seen: a fresh sign-in in app-bound mode (David was signed in to both before).
+  When a read fails, the DEBUG console says why with codes only: `[instagram] reader didn't
+  run: WKErrorDomain <code>` or `[snapchat] reader said read_failed (<detail>)`.
 - Adding a source: a `WebChatSource` (id is catch-up-text's `source`, also in `SOURCES` there and
   in the `text_brief_usage` source check, which needs a migration), a reader script that returns
   the same JSON, fixtures plus `.expected.json`, harness runs, and its domain in the plist.
