@@ -146,6 +146,9 @@ final class Supabase {
               query: [URLQueryItem] = [],
               body: Data? = nil,
               prefer: String? = nil) async throws -> Data {
+        #if DEBUG
+        if PreviewData.isActive { throw Self.offline }
+        #endif
         guard session != nil else { throw APIError.notSignedIn }
         try await refreshIfNeeded()
 
@@ -180,6 +183,11 @@ final class Supabase {
 
     // MARK: Plumbing
 
+    #if DEBUG
+    /// Offline preview mode (`-screen`) never talks to the server, whatever a screen does.
+    private static let offline = APIError.server("Offline preview: nothing goes to the server.")
+    #endif
+
     @discardableResult
     private func postAuth(path: String, body: [String: Any], bearer: String? = nil) async throws -> Data {
         let (data, response) = try await sendAuth(path: path, body: body, bearer: bearer)
@@ -188,6 +196,9 @@ final class Supabase {
     }
 
     private func sendAuth(path: String, body: [String: Any], bearer: String? = nil) async throws -> (Data, URLResponse) {
+        #if DEBUG
+        if PreviewData.isActive { throw Self.offline }
+        #endif
         // Not appendingPathComponent: the refresh path carries a query string.
         guard let url = URL(string: path, relativeTo: Config.supabaseURL) else { throw APIError.badResponse }
         var request = URLRequest(url: url)

@@ -16,7 +16,7 @@ struct KetchupApp: App {
         WindowGroup {
             RootView()
                 .environment(app)
-                .tint(Theme.accent)
+                .tint(Theme.ketchupText)
         }
     }
 }

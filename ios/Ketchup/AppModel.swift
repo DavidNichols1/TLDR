@@ -17,8 +17,12 @@ final class AppModel {
     private(set) var chatsLoaded = false
     var notice: String?
 
-    var isSignedIn: Bool { session != nil }
-    var myId: UUID? { session?.userId }
+    /// Offline preview mode (DEBUG only, see Debug/PreviewData.swift): stands
+    /// in for a session, and every server call below becomes a no-op.
+    private(set) var previewUser: UUID?
+
+    var isSignedIn: Bool { session != nil || previewUser != nil }
+    var myId: UUID? { previewUser ?? session?.userId }
 
     init() {
         Supabase.shared.onSessionChange = { [weak self] session in
@@ -32,11 +36,12 @@ final class AppModel {
     }
 
     func signOut() async {
+        guard previewUser == nil else { return }
         await Supabase.shared.signOut()
     }
 
     func loadMe() async {
-        guard isSignedIn else { return }
+        guard isSignedIn, previewUser == nil else { return }
         nameConfirmed = UserDefaults.standard.bool(forKey: nameKey)
         me = try? await KetchupAPI.myProfile()
     }
@@ -51,6 +56,7 @@ final class AppModel {
 
     /// The name the server picked on sign-up, for prefilling the name step.
     var defaultName: String {
+        if previewUser != nil { return me?.displayName ?? "" }
         let local = session?.email.split(separator: "@").first.map(String.init) ?? ""
         return String(local.trimmingCharacters(in: .whitespaces).prefix(30))
     }
@@ -61,20 +67,24 @@ final class AppModel {
     }
 
     func confirmName() {
-        UserDefaults.standard.set(true, forKey: nameKey)
+        if previewUser == nil { UserDefaults.standard.set(true, forKey: nameKey) }
         nameConfirmed = true
     }
 
     func rename(to name: String) async throws {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (1...30).contains(trimmed.count) else { throw APIError.server("Names are 1–30 characters.") }
-        try await KetchupAPI.setDisplayName(trimmed)
+        if previewUser == nil { try await KetchupAPI.setDisplayName(trimmed) }
         me?.displayName = trimmed
         confirmName()
     }
 
     func refreshChats() async {
         guard isSignedIn else { return }
+        guard previewUser == nil else {
+            chatsLoaded = true
+            return
+        }
         do {
             chats = try await KetchupAPI.myChats()
             chatsLoaded = true
@@ -91,4 +101,22 @@ final class AppModel {
         chats[i].unreadCount = 0
         chats[i].lastReadAt = Date()
     }
+
+    #if DEBUG
+    /// Offline preview mode: signed in as `previewUser` with no session, so
+    /// nothing here touches the network or the Keychain session.
+    private init(previewUser: UUID) {
+        self.previewUser = previewUser
+        self.session = nil
+    }
+
+    /// A signed-in app with a fixed name and inbox, for `-screen` previews.
+    static func preview(me: UUID, name: String, chats: [ChatSummary]) -> AppModel {
+        let app = AppModel(previewUser: me)
+        app.me = Profile(id: me, displayName: name)
+        app.chats = chats
+        app.chatsLoaded = true
+        return app
+    }
+    #endif
 }

@@ -40,7 +40,19 @@ struct ChatView: View {
     }
 
     init(chat: ChatSummary, myId: UUID) {
+        #if DEBUG
+        // Offline preview mode: inbox → chat stays on fixtures.
+        if let preview = PreviewData.chatModel(for: chat.id) {
+            _model = State(initialValue: preview)
+            return
+        }
+        #endif
         _model = State(initialValue: ChatModel(chat: chat, myId: myId))
+    }
+
+    /// A chat whose model was built elsewhere (the offline previews).
+    init(model: ChatModel) {
+        _model = State(initialValue: model)
     }
 
     var body: some View {

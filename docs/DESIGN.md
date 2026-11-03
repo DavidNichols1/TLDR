@@ -1,0 +1,121 @@
+# Ketchup design
+
+Ketchup looks like a diner counter: cream paper, warm ink, and one squeeze of ketchup red for the thing to press. Mustard marks what matters to you (a time, an amount, your name), pickle green stamps what's confirmed, plans arrive as order tickets and money as a diner check.
+
+<p>
+<img src="screens/foundation/design-light.png" width="260" alt="Wordmark, logo drop and buttons">
+<img src="screens/foundation/design-paper-light.png" width="260" alt="Paper card, plan ticket and diner check">
+<img src="screens/foundation/design-marker-dark.png" width="260" alt="The mustard marker in dark mode">
+</p>
+
+Code: `ios/Ketchup/Theme.swift` holds colors, type and motion; `ios/Ketchup/Design/` holds the shapes, buttons and labels. Launch a DEBUG build with `-screen design` to see every piece live (recipe at the bottom).
+
+## House rules
+
+- **One ketchup thing per screen.** Everything else is ink, outline or plain text.
+- **Mustard means "this matters to you."** Never decoration.
+- **No gradients, sparkles, glass, purple or drop shadows.** Paper sits on paper with a 1 pt hairline.
+- **Muse Spark gets a byline** ("Read by Muse Spark"), not a sparkle.
+
+## Color
+
+Every token is a light/dark pair made with `Color(light:dark:)` (hex `0xRRGGBB`).
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `cream` | FBF5EA | 17120F | App background |
+| `card` | FFFDF8 | 231C17 | Raised paper: cards, other people's bubbles |
+| `rule` | EADFCC | 3A302A | Hairlines, card borders |
+| `ink` | 2A1E19 | F6EEE2 | Primary text, my bubbles |
+| `inkSoft` | 74655A | B3A595 | Secondary text |
+| `inkFaint` | A99A8C | 7A6C60 | Placeholders and decoration only, never text someone must read |
+| `onInk` | FFF8EE | 17120F | Text on ink |
+| `ketchup` | D7372B | E8473A | Brand red: the logo, the one button |
+| `ketchupText` | B22A20 | FF7B6B | Small red text on cream (plain ketchup is too light); the app tint |
+| `onKetchup` | FFF8EE | FFF8EE | Text on ketchup |
+| `mustard` | F3B33D | E9A92F | Marker, unread badges, jump-to-message highlight |
+| `onMustard` | 2A1E19 | 17120F | Text on mustard, both modes |
+| `pickle` | 4F7A3A | 8CC07A | Confirmed stamps |
+
+**People:** `Theme.people` has 8 name colors (brick, teal, plum, ochre, forest, navy, rose, slate). `personColor(name:)` gives the demo chat's six people six different colors; prefer it over `personColor(_ id:)` wherever a name shows, so Maya is the same teal in the chat and in Muse Spark's results.
+
+## Type
+
+| Role | Call | Use |
+|---|---|---|
+| New York | `.font(.serif(.title3))` (bold unless you pass `weight:`) | Headlines, section titles, the wordmark |
+| SF Mono | `.font(.mono(.caption2))` (medium) | Times, amounts, codes, counts, kickers |
+| SF Pro | `.font(.body)` and friends | Everything else |
+
+Always use text styles so Dynamic Type works. The wordmark is the only fixed size.
+
+## Motion
+
+| Token | Value | Use |
+|---|---|---|
+| `Motion.snappy` | spring 0.3 s, no bounce | The default |
+| `Motion.settle` | spring 0.45 s, no bounce | Bigger moves, content arriving |
+| `Motion.lively` | spring 0.4 s, bounce 0.2 | Only something the user flicked or checked |
+| `Motion.press` | spring 0.16 s, no bounce | Buttons going down and up |
+| `Motion.sweep` | curve (0.23, 1, 0.32, 1), 0.5 s | The marker pass |
+| `Motion.squirt` | same curve, 0.9 s | The wordmark's squiggle drawing in |
+| `Motion.stagger` | 0.04 s | Gap between items arriving in a list (`Motion.staggered(_:index:)`) |
+| `Motion.fade` | ease out 0.2 s | What Reduce Motion gets instead |
+
+**Reduce Motion:** every animated piece checks `accessibilityReduceMotion`. In screens, use `.motion(_:value:)` instead of `.animation(_:value:)` and `.transition(.rise(reduceMotion:))` for things arriving; both turn into a plain fade.
+
+## Components
+
+| Piece | When to use it |
+|---|---|
+| `KetchupDrop()` | The logo: a ketchup drop with a chat-bubble tail. Fill with `ketchup`; reads from 16 pt up. |
+| `DropShine()` | Highlight stacked on a big drop (icon, hero). Skip under about 40 pt. |
+| `Wordmark(size:drawIn:)` | "Ketchup" in New York black italic with the mustard squiggle; `drawIn` draws it once. |
+| `Squiggle()` | The squirt under the wordmark, or a quiet divider. Works with `.trim`. |
+| `.buttonStyle(.ketchup)` | The one thing to press. Full-width red capsule, light haptic on press down. |
+| `.buttonStyle(.ink)` / `.outline` | A strong second choice / a quiet one. |
+| `.ketchup(.compact)`, `.ink(.compact)`, `.outline(.compact)` | Buttons inside cards ("Add to calendar", "Try again"). |
+| `.buttonStyle(.pressable)` | Tappable cards and rows: scale only. |
+| `Kicker("For you")` | Small mono caps over a headline or card. |
+| `SectionTitle("Plans", count: 6)` | Section heading, a VoiceOver header. |
+| `Monogram(name:color:size:)` | Initials on a soft tile of the person's color. Decorative. |
+| `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` for "Maybe". |
+| `.marked(_:color:sweep:delay:)` | Marker behind a short phrase on one line. |
+| `Text("…\(Text("$90").markedRun())…").markRuns(sweep:)` | Marker inside a sentence; follows the words as they wrap. |
+| `.paperCard(padding:radius:)` | The default container: card paper, hairline, no shadow. |
+| `Ticket { plan } stub: { stamp }` | A plan as an order ticket, parts placed either side of the tear line. Built on `TicketShape`, `PerforationLine` and `.ticketCard()`. |
+| `.receiptCard()` | Money, as a diner check with a torn zigzag edge (`ReceiptShape`). |
+
+The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
+
+## Voice
+
+- Plain, warm, a little cheeky. **At most one pun per screen.**
+- Sentence case, specific labels: "Add to calendar", not "Continue".
+- **Never "AI-powered". Never em dashes**; a period or a comma does the job.
+- Muse Spark is credited in a byline: "Read by Muse Spark".
+
+## Previews and screenshots
+
+DEBUG builds open any screen on fixture data from the real demo chat (`ios/Ketchup/Debug/Fixtures/`): no sign-in, no network, no Muse Spark calls. The Supabase client and Realtime refuse to connect while previewing.
+
+```bash
+xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -screen chat
+```
+
+| `-screen` | Opens |
+|---|---|
+| `list` | Every name; tap one to open it |
+| `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
+| `signin`, `inbox`, `inbox-empty`, `name`, `chat`, `info` | The chat screens (`Debug/CorePreviewScreen.swift`) |
+| `ai-catchup`, `ai-loading`, `ai-error`, `ai-ask`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`) |
+
+Light and dark screenshots:
+
+```bash
+xcrun simctl ui <udid> appearance dark
+xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -screen ai-catchup
+xcrun simctl io <udid> screenshot ai-catchup-dark.png
+```
+
+The foundation set is in `docs/screens/foundation/`. To add a screen, add a case to the `Screen` enum in one of the two preview files (`ai-` names go in the Muse Spark one) and `list` picks it up. Build its data with `PreviewData.app()` and `PreviewData.chatModel(catchUp:answer:delay:asked:)`.

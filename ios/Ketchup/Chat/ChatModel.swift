@@ -68,6 +68,13 @@ final class ChatModel {
     private var unseenBrief = false
     private var unseenUntil: Date?
 
+    /// Offline preview mode (DEBUG only, see Debug/PreviewData.swift): the
+    /// network calls below are skipped and Muse Spark answers are canned.
+    private(set) var isPreview = false
+    #if DEBUG
+    @ObservationIgnored private var script = PreviewScript()
+    #endif
+
     @ObservationIgnored
     lazy var realtime = ChatRealtime(chatId: chat.id) { [weak self] message in
         self?.merge([message])
@@ -83,6 +90,12 @@ final class ChatModel {
     // MARK: - Loading
 
     func open() async {
+        #if DEBUG
+        if isPreview {
+            openPreview()
+            return
+        }
+        #endif
         realtime.start()
         guard !loaded else { return }
         do {
@@ -111,13 +124,13 @@ final class ChatModel {
     }
 
     func loadMembers() async {
-        guard let list = try? await KetchupAPI.members(of: chat.id) else { return }
+        guard !isPreview, let list = try? await KetchupAPI.members(of: chat.id) else { return }
         members = list
         for m in list { names[m.userId] = m.name }
     }
 
     func loadOlder() async {
-        guard hasOlder, !loadingOlder, let oldest = messages.first(where: { !$0.pending && !$0.failed }) else { return }
+        guard !isPreview, hasOlder, !loadingOlder, let oldest = messages.first(where: { !$0.pending && !$0.failed }) else { return }
         loadingOlder = true
         defer { loadingOlder = false }
         guard let page = try? await KetchupAPI.messages(in: chat.id, before: oldest.createdAt, limit: Self.pageSize) else { return }
@@ -138,7 +151,7 @@ final class ChatModel {
 
     /// The fallback while Realtime is down: everything newer than what we have.
     func poll() async {
-        guard loaded else { return }
+        guard loaded, !isPreview else { return }
         let newest = messages.last(where: { !$0.pending && !$0.failed })?.createdAt ?? chat.createdAt
         guard let fresh = try? await KetchupAPI.messages(in: chat.id, after: newest) else { return }
         merge(fresh)
@@ -197,7 +210,7 @@ final class ChatModel {
     private func deliver(_ id: UUID) async {
         guard let local = messages.first(where: { $0.id == id }), local.pending else { return }
         do {
-            let row = try await KetchupAPI.send(id: id, chat: chat.id, body: local.body)
+            let row = try await post(local)
             merge([row])
         } catch {
             guard let i = messages.firstIndex(where: { $0.id == id }), messages[i].pending else { return }
@@ -211,6 +224,17 @@ final class ChatModel {
         }
     }
 
+    /// The insert. An offline preview confirms the bubble itself.
+    private func post(_ message: Message) async throws -> Message {
+        #if DEBUG
+        if isPreview {
+            try await Task.sleep(for: .milliseconds(400))
+            return message
+        }
+        #endif
+        return try await KetchupAPI.send(id: message.id, chat: chat.id, body: message.body)
+    }
+
     // MARK: - Read cursor
 
     /// The user scrolled down to the bottom themselves.
@@ -221,6 +245,7 @@ final class ChatModel {
 
     private func markRead(at date: Date? = nil) {
         caughtUp()
+        guard !isPreview else { return }
         let id = chat.id
         Task { try? await KetchupAPI.markRead(id, at: date) }
     }
@@ -255,7 +280,7 @@ final class ChatModel {
         guard !catchUp.isLoading else { return }
         catchUp = .loading
         do {
-            let response = try await KetchupAPI.catchUp(chat: chat.id)
+            let response = try await fetchCatchUp()
             if let error = response.error {
                 catchUp = .failed(error)
                 return
@@ -279,7 +304,7 @@ final class ChatModel {
         lastQuestion = q
         answer = .loading
         do {
-            let response = try await KetchupAPI.ask(chat: chat.id, question: String(q.prefix(500)))
+            let response = try await fetchAnswer(String(q.prefix(500)))
             if let error = response.error {
                 answer = .failed(error)
             } else {
@@ -288,6 +313,21 @@ final class ChatModel {
         } catch {
             answer = .failed(AIErrors.message(for: error))
         }
+    }
+
+    /// The two Muse Spark calls. An offline preview plays back canned results.
+    private func fetchCatchUp() async throws -> BriefResponse<CatchUp> {
+        #if DEBUG
+        if isPreview { return try await script.catchUp.land(after: script.delay) }
+        #endif
+        return try await KetchupAPI.catchUp(chat: chat.id)
+    }
+
+    private func fetchAnswer(_ question: String) async throws -> BriefResponse<ChatAnswer> {
+        #if DEBUG
+        if isPreview { return try await script.answer.land(after: script.delay) }
+        #endif
+        return try await KetchupAPI.ask(chat: chat.id, question: question)
     }
 
     // MARK: - Lookups
@@ -303,3 +343,68 @@ final class ChatModel {
         return (name(of: m.sender), text.count > 28 ? String(text.prefix(28)) + "…" : text)
     }
 }
+
+// MARK: - Offline preview
+
+#if DEBUG
+extension ChatModel {
+    /// What the Muse Spark calls return in an offline preview, and how long
+    /// they take.
+    struct PreviewScript {
+        var catchUp: AIPhase<BriefResponse<CatchUp>> = .loading
+        var answer: AIPhase<BriefResponse<ChatAnswer>> = .loading
+        var delay: Duration = .zero
+    }
+
+    /// An offline chat for `-screen` previews: these members and messages, no
+    /// network, and Muse Spark requests that go to `.loading`, wait `delay`,
+    /// then land on `catchUp` or `answer` (a canned `.loading` never lands).
+    /// With `asked`, it opens as if that question was already answered.
+    static func preview(chat: ChatSummary, myId: UUID, members: [Member], messages: [Message],
+                        catchUp: AIPhase<BriefResponse<CatchUp>>,
+                        answer: AIPhase<BriefResponse<ChatAnswer>>,
+                        delay: Duration, asked question: String? = nil) -> ChatModel {
+        let model = ChatModel(chat: chat, myId: myId)
+        model.isPreview = true
+        model.script = PreviewScript(catchUp: catchUp, answer: answer, delay: delay)
+        model.members = members
+        for member in members { model.names[member.userId] = member.name }
+        model.merge(messages)
+        model.computeUnread()
+        if let question {
+            model.lastQuestion = question
+            model.answer = answer
+        }
+        return model
+    }
+
+    /// The fixtures are already in, so do what a live open does after loading:
+    /// count unread and prefetch a big backlog.
+    private func openPreview() {
+        guard !loaded else { return }
+        loaded = true
+        computeUnread()
+        if unreadCount >= Self.prefetchAt {
+            Task { await runCatchUp(prefetch: true) }
+        }
+    }
+}
+
+fileprivate extension AIPhase {
+    /// Plays a canned phase back like a real request: waits `delay`, then
+    /// returns the value or throws the failure. `.loading` (and `.idle`)
+    /// never land, for the loading screenshot.
+    func land(after delay: Duration) async throws -> Value {
+        switch self {
+        case .done(let value):
+            try await Task.sleep(for: delay)
+            return value
+        case .failed(let message):
+            try await Task.sleep(for: delay)
+            throw APIError.server(message)
+        case .idle, .loading:
+            while true { try await Task.sleep(for: .seconds(3600)) }
+        }
+    }
+}
+#endif
