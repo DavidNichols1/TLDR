@@ -84,12 +84,15 @@ struct Message: Codable, Identifiable, Equatable {
     var imagePath: String? = nil
     var imageWidth: Int? = nil
     var imageHeight: Int? = nil
+    /// "text", or "joined" for a "Maya joined" line the server writes
+    /// (migration 0009). Rows and kept copies from before it have none: text.
+    var kind: String? = nil
     /// Client-only: an optimistic bubble not yet confirmed / that failed.
     var pending = false
     var failed = false
 
     enum CodingKeys: String, CodingKey {
-        case id, sender, body
+        case id, sender, body, kind
         case chatId = "chat_id"
         case createdAt = "created_at"
         case imagePath = "image_path"
@@ -99,11 +102,15 @@ struct Message: Codable, Identifiable, Equatable {
 
     init(id: UUID, chatId: UUID, sender: UUID, body: String, createdAt: Date,
          pending: Bool = false, failed: Bool = false,
-         imagePath: String? = nil, imageWidth: Int? = nil, imageHeight: Int? = nil) {
+         imagePath: String? = nil, imageWidth: Int? = nil, imageHeight: Int? = nil, kind: String? = nil) {
         self.id = id; self.chatId = chatId; self.sender = sender; self.body = body
         self.createdAt = createdAt; self.pending = pending; self.failed = failed
         self.imagePath = imagePath; self.imageWidth = imageWidth; self.imageHeight = imageHeight
+        self.kind = kind
     }
+
+    /// A "Maya joined" line: drawn small and centered, never counted as unread.
+    var isJoin: Bool { kind == "joined" }
 }
 
 // MARK: - Muse Spark results (shape set by supabase/functions/_shared/brief.ts)

@@ -215,8 +215,11 @@ final class ChatModel {
     private func computeUnread(exact: Bool = false) {
         let cursor = max(cursorAtOpen, readThrough ?? .distantPast)
         let unread = messages.filter { $0.createdAt > cursor && $0.sender != myId && !$0.pending }
+        // A "Maya joined" line after your cursor is where the new part starts,
+        // but it isn't a message: it's never counted.
         firstUnreadId = unread.first?.id
-        unreadCount = exact ? unread.count : max(unreadCount, unread.count)
+        let count = unread.count { !$0.isJoin }
+        unreadCount = exact ? count : max(unreadCount, count)
         if unreadCount == 0 { firstUnreadId = nil }
         unreadAtOpen = unreadCount
     }
@@ -459,7 +462,7 @@ final class ChatModel {
     /// newest page. The server does the rest (RLS on messages).
     func blockChanged(_ person: UUID, blocked: Bool) async {
         if blocked {
-            let unreadGone = messages.filter { $0.sender == person && $0.createdAt > cursorAtOpen }.count
+            let unreadGone = messages.count { $0.sender == person && $0.createdAt > cursorAtOpen && !$0.isJoin }
             messages.removeAll { $0.sender == person }
             unreadCount = max(0, unreadCount - unreadGone)
             unreadAtOpen = max(0, unreadAtOpen - unreadGone)

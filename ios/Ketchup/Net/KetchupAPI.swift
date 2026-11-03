@@ -69,7 +69,9 @@ enum KetchupAPI {
 
     // MARK: Messages
 
-    private static let messageColumns = "id,chat_id,sender,body,created_at,image_path,image_width,image_height"
+    /// Every column: `kind` (a "Maya joined" line) exists only once migration
+    /// 0009 is applied, and this build has to work on either side of it.
+    private static let messageColumns = "*"
 
     /// The newest `limit` messages (oldest first), or the page before `before`.
     static func messages(in chat: UUID, before: Date? = nil, limit: Int = 200) async throws -> [Message] {

@@ -2,11 +2,33 @@
 //  ThreadDivider.swift
 //  Ketchup
 //
-//  The lines between bubbles: a day ("YESTERDAY") as a mono kicker, and the
-//  start of what's new ("302 NEW") on a mustard mark between hairlines.
+//  The lines between bubbles: a day ("YESTERDAY") as a mono kicker, the
+//  start of what's new ("302 NEW") on a mustard mark between hairlines, and
+//  who joined ("Maya joined").
 //
 
 import SwiftUI
+
+/// Someone joined the chat: "Maya joined", small and centered like a day
+/// line, the name in their chat color ("You joined" in ink). The server
+/// writes one when someone joins, starts the chat or is added (0009).
+struct JoinedLine: View {
+    let name: String
+    let color: Color
+
+    var body: some View {
+        Text("\(Text(name).fontWeight(.semibold).foregroundStyle(color)) joined")
+            .font(.footnote)
+            .foregroundStyle(Theme.inkSoft)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(name) joined")
+    }
+}
 
 /// A day in the thread: "TODAY", "YESTERDAY", "MONDAY, NOV 2".
 struct ThreadDivider: View {
