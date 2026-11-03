@@ -19,6 +19,21 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.min
 
+/** Live inserts for one chat, as the chat model sees them. */
+interface LiveMessages {
+    /** Joined and streaming; the chat polls while this is false. */
+    val isLive: StateFlow<Boolean>
+    fun start()
+    fun stop()
+}
+
+/** No live updates (offline previews and tests): the chat polls instead. */
+object NotLive : LiveMessages {
+    override val isLive: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    override fun start() = Unit
+    override fun stop() = Unit
+}
+
 /**
  * New messages in one open chat, live (iOS `ChatRealtime`). One socket per
  * open chat: join [RealtimeProtocol.topic], heartbeat every 25 s, and pass
@@ -40,11 +55,11 @@ class ChatRealtime(
     /** How long to wait before the [failures]th reconnect. */
     private val backoffMs: (failures: Int) -> Long = ::backoff,
     private val onInsert: (Message) -> Unit,
-) {
+) : LiveMessages {
     private val live = MutableStateFlow(false)
 
     /** Joined and streaming. False while connecting, after a drop, and once stopped. */
-    val isLive: StateFlow<Boolean> = live.asStateFlow()
+    override val isLive: StateFlow<Boolean> = live.asStateFlow()
 
     private var job: Job? = null
 
@@ -53,14 +68,14 @@ class ChatRealtime(
     private val ref = AtomicInteger(0)
 
     /** Connects (once; a second call while running does nothing). */
-    fun start() {
+    override fun start() {
         if (Previewing.active) return
         if (job?.isActive == true) return
         job = scope.launch { run() }
     }
 
-    /** Leaves the channel and closes the socket. */
-    fun stop() {
+    /** Closes the socket. */
+    override fun stop() {
         job?.cancel()
         job = null
         connection?.let { conn ->
