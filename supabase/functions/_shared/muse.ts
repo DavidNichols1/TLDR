@@ -29,6 +29,9 @@ export interface MuseRequest {
   schema?: JSONSchema;
   temperature?: number;
   maxTokens?: number;
+  /** Keep the API's error text out of the logs: the request carries messages
+   *  that must not be logged (catch-up-text). Status and code still log. */
+  quiet?: boolean;
 }
 
 export interface MuseResponse {
@@ -102,7 +105,9 @@ export async function museChat(req: MuseRequest): Promise<MuseResponse> {
   // If the schema itself is rejected, fall back to plain JSON mode; the
   // prompt still describes the shape and brief.ts validates every field.
   if (res.status === 400 && req.schema) {
-    console.warn("json_schema rejected, retrying as json_object:", (await errorOf(res)).message);
+    const rejected = await errorOf(res);
+    console.warn("json_schema rejected, retrying as json_object:",
+      req.quiet ? `${rejected.status} ${rejected.code ?? ""}`.trim() : rejected.message);
     res = await post(key, { ...body, response_format: { type: "json_object" } });
   }
 
