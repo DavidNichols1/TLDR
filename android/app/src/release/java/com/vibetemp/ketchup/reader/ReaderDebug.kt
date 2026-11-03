@@ -15,6 +15,8 @@ internal object ReaderDebug {
 
     fun fixtureIsOffline(root: AccessibilityNodeInfo): Boolean = false
 
+    fun noThread(source: TextSource, diagnosis: String) = Unit
+
     fun onConnected(service: AccessibilityService) = Unit
 
     fun onDisconnected(service: AccessibilityService) = Unit

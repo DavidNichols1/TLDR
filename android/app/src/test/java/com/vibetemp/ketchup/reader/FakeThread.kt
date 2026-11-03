@@ -200,6 +200,11 @@ class FakeThread(val title: String, val density: Float = 2.625f) {
  * clipped to the list the way getBoundsInScreen clips them. At the top it
  * fetches [older] batches one at a time, like Instagram loading history.
  * The clock is virtual: nothing here sleeps.
+ *
+ * With [snapchat], the chrome is Snapchat's as a dump of the real app shows
+ * it: the list (`chat_message_list`) runs behind the input bar, the
+ * composer is `chat_input_text_field` with a hint the Snapchat rule doesn't
+ * know, and a row bound above the screen sits first in the list, hidden.
  */
 class FakeScreen(
     private val thread: FakeThread,
@@ -207,9 +212,10 @@ class FakeScreen(
     older: List<FakeThread> = emptyList(),
     /** How long each wait takes, on the virtual clock. */
     private val waitMs: Long = 250,
+    private val snapchat: Boolean = false,
 ) : ReaderScreen {
     override val density = thread.density
-    val list = Bounds(0, 236, thread.width, 2148)
+    val list = Bounds(0, 236, thread.width, if (snapchat) 2300 else 2148)
     private val rows = thread.rows.toMutableList()
     private val pending = older.map { it.rows.toList() }.toMutableList()
     private var loadAsked = false
@@ -271,12 +277,14 @@ class FakeScreen(
 
     fun window(): SnapshotNode {
         val kids = mutableListOf<SnapshotNode>()
+        if (snapchat) kids += hiddenRow()
         var contentTop = 0
         for (row in rows) {
             val top = list.top + contentTop - y
             if (top < list.bottom && top + row.height > list.top) kids += clip(row.build(top), list)
             contentTop += row.height
         }
+        if (snapchat) return snapchatWindow(kids)
         val header = SnapshotNode(
             bounds = Bounds(0, 84, thread.width, list.top),
             className = "android.widget.LinearLayout",
@@ -303,6 +311,72 @@ class FakeScreen(
         )
         return SnapshotNode(bounds = Bounds(0, 0, thread.width, 2400), className = "android.widget.FrameLayout", children = listOf(header, listNode, composer))
     }
+
+    /** Snapchat's chrome around the list's rows. */
+    private fun snapchatWindow(kids: List<SnapshotNode>): SnapshotNode {
+        val w = thread.width
+        fun id(name: String) = "com.snapchat.android:id/$name"
+        val header = SnapshotNode(
+            bounds = Bounds(0, 84, w, list.top),
+            className = "android.widget.LinearLayout",
+            viewId = id("0_resource_name_obfuscated"),
+            children = listOf(
+                SnapshotNode(bounds = Bounds(0, 110, 110, 210), className = "android.widget.ImageView", isClickable = true),
+                SnapshotNode(bounds = Bounds(240, 95, 820, 160), className = "android.widget.TextView", text = thread.title, isClickable = true),
+                SnapshotNode(bounds = Bounds(240, 160, 430, 200), className = "android.widget.TextView", text = "Tap to view"),
+                SnapshotNode(bounds = Bounds(830, 110, 930, 210), className = "android.view.View", viewId = id("start_audio_call"), contentDescription = "Start audio call"),
+                SnapshotNode(bounds = Bounds(950, 110, 1050, 210), className = "android.view.View", viewId = id("start_video_call"), contentDescription = "Start video call"),
+            ),
+        )
+        val listNode = SnapshotNode(
+            bounds = list,
+            className = "androidx.recyclerview.widget.RecyclerView",
+            viewId = id("chat_message_list"),
+            isScrollable = true,
+            canScrollBack = y > 0,
+            children = kids,
+        )
+        val chips = SnapshotNode(
+            bounds = Bounds(0, 2100, w, 2160),
+            className = "android.widget.HorizontalScrollView",
+            isScrollable = true,
+            children = (0 until 6).map { SnapshotNode(bounds = Bounds(it * 180, 2100, it * 180 + 170, 2160), className = "android.widget.FrameLayout", isClickable = true, isLongClickable = true) },
+        )
+        val input = SnapshotNode(
+            bounds = Bounds(0, 2160, w, 2300),
+            className = "android.widget.LinearLayout",
+            children = listOf(
+                SnapshotNode(bounds = Bounds(20, 2180, 130, 2280), className = "android.widget.ImageButton", viewId = id("chat_input_bar_camera"), contentDescription = "Camera", isClickable = true),
+                SnapshotNode(
+                    bounds = Bounds(150, 2180, 800, 2280), className = "android.widget.EditText", viewId = id("chat_input_text_field"),
+                    hint = "Type a message", isEditable = true, isClickable = true, isLongClickable = true,
+                ),
+                SnapshotNode(bounds = Bounds(700, 2195, 780, 2265), className = "android.widget.ImageButton", viewId = id("chat_note_record_button"), isClickable = true),
+            ),
+        )
+        return SnapshotNode(bounds = Bounds(0, 0, w, 2400), className = "android.widget.FrameLayout", children = listOf(header, listNode, chips, input))
+    }
+
+    /**
+     * A row Snapchat bound above the screen: hidden, with inverted bounds,
+     * yet the reply inside it still says it's visible, at y 0 to 96.
+     */
+    private fun hiddenRow(): SnapshotNode = SnapshotNode(
+        bounds = Bounds(0, list.top, thread.width, list.top - 8),
+        className = "android.widget.LinearLayout",
+        isVisibleToUser = false,
+        children = listOf(
+            SnapshotNode(
+                bounds = Bounds(38, 0, 598, 96),
+                className = "android.view.View",
+                viewId = "com.snapchat.android:id/QuotedMessageView",
+                children = listOf(
+                    SnapshotNode(bounds = Bounds(52, 7, 187, 36), className = "android.widget.TextView", text = "Off screen"),
+                    SnapshotNode(bounds = Bounds(67, 41, 573, 79), className = "android.widget.TextView", text = "never read"),
+                ),
+            ),
+        ),
+    )
 
     private fun clip(node: SnapshotNode, to: Bounds): SnapshotNode {
         val b = node.bounds.clippedTo(to)

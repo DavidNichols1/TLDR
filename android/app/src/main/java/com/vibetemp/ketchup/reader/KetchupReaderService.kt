@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.util.IdentityHashMap
 
 /**
@@ -150,7 +151,13 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
     private fun threadOnScreen(): OnScreen? {
         val root = rootInActiveWindow ?: return null
         val source = sourceOf(root) ?: return null
-        val layout = ThreadLayout.detect(NodeSnapshots.structure(root), source) ?: return null
+        val structure = NodeSnapshots.structure(root)
+        val layout = ThreadLayout.detect(structure, source)
+        if (layout == null) {
+            // Debug builds: which step failed, with view ids and hint lengths only.
+            if (ReaderDebug.ENABLED) ReaderDebug.noThread(source, ThreadLayout.diagnose(structure, source))
+            return null
+        }
         val fixture = root.packageName?.toString() == packageName && ReaderDebug.fixtureIsOffline(root)
         return OnScreen(source, layout, root.windowId, fixture)
     }
@@ -172,6 +179,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         }
         if (overlay.justClosed) return
         val on = current ?: return
+        if (on.source == TextSource.SNAPCHAT && !on.fixture) learnReaderName()
         overlay.showPanel(
             when {
                 !ReaderSetup.hasConsent(this) -> PanelState.Setup
@@ -202,6 +210,18 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         stopRequested = true
     }
 
+    /** The reader's Ketchup name (in memory only): Snapchat may label their own runs with it instead of "ME". */
+    @Volatile
+    private var readerName: String? = null
+
+    private fun learnReaderName() {
+        if (readerName != null) return
+        scope.launch {
+            readerName = runCatching { withTimeout(NAME_TIMEOUT_MS) { KetchupApi.get(this@KetchupReaderService).myProfile()?.displayName } }
+                .getOrNull()?.trim()?.ifEmpty { null }
+        }
+    }
+
     override fun onPick(last: Int) {
         if (readJob?.isActive == true) return
         val on = current ?: return
@@ -211,7 +231,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         stopRequested = false
         readJob = scope.launch {
             try {
-                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source))
+                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), readerName = readerName)
                 val result = reader.read(last, { overlay.showPanel(PanelState.Reading(it)) }, { stopRequested })
                 when (result) {
                     is ThreadReader.Result.Read -> handOff(result.thread, on)
@@ -242,7 +262,8 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         // Counts only.
         Log.i(
             TAG,
-            "read ${thread.source.id}: ${thread.messages.size} kept, found ${s?.found}, steps ${s?.steps}, " +
+            "read ${thread.source.id}: ${thread.messages.size} kept (${thread.messages.count { it.isMine }} mine, " +
+                "${thread.messages.count { it.quote != null }} replies), found ${s?.found}, steps ${s?.steps}, " +
                 "loads ${s?.scrolls}, stop ${s?.stop}, dupes ${s?.dupes}, ${s?.ms} ms",
         )
         if (on.fixture) ReaderDebug.checkFixture(this, thread)
@@ -270,7 +291,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
             val live = IdentityHashMap<SnapshotNode, AccessibilityNodeInfo>()
             val snapshot = NodeSnapshots.structure(root, live)
             val composer = ThreadLayout.findComposer(snapshot, source)
-            val list = ThreadLayout.findList(snapshot, composer?.bounds) as? SnapshotNode ?: return@withContext false
+            val list = ThreadLayout.findList(snapshot, composer?.bounds, source) as? SnapshotNode ?: return@withContext false
             val node = live[list] ?: return@withContext false
             if (!node.actionList.contains(action)) return@withContext false
             node.performAction(action.id)
@@ -296,6 +317,7 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         private const val CHECK_DELAY_MS = 250L
         private const val WATCH_MS = 1_000L
         private const val POLL_MS = 40L
+        private const val NAME_TIMEOUT_MS = 3_000L
 
         /** The list counts as settled after this long without an event. */
         private const val QUIET_MS = 220L

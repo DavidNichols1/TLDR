@@ -27,6 +27,9 @@ import com.vibetemp.ketchup.debug.PreviewData
  *   It logs class names, view ids, bounds, flags and text lengths, never
  *   text, from a copy that never held the text.
  * - After reading the fixture, how many messages match the fixture (counts).
+ * - When Instagram or Snapchat is in front but no thread is spotted, which
+ *   step failed (no composer, no list), with the composer's view id and its
+ *   hint's length (`adb logcat -s KetchupReader`). Never text.
  */
 internal object ReaderDebug {
     const val ENABLED = true
@@ -43,6 +46,20 @@ internal object ReaderDebug {
     /** The fixture as offline test data (no account needed), unless it was started with `--ez live true`. */
     fun fixtureIsOffline(root: AccessibilityNodeInfo): Boolean =
         root.findAccessibilityNodeInfosByViewId(FIXTURE_LIVE).isEmpty()
+
+    private var lastNoThread = ""
+    private var lastNoThreadAt = 0L
+
+    /** Logs why [source]'s screen isn't a thread: when the reason changes, or every 10 s. */
+    @Synchronized
+    fun noThread(source: TextSource, diagnosis: String) {
+        val line = "${source.id}: $diagnosis"
+        val now = android.os.SystemClock.uptimeMillis()
+        if (line == lastNoThread && now - lastNoThreadAt < 10_000) return
+        lastNoThread = line
+        lastNoThreadAt = now
+        Log.i(KetchupReaderService.TAG, "no thread on $line")
+    }
 
     fun onConnected(service: AccessibilityService) {
         val r = object : BroadcastReceiver() {

@@ -1,5 +1,6 @@
 package com.vibetemp.ketchup.reader
 
+import com.vibetemp.ketchup.data.TextMessage
 import com.vibetemp.ketchup.data.TextSource
 import java.util.IdentityHashMap
 import kotlin.math.abs
@@ -13,7 +14,7 @@ internal enum class Side { ME, THEM }
  * photo on its own) or a loose line of text (a name label, a time stamp,
  * "Seen", a notice). In screen pixels, clipped to the list.
  */
-internal class Piece(
+internal data class Piece(
     /** A message: a bubble's text and media, or media with no bubble. */
     val isMessage: Boolean,
     /** Inside a bubble (a tappable or long-pressable box that isn't the whole row). */
@@ -30,9 +31,15 @@ internal class Piece(
     val row: Int,
     /** At least 32 dp tall: a big emoji is a message, a reaction pill isn't. */
     val tall: Boolean,
+    /** Snapchat: a run's header, [text] the sender's name as the app shows it ("ME" for the reader's own). */
+    val header: Boolean = false,
+    /** Snapchat: the time label next to a header's name ("12:05 PM"). */
+    val time: String? = null,
+    /** Snapchat: the message this one replies to, its sender as the app shows it (the walk resolves "ME"). */
+    val quote: TextMessage.Quote? = null,
 ) {
     /** Two pieces with the same key at the same place are the same piece. */
-    val key: String get() = "${if (isMessage) "m" else "t"}|$side|$text"
+    val key: String get() = "${if (isMessage) "m" else if (header) "h" else "t"}|$side|$text"
 }
 
 /** What one look at the screen found. */
@@ -83,21 +90,36 @@ internal object PageParser {
     /** The page on screen, or null when there's no message list. */
     fun parse(root: ReaderNode, source: TextSource, density: Float): Page? {
         val composer = ThreadLayout.findComposer(root, source)
-        val listNode = ThreadLayout.findList(root, composer?.bounds) ?: return null
+        val listNode = ThreadLayout.findList(root, composer?.bounds, source) ?: return null
         val list = listNode.bounds
         val rows = rowsOf(listNode)
-        val reading = RowReader(list, density)
-        rows.forEachIndexed { i, row -> reading.read(row, i) }
+        val pieces: List<Piece>
+        val avatars: Int
+        val reactions: Int
+        if (source == TextSource.SNAPCHAT) {
+            // Snapchat draws every message on the left under its sender's header: its own reader.
+            val reading = SnapchatRows(list, density)
+            rows.forEachIndexed { i, row -> reading.read(row, i) }
+            pieces = reading.pieces()
+            avatars = 0
+            reactions = reading.reactions
+        } else {
+            val reading = RowReader(list, density)
+            rows.forEachIndexed { i, row -> reading.read(row, i) }
+            pieces = reading.dropReactions()
+            avatars = reading.avatars
+            reactions = reading.reactions
+        }
         return Page(
-            pieces = reading.dropReactions(),
+            pieces = pieces,
             list = list,
             root = if (listNode.isScrollable) "scroller" else "grid",
             scrollable = listNode.isScrollable,
             canScrollBack = listNode.canScrollBack,
-            title = titleOf(root, list),
+            title = titleOf(root, listNode),
             rows = rows.size,
-            avatars = reading.avatars,
-            reactions = reading.reactions,
+            avatars = avatars,
+            reactions = reactions,
         )
     }
 
@@ -112,17 +134,26 @@ internal object PageParser {
         return node.children.filter { it.isVisibleToUser && !it.bounds.isEmpty }
     }
 
-    /** The thread's name: the topmost line of text above the list that isn't a status ("Active now"). */
-    fun titleOf(root: ReaderNode, list: Bounds): String {
+    /**
+     * The thread's name: the topmost line of text above the list that isn't
+     * a status ("Active now"). Nothing under a hidden node or inside the
+     * list counts: Snapchat binds rows above the screen, hidden, whose text
+     * still claims to be visible up there.
+     */
+    fun titleOf(root: ReaderNode, listNode: ReaderNode): String {
+        val list = listNode.bounds
         var best: Pair<Bounds, String>? = null
-        root.walkTree { node, _ ->
-            if (node.isEditable || !node.isVisibleToUser) return@walkTree
+        fun visit(node: ReaderNode) {
+            if (!node.isVisibleToUser || node === listNode) return
             val b = node.bounds
             val t = clean(node.text)
-            if (t.isEmpty() || b.isEmpty || b.bottom > list.top + 2 || t.length > 80 || '\n' in t || STATUS.containsMatchIn(t)) return@walkTree
+            val fits = t.isNotEmpty() && !node.isEditable && !b.isEmpty && b.bottom <= list.top + 2 && t.length <= 80 &&
+                '\n' !in t && !STATUS.containsMatchIn(t)
             val current = best
-            if (current == null || b.top < current.first.top || (b.top == current.first.top && b.left < current.first.left)) best = b to t
+            if (fits && (current == null || b.top < current.first.top || (b.top == current.first.top && b.left < current.first.left))) best = b to t
+            node.children.forEach(::visit)
         }
+        visit(root)
         return best?.second.orEmpty()
     }
 

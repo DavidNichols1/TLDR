@@ -1,5 +1,6 @@
 package com.vibetemp.ketchup.reader
 
+import com.vibetemp.ketchup.data.TextMessage
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -94,7 +95,8 @@ internal class Stitcher(density: Float) {
         val expected = after.list.height
         val proposals = sortedSetOf<Int>()
         for (a in before.pieces) for (b in after.pieces) {
-            if (a.key != b.key) continue
+            // A reply's quote cut off from its words says nothing to line up on.
+            if (a.key != b.key || a.text.isEmpty()) continue
             val moved = when {
                 !a.clipTop && !b.clipTop -> b.bounds.top - a.bounds.top
                 !a.clipBottom && !b.clipBottom -> b.bounds.bottom - a.bounds.bottom
@@ -135,6 +137,7 @@ internal class Stitcher(density: Float) {
     private fun check(from: Page, onto: Page, dy: Int, fit: Fit) {
         val list = onto.list
         for (p in from.pieces) {
+            if (p.text.isEmpty()) continue
             val top = p.bounds.top + dy
             val bottom = p.bounds.bottom + dy
             val shows = if (p.isMessage) padding else tolerance
@@ -160,7 +163,9 @@ internal class Stitcher(density: Float) {
      * part of the other.
      */
     private fun says(a: Piece, b: Piece): Boolean {
-        if (a.isMessage != b.isMessage || a.side != b.side) return false
+        if (a.isMessage != b.isMessage || a.side != b.side || a.header != b.header) return false
+        // A reply's quote cut off from its words: only the same quote is the same piece.
+        if (a.text.isEmpty() || b.text.isEmpty()) return a.text == b.text && a.quote != null && a.quote == b.quote
         if (a.text == b.text) return true
         val clipped = a.clipTop || a.clipBottom || b.clipTop || b.clipBottom
         return clipped && a.text.isNotEmpty() && b.text.isNotEmpty() && (a.text in b.text || b.text in a.text)
@@ -177,9 +182,11 @@ internal class Stitcher(density: Float) {
             (a.clipTop && b.clipBottom && abs(a.top - b.bottom) <= tolerance * 2)
     }
 
-    /** Keeps the fuller view of a piece seen twice. */
+    /** Keeps the fuller view of a piece seen twice (a reply cut off by the edge may have lost part of its quote). */
     private fun merge(a: Placed, b: Placed) {
-        if (b.piece.text.length > a.piece.text.length) a.piece = b.piece
+        val keep = if (b.piece.text.length > a.piece.text.length) b.piece else a.piece
+        val quote = Quotes.merge(a.piece.quote, b.piece.quote)
+        a.piece = if (quote == keep.quote) keep else keep.copy(quote = quote)
         if (a.clipTop && !b.clipTop) {
             a.top = b.top
             a.clipTop = false
@@ -211,5 +218,18 @@ internal class Stitcher(density: Float) {
         val ra = find(a)
         val rb = find(b)
         if (ra != rb) rowParent[rb] = ra
+    }
+}
+
+/** Two views of the same quote (each may be cut off by the list's edge) as one: the sender from either, the longer text. */
+internal object Quotes {
+    fun merge(x: TextMessage.Quote?, y: TextMessage.Quote?): TextMessage.Quote? = when {
+        x == null -> y
+        y == null -> x
+        else -> TextMessage.Quote(
+            sender = x.sender ?: y.sender,
+            text = listOfNotNull(x.text, y.text).maxByOrNull { it.length },
+            isMine = x.isMine || y.isMine,
+        )
     }
 }

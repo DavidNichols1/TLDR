@@ -12,6 +12,8 @@ internal class Walk(
     val skipped: Int,
     val empty: Int,
     val media: Int,
+    /** Snapchat: how many of the oldest messages came before any sender's header (their sender is a guess). */
+    val unnamedBefore: Int = 0,
 )
 
 /**

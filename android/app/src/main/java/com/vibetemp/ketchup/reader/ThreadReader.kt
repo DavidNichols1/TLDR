@@ -57,6 +57,8 @@ class ThreadReader(
     private val screen: ReaderScreen,
     private val now: () -> ZonedDateTime = { ZonedDateTime.now(ZoneId.systemDefault()) },
     private val random: Random = Random.Default,
+    /** The reader's Ketchup name, when known: Snapchat may label their own runs with it instead of "ME". */
+    private val readerName: String? = null,
 ) {
     sealed interface Result {
         data class Read(val thread: TextThread) : Result
@@ -83,7 +85,11 @@ class ThreadReader(
         val stitcher = Stitcher(density)
         stitcher.add(first)
         val title = first.title
-        fun walk() = ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
+        fun walk() = if (source == TextSource.SNAPCHAT) {
+            SnapchatWalk.walk(stitcher.pieces, title, readerName, now())
+        } else {
+            ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
+        }
 
         // Older messages come in batches of about 20: a bigger pick may need a few more.
         val maxLoads = min(10, 2 + wanted / 20)
@@ -114,10 +120,12 @@ class ThreadReader(
                 val found = walked.messages.size
                 onProgress(ReadProgress(min(found, wanted), wanted))
                 if (found >= wanted + 2) {
-                    // In a group, a name label sits over the first message of a run. When the
-                    // oldest one kept has none yet, its run started higher up: read a little more.
+                    // In a group, a name label sits over the first message of a run (on Snapchat,
+                    // every run has a header). When the oldest one kept has none yet, its run
+                    // started higher up: read a little more.
                     val oldest = walked.messages[found - wanted]
-                    val unnamed = walked.isGroup && !oldest.isMine && oldest.sender == UNNAMED
+                    val unnamed = (walked.isGroup && !oldest.isMine && oldest.sender == UNNAMED) ||
+                        found - wanted < walked.unnamedBefore
                     if (!unnamed || naming >= NAMING_STEPS) {
                         stop = "enough"
                         break
