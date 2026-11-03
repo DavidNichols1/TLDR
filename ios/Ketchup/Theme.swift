@@ -169,6 +169,8 @@ enum Motion {
     static let press = Animation.spring(duration: 0.16, bounce: 0)
     /// The marker pass: quick start, long soft finish.
     static let sweep = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.5)
+    /// The same curve slowed down, for the wordmark's squiggle drawing in.
+    static let squirt = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.9)
     /// Seconds between items that arrive one after another.
     static let stagger: Double = 0.04
     /// What Reduce Motion gets instead: a short fade.
