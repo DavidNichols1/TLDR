@@ -15,6 +15,9 @@ struct RefContext {
     let preview: (UUID) -> (name: String, text: String)?
     /// Close the sheet and scroll the chat to this message.
     let jump: (UUID) -> Void
+    /// What a tap does, for VoiceOver. A source with no chat in Ketchup to
+    /// jump to (a thread read off Instagram) shows the whole message instead.
+    var hint = "Shows it in the chat"
 }
 
 /// One source: "● Maya · so the Airbnb is now…".
@@ -48,7 +51,7 @@ struct RefChip: View {
         }
         .buttonStyle(.pressable)
         .accessibilityLabel(preview.map { "\($0.name): \($0.text)" } ?? "A message")
-        .accessibilityHint("Shows it in the chat")
+        .accessibilityHint(context.hint)
     }
 
     /// A person's chat color. "You" is the reader, who writes in ink.

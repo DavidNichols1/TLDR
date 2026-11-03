@@ -2,7 +2,7 @@
 // and compare what it returns with a ground-truth file.
 //
 //   swift scripts/ig-extractor-check/check.swift --html <file> --js <file> [--expected <file>]
-//       [--url <baseURL>] [--args '<json>'] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
+//       [--url <baseURL>] [--args '<json>'] [--size <W>x<H>] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
 //
 // The page goes into a 390x844 WKWebView with loadHTMLString(html, baseURL: url). The web view
 // sits in a borderless window parked far off every screen, so nothing ever appears, but WebKit
@@ -33,6 +33,9 @@ struct Options: Sendable {
     var out: String?
     var screenshot: String?
     var timeout = 90.0
+    /// The window in points: a phone by default; Snapchat's page is a computer's (`--size 1024x768`).
+    var width = 390.0
+    var height = 844.0
 }
 
 func eprint(_ line: String) {
@@ -48,7 +51,7 @@ func usage(_ problem: String? = nil) -> Never {
     if let problem { eprint("error: \(problem)") }
     eprint("""
     usage: swift scripts/ig-extractor-check/check.swift --html <file> --js <file> [--expected <file>]
-               [--url <baseURL>] [--args '<json>'] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
+               [--url <baseURL>] [--args '<json>'] [--size <W>x<H>] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
     """)
     exit(64)
 }
@@ -71,6 +74,11 @@ func parseOptions(_ argv: [String]) -> Options {
         case "--args": o.args = value(flag)
         case "--out": o.out = value(flag)
         case "--screenshot": o.screenshot = value(flag)
+        case "--size":
+            let wh = value(flag).split(separator: "x").compactMap { Double($0) }
+            guard wh.count == 2, wh[0] > 0, wh[1] > 0 else { usage("--size needs <width>x<height>, like 1024x768") }
+            o.width = wh[0]
+            o.height = wh[1]
         case "--timeout":
             guard let seconds = Double(value(flag)), seconds > 0 else { usage("--timeout needs a number of seconds") }
             o.timeout = seconds
@@ -316,7 +324,7 @@ final class Harness: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
             eprint("[check] warning: the network block list didn't compile; only the navigation filter is on")
         }
 
-        let web = WKWebView(frame: NSRect(x: 0, y: 0, width: 390, height: 844), configuration: config)
+        let web = WKWebView(frame: NSRect(x: 0, y: 0, width: options.width, height: options.height), configuration: config)
         web.appearance = NSAppearance(named: .aqua)
         web.navigationDelegate = self
         // The window is off screen, which macOS reports as occluded, and WebKit would then treat the
@@ -324,7 +332,7 @@ final class Harness: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         if web.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) {
             web.setValue(false, forKey: "windowOcclusionDetectionEnabled")
         }
-        let offscreen = NSRect(x: -20000, y: -20000, width: 390, height: 844)
+        let offscreen = NSRect(x: -20000, y: -20000, width: options.width, height: options.height)
         let win = NSWindow(contentRect: offscreen, styleMask: [.borderless], backing: .buffered, defer: false)
         win.isReleasedWhenClosed = false
         win.ignoresMouseEvents = true

@@ -150,10 +150,10 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **A 27-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 28-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays two members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, and the
-  Instagram catch-up's usage cap. It runs in one transaction and rolls back.
+  Instagram and Snapchat catch-up's usage cap. It runs in one transaction and rolls back.
 
 ## Run it yourself
 
@@ -186,32 +186,43 @@ cp scripts/seed-demo/.env.example scripts/seed-demo/.env   # add the secret key
 deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts
 ```
 
-## Instagram catch-up (experimental, not released)
+## Instagram and Snapchat catch-up (experimental, not released)
 
 Nobody moves their group chat to a new app. So this experiment tries the same catch-up
-on a chat people already have: an Instagram DM thread.
+on chats people already have: an Instagram DM thread or a Snapchat chat.
 
-- **How it works.** Instagram's own website opens inside the app. You sign in on
-  Instagram's page and open a DM thread. Tap **Catch me up on this chat** and Ketchup
-  reads the conversation that's on the page, then runs the same Muse Spark catch-up as
-  its own chats through a second edge function,
+- **How it works.** Instagram's or Snapchat's own website opens inside the app, on its own
+  page of the home screen. You sign in on their page and open a chat. Tap **Catch me up**,
+  pick the last 30, 80 or 120 messages (the page doesn't say what's unread), and Ketchup
+  reads that much of the conversation off the page. Then it runs the same Muse Spark
+  catch-up as its own chats through a second edge function,
   [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
-  transcript, prompts, JSON schemas and validation. Each item quotes the messages behind
-  it.
-- **It reads only the thread you have open, in your own signed-in session.** Ketchup
-  never sees your Instagram password or cookies. The reader
-  ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js)) runs
-  only when you tap the button on a DM thread, and you pick how far back: the last 30, 80
-  or 120 messages (the page doesn't say what's unread). It goes by page structure (roles,
-  labels, layout), not Instagram's class names. Instagram only fills in the messages near
-  the screen, so it steps up through the thread, then puts the scroll back.
+  transcript, prompts, JSON schemas and validation, laid out with the same brief, tickets,
+  diner check and Ask the chat. Each source chip shows the whole message it quotes.
+- **It reads only the chat you have open, in your own signed-in session.** Ketchup never
+  sees your password or cookies. The readers
+  ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js),
+  [`SnapchatThreadReader.js`](ios/Ketchup/Snapchat/SnapchatThreadReader.js)) run only when
+  you pick how much to read on a chat. They go by page structure (roles, tags, labels,
+  layout), not the sites' class names, which change. Both step up through the chat for
+  older messages, then put the scroll back.
 - **Nothing is stored.** No saved catch-up, and no message text in the logs (counts and
   token usage only). The server keeps one usage count per call, with no content, for an
   hourly cap of 20.
-- **It isn't sanctioned by Instagram's terms.** They don't allow automated collection,
-  and the messages, your friends' included, go to Muse Spark to summarize. So it's not
-  in the released app, and it won't ship unless Meta is fine with it. Ketchup's own chat
-  doesn't depend on it.
+- **It isn't sanctioned by Instagram's or Snapchat's terms.** They don't allow automated
+  collection, and the messages, your friends' included, go to Muse Spark to summarize. So
+  it's not in the released app, and it won't ship unless Meta and Snap are fine with it.
+  Ketchup's own chat doesn't depend on it.
+- **Snapchat took three browser settings, and nothing injected into its pages.** Snapchat for
+  Web sends phones to "Download Snapchat", so Ketchup asks for its desktop page with a Mac
+  user agent (what Safari's "Request Desktop Website" does) and lays the page out 1024 points
+  wide, shrunk to fit the screen. Signed in, its chat app also needs a service worker, which
+  WebKit only runs for app-bound domains (the app's Info.plist lists them). Once an app lists
+  any, WebKit only lets it read pages in web views kept to them, so Instagram's page is kept
+  to its sites too. The Snapchat page is small, so pinch to zoom; Catch me up is the point anyway.
+- **Built to take another app.** The browser, the page and the catch-up sheet are shared
+  ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
+  (name, start page, allowed sites, thread URL, reader script, user agent, desktop layout).
 
 ## Built during the event
 

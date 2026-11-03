@@ -198,7 +198,7 @@ struct QuestionBubble: View {
         .buttonStyle(.pressable)
         .disabled(question.refs.isEmpty)
         .accessibilityLabel("\(asker.map { "\($0) asked" } ?? "Asked"): \(question.question). No reply yet.")
-        .accessibilityHint("Shows it in the chat")
+        .accessibilityHint(refs.hint)
     }
 
     private var asker: String? {

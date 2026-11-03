@@ -1,0 +1,448 @@
+{
+ "title": "Moab Crew 🏜️",
+ "isGroup": true,
+ "mustNotContain": [
+  "DRAFT SHOULD NOT BE EXTRACTED",
+  "SIDEBAR PREVIEW SHOULD NOT BE EXTRACTED",
+  "saved a chat",
+  "took a screenshot",
+  "Missed voice call",
+  "Up the Creek Campground"
+ ],
+ "messages": [
+  {
+   "sender": "Maya",
+   "text": "ok Moab is happening",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 7:42 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "first weekend of December, who's in",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 7:42 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "IN",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 7:45 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "I can drive, the 4Runner fits 5",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 7:45 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "in if we're camping and not doing a hotel",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 7:51 PM"
+  },
+  {
+   "sender": "David",
+   "text": "in!!",
+   "isMe": true,
+   "at": null,
+   "atLabel": "October 31, 8:03 PM"
+  },
+  {
+   "sender": "David",
+   "text": "camping obviously",
+   "isMe": true,
+   "at": null,
+   "atLabel": "October 31, 8:03 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "wait which weekend",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:10 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "(replying to Priya: \"wait which weekend\") Dec 5 to 7",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:11 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "ok I can do that, I'll have to leave Sunday by noon though",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:14 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "[sticker]",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:20 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "who's booking the campsite",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:22 PM"
+  },
+  {
+   "sender": "David",
+   "text": "I can, Devils Garden or somewhere outside the park?",
+   "isMe": true,
+   "at": null,
+   "atLabel": "October 31, 8:25 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "this one has showers example.com/moab-camp",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:31 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "🔥",
+   "isMe": false,
+   "at": null,
+   "atLabel": "October 31, 8:33 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "ok I looked, Devils Garden is booked through December",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:02 AM"
+  },
+  {
+   "sender": "Sam",
+   "text": "so outside the park it is",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:02 AM"
+  },
+  {
+   "sender": "David",
+   "text": "Up the Creek then, it's $25 a night per site",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 1, 10:15 AM"
+  },
+  {
+   "sender": "David",
+   "text": "two sites for 5 of us?",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 1, 10:15 AM"
+  },
+  {
+   "sender": "Maya",
+   "text": "one site holds 6 people, we just need one",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:18 AM"
+  },
+  {
+   "sender": "Priya",
+   "text": "@Jordan how early are we leaving friday",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:40 AM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "6am from my place, it's a 5.5 hour drive",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:44 AM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "earlier if you want sunset at Delicate Arch",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:44 AM"
+  },
+  {
+   "sender": "Maya",
+   "text": "(replying to Jordan: \"6am from my place, it's a 5.5 hour drive\") 6am is brutal but fine",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 10:46 AM"
+  },
+  {
+   "sender": "Sam",
+   "text": "sorry pocket call",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 11:32 AM"
+  },
+  {
+   "sender": "Priya",
+   "text": "[photo]",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 12:05 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "is this tent big enough for two",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 12:05 PM"
+  },
+  {
+   "sender": "David",
+   "text": "(replying to Priya: \"[photo]\") that's a 2 person, so barely",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 1, 12:09 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "I have a 4 person, Priya you can share with me",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 12:15 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "deal 🙏",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 12:16 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "gas split: 4 people in my car, Sam drives separately?",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 3:40 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "yeah I'm coming from Grand Junction",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 3:52 PM"
+  },
+  {
+   "sender": "David",
+   "text": "I'll request everyone for the campsite, $50 total for 2 nights",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 1, 4:01 PM"
+  },
+  {
+   "sender": "David",
+   "text": "so $10 each",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 1, 4:01 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "paid",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 4:03 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "paid 👍",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 4:05 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "[video]",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 4:30 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "the drive in last year, the canyon road is wild",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 4:30 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "omg",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 1, 4:45 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "food plan: I'll do breakfast burritos Saturday",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:12 AM"
+  },
+  {
+   "sender": "Maya",
+   "text": "someone do dinner both nights",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:12 AM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "I'll grill Friday, burgers and veggie burgers",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:20 AM"
+  },
+  {
+   "sender": "David",
+   "text": "I've got Saturday dinner, chili",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 2, 9:31 AM"
+  },
+  {
+   "sender": "Priya",
+   "text": "I'll bring snacks and the coffee setup",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:40 AM"
+  },
+  {
+   "sender": "Sam",
+   "text": "I'm on firewood, you can't bring it from out of state or something",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 10:05 AM"
+  },
+  {
+   "sender": "Sam",
+   "text": "I'll just buy it in Moab",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 10:05 AM"
+  },
+  {
+   "sender": "Maya",
+   "text": "(replying to Sam: \"I'll just buy it in Moab\") yes buy it there, they check",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 10:07 AM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "[photo or video]",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 1:15 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "Delicate Arch at sunset, that's the plan Saturday",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 1:15 PM"
+  },
+  {
+   "sender": "David",
+   "text": "hike is 3 miles round trip, bring headlamps for the way back",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 2, 1:20 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "noted, buying a headlamp",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 1:22 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "packing list so far:\nheadlamp\nwarm layers, it's 30 at night\nwater jugs",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 6:45 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "30 at night?? I need a better sleeping bag",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 6:50 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "I have an extra 15 degree bag you can borrow",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 6:52 PM"
+  },
+  {
+   "sender": "Sam",
+   "text": "you're the best",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 6:53 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "@Maya can we stop at the Green River gas station, it has the good bathrooms",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 8:30 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "yes, it's the halfway point anyway",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 8:34 PM"
+  },
+  {
+   "sender": "David",
+   "text": "ok I'll make a shared list for the groceries tomorrow",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 2, 8:40 PM"
+  },
+  {
+   "sender": "Jordan",
+   "text": "🏜️",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 8:41 PM"
+  },
+  {
+   "sender": "Maya",
+   "text": "(replying to David: \"ok I'll make a shared list for the groceries tomorrow\") thank you David",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:02 PM"
+  },
+  {
+   "sender": "David",
+   "text": "campsite confirmation: Up the Creek, site 4, Dec 5 to 7",
+   "isMe": true,
+   "at": null,
+   "atLabel": "November 2, 9:10 PM"
+  },
+  {
+   "sender": "Priya",
+   "text": "so excited",
+   "isMe": false,
+   "at": null,
+   "atLabel": "November 2, 9:15 PM"
+  }
+ ]
+}

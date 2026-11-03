@@ -256,6 +256,7 @@
 				DEVELOPMENT_TEAM = GBXTAWLQK5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ketchup-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Ketchup";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Ketchup adds plans from your chats to your calendar.";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -290,6 +291,7 @@
 				DEVELOPMENT_TEAM = GBXTAWLQK5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Ketchup-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Ketchup";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "Ketchup adds plans from your chats to your calendar.";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
