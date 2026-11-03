@@ -31,8 +31,9 @@ struct RootView: View {
                 ChatsListView()
             }
         }
-        .animation(.default, value: app.isSignedIn)
-        .animation(.default, value: app.needsName)
+        .motion(Motion.settle, value: app.isSignedIn)
+        .motion(Motion.settle, value: app.needsName)
+        .background(Theme.cream)
         .task(id: app.myId) { await app.loadMe() }
     }
 }
