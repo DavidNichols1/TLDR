@@ -4,6 +4,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- The reader's pages check whether Instagram and Snapchat are installed, and open them (reader slice). -->
+    <queries>
+        <package android:name="com.instagram.android" />
+        <package android:name="com.snapchat.android" />
+    </queries>
+
     <!-- No backups or device transfers: the session and anything a slice keeps stay on this phone. -->
     <application
         android:allowBackup="false"

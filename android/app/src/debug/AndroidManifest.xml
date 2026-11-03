@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- A synthetic Instagram DM thread (made-up people) for the reader
+             service on an emulator without Instagram:
+             adb shell am start -n com.vibetemp.ketchup/.debug.ReaderFixtureActivity
+             Its own task, so the brief it opens comes back to it. -->
+        <activity
+            android:name=".debug.ReaderFixtureActivity"
+            android:exported="true"
+            android:label="Test thread"
+            android:taskAffinity="com.vibetemp.ketchup.fixture"
+            android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

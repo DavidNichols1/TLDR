@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- KetchupReaderService (reader slice). Only the official Instagram and
-     Snapchat apps, window content on, view ids reported. The reader slice
-     tunes the events and flags; keep packageNames to these two. -->
+     Snapchat apps: the system doesn't wake the service for anything else.
+     Window content on (it reads the screen only after a tap), view ids
+     reported (for the debug structure dump), and views that aren't
+     "important" kept in the tree, so a bubble's box is there around its
+     text. Debug builds override this file to add the app's own fixture
+     thread (src/debug/res/xml/reader_service.xml). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
