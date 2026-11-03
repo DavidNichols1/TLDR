@@ -79,6 +79,7 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `Kicker("For you")` | Small mono caps over a headline or card. |
 | `SectionTitle("Plans", count: 6)` | Section heading, a VoiceOver header. |
 | `Monogram(name:color:size:)` | Initials on a soft tile of the person's color. Decorative. |
+| `Avatar(name:path:size:)` | A person's photo in the monogram's rounded square with a hairline, or their `Monogram` while it loads or when there's none. Use it wherever a person shows. Decorative. |
 | `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` and `dashed: true` for "Maybe". |
 | `.marked(_:color:sweep:delay:)` | Marker behind a short phrase on one line. |
 | `Text("…\(Text("$90").markedRun())…").markRuns(sweep:)` | Marker inside a sentence; follows the words as they wrap. |
@@ -108,6 +109,34 @@ After sign-in, the home is three pages side by side: **Chats** (the inbox, first
 - **Over a web page** a sideways swipe still pages, unless the page can scroll sideways itself (zoomed in, a wide carousel): then the page gets it, and the switcher still works. Vertical scrolling and taps are always the page's. From the left edge the pager wins even when the site could go back; the bar's back button does that.
 - **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
 - **`HomePage.all`** lists the pages, left to right, and `HomePage.content` says what each shows: another chat app is one more `.web(…)` in the list.
+
+## Photos
+
+A profile photo is a print pinned to the paper: the same rounded square as a monogram, edged with a hairline. A photo in a chat is a bubble of its own shape. Screenshots: `screens/photos/` (made-up photos, no real people).
+
+<p>
+<img src="screens/photos/crop-light.png" width="200" alt="Frame it: a mountain photo under a rounded-square window cut in the paper">
+<img src="screens/photos/chat-light.png" width="200" alt="Photos by the last bubble of each sender's run">
+<img src="screens/photos/info-dark.png" width="200" alt="Members with their photos, Sam with his monogram, dark">
+<img src="screens/photos/inbox-light.png" width="200" alt="David's photo on the account button">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `AvatarCropper` | "Frame it": the picked photo under paper with a rounded-square window cut out; drag and pinch, the photo always covers the window. "Use photo" is the one ketchup button and says "Saving" until the upload is done. VoiceOver can zoom with swipe up and down. |
+| In a chat | Other people's photos sit by the last bubble of each run, bottom-aligned, 28 pt. Mine get none. |
+| Account button | My photo inside the top bar's glass button. Its menu adds, changes or removes the photo (until Settings takes that over). |
+| `PhotoBubble` | A chat photo in the thread: its own shape (between 1:2 and 2.2:1), at most 240 pt wide, laid out from its stored size before it loads. The caption sits under it in the same bubble, on card paper (theirs) or ink (mine), with a text bubble's run corners. Tap to open. |
+| Upload ring | While my photo uploads: an ink ring filling a hairline track on a cream disc over the photo. "Not sent. Tap to retry" if it fails, like text. |
+| Composer | A photo button before the field (`ChatInputBar(onPhoto:)`). The picked photo waits above the field with an ink x to take it off; the field says "Add a caption", and the ketchup send works with or without words. |
+| `PhotoViewer` | Full screen on dark paper (17120F in both modes): pinch or double-tap to zoom, Share (and Save Image) in the top bar's glass buttons, who sent it and when in cream type under it. |
+
+<p>
+<img src="screens/photos/thread-light.png" width="200" alt="Photos in the Breck thread, with captions under them">
+<img src="screens/photos/sending-light.png" width="200" alt="David's photo uploading: the ink ring half full">
+<img src="screens/photos/attach-dark.png" width="200" alt="A photo waiting in the composer with a caption, dark">
+<img src="screens/photos/viewer-light.png" width="200" alt="Maya's cabin photo full screen">
+</p>
 
 ## Muse Spark screens
 
@@ -174,6 +203,27 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **"Experimental" is said, not shouted:** a kicker under the name, a line in the footer.
 
+## Settings
+
+Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of Chats. Screenshots: `screens/people/`.
+
+<p>
+<img src="screens/people/settings-light.png" width="200" alt="Settings: your name and email, Change your name, the web chats' sign-outs, Account">
+<img src="screens/people/settings-about-dark.png" width="200" alt="Account and the About colophon, dark">
+<img src="screens/people/settings-delete-light.png" width="200" alt="Delete your account: what goes, what stays, and the ketchup button">
+<img src="screens/people/settings-name-light.png" width="200" alt="Change your name, with the monogram following what you type">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `SettingsSection("You", kicker:footer:)` | A `SectionTitle` (and a kicker, under it when both don't fit) over rows on one `paperCard`, hairlines between them. Rows that draw nothing take no room, and a section with no rows doesn't show, so a slot can sit empty. |
+| `SettingsRow(_:systemImage:value:detail:destructive:chevron:)` | One row: an `inkSoft` icon, the label, a value on the right, or a `detail` line under a long label ("Nothing saved"). `destructive` is `ketchupText` (Delete account). At accessibility sizes the value goes under the label. Use it as a button's or link's label with `.pressable`. |
+| The header | A "Settings" kicker over your name in New York and your email, with your monogram on the right. |
+| About | A colophon on paper: the drop, the `Wordmark`, the version in a kicker, `MuseByline`, and the hackathon line. |
+
+- **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
+- **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out".
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -197,6 +247,8 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
+| `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |
 
 Light and dark screenshots:
 

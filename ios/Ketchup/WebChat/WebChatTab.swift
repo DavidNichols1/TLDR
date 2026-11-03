@@ -103,6 +103,10 @@ private struct WebChatPage: View {
         .motion(Motion.fade, value: introSeen)
         .onAppear(perform: start)
         .onChange(of: browser?.url) { _, _ in failure = nil }
+        // Settings signed this site out of Ketchup: start over at its sign-in page.
+        .onReceive(NotificationCenter.default.publisher(for: .webChatForgotten)) { note in
+            if note.object as? String == source.id { browser?.openStart() }
+        }
         .sheet(item: $session) { WebChatSheet(session: $0) }
         .sheet(isPresented: $showSaved) { SavedBriefsSheet(place: .web(source.id), title: source.name) }
         .alert("Done", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {

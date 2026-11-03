@@ -11,6 +11,8 @@ export interface ChatMessage {
   sender: string;
   body: string;
   created_at: string;
+  /** Set when the message is a photo (chat-media, 0006); the body is its caption. */
+  image_path?: string | null;
 }
 
 /** A message the app read off a page, not out of Ketchup's database. */
@@ -50,6 +52,12 @@ function line(ref: string, stamp: string | null, who: string, body: string): str
   return `[${ref}] ${stamp === null ? "" : `${stamp} · `}${who}: ${clipped.replace(/\s*\n\s*/g, " / ")}`;
 }
 
+/** What a message says in the transcript: a photo is "[photo]", then its caption. */
+function messageText(m: ChatMessage): string {
+  if (!m.image_path) return m.body;
+  return m.body ? `[photo] ${m.body}` : "[photo]";
+}
+
 /**
  * context: messages the reader has already seen (shown so the model knows
  * what "that" refers to, but never summarized); fresh: the unread ones.
@@ -67,7 +75,7 @@ export function buildTranscript(
     n += 1;
     const ref = `m${n}`;
     refs.set(ref, m.id);
-    lines.push(line(ref, localStamp(m.created_at, timeZone), names.get(m.sender) ?? "Someone", m.body));
+    lines.push(line(ref, localStamp(m.created_at, timeZone), names.get(m.sender) ?? "Someone", messageText(m)));
   };
   if (context.length) {
     lines.push("=== ALREADY READ (context only, do not summarize) ===");

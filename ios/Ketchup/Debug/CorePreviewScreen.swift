@@ -150,7 +150,7 @@ struct AppIconArtwork: View {
 /// 1024 px PNG written to the app's Documents folder as AppIcon.png
 /// (`xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`).
 private struct AppIconPreview: View {
-    @State private var savedTo: String?
+    @State private var saved = false
 
     var body: some View {
         ScrollView {
@@ -172,11 +172,12 @@ private struct AppIconPreview: View {
                         }
                     }
                 }
-                if let savedTo {
-                    Text(savedTo)
+                // The full path names this Mac's simulator and container, so it
+                // goes to the console, not into screenshots.
+                if saved {
+                    Text("Saved AppIcon.png in the app's Documents folder")
                         .font(.mono(.caption2))
                         .foregroundStyle(Theme.inkSoft)
-                        .textSelection(.enabled)
                 }
             }
             .padding(24)
@@ -197,7 +198,10 @@ private struct AppIconPreview: View {
         guard let data = AppIconArtwork.png(),
               let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         let url = folder.appending(path: "AppIcon.png")
-        if (try? data.write(to: url)) != nil { savedTo = url.path }
+        if (try? data.write(to: url)) != nil {
+            saved = true
+            print("[icon] saved \(url.path)")
+        }
     }
 }
 #endif

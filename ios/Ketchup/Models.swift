@@ -8,10 +8,13 @@ import Foundation
 struct Profile: Codable, Identifiable, Equatable {
     let id: UUID
     var displayName: String
+    /// Their photo in the avatars bucket (Photos/Avatar.swift), if they set one.
+    var avatarPath: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
+        case avatarPath = "avatar_path"
     }
 }
 
@@ -74,8 +77,13 @@ struct Message: Codable, Identifiable, Equatable {
     let id: UUID
     let chatId: UUID
     let sender: UUID
+    /// The text, or a photo's caption (may be empty then).
     let body: String
     let createdAt: Date
+    /// A photo in the chat-media bucket and its size in pixels (Photos/ChatPhotos.swift).
+    var imagePath: String? = nil
+    var imageWidth: Int? = nil
+    var imageHeight: Int? = nil
     /// Client-only: an optimistic bubble not yet confirmed / that failed.
     var pending = false
     var failed = false
@@ -84,12 +92,17 @@ struct Message: Codable, Identifiable, Equatable {
         case id, sender, body
         case chatId = "chat_id"
         case createdAt = "created_at"
+        case imagePath = "image_path"
+        case imageWidth = "image_width"
+        case imageHeight = "image_height"
     }
 
     init(id: UUID, chatId: UUID, sender: UUID, body: String, createdAt: Date,
-         pending: Bool = false, failed: Bool = false) {
+         pending: Bool = false, failed: Bool = false,
+         imagePath: String? = nil, imageWidth: Int? = nil, imageHeight: Int? = nil) {
         self.id = id; self.chatId = chatId; self.sender = sender; self.body = body
         self.createdAt = createdAt; self.pending = pending; self.failed = failed
+        self.imagePath = imagePath; self.imageWidth = imageWidth; self.imageHeight = imageHeight
     }
 }
 

@@ -34,6 +34,7 @@ final class AppModel {
                 self?.chatsLoaded = false
                 // Signing out leaves nothing of theirs on the phone.
                 DeviceStore.shared.wipe()
+                RemoteImages.shared.clear()
             } else if session?.userId != before {
                 self?.restoreFromDevice()
             }
@@ -106,6 +107,12 @@ final class AppModel {
         me?.displayName = trimmed
         confirmName()
         keepOnDevice()
+    }
+
+    /// A new or removed profile photo, once the server has it
+    /// (Photos/ProfilePhotos.swift does the saving).
+    func setAvatarPath(_ path: String?) {
+        me?.avatarPath = path
     }
 
     func refreshChats() async {

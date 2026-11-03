@@ -31,6 +31,10 @@ struct ChatView: View {
     @State private var positioned = false
     @State private var leftChat = false
     @State private var notice: String?
+    /// Photos: picking one, the one waiting to go, the one open full screen.
+    @State private var pickingPhoto = false
+    @State private var attachment: PreparedPhoto?
+    @State private var viewing: Message?
     #if DEBUG
     /// Offline previews: a message to jump to once the thread is in place,
     /// as if a ref chip asked for it.
@@ -39,6 +43,8 @@ struct ChatView: View {
 
     private static let bottomId = "bottom"
     private static let unreadId = "unread-divider"
+
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 28
 
     enum ChatSheet: String, Identifiable {
         case catchUp, ask, saved, info
@@ -66,6 +72,13 @@ struct ChatView: View {
     init(model: ChatModel, jumpingTo message: UUID) {
         _model = State(initialValue: model)
         _previewJump = State(initialValue: message)
+    }
+
+    /// Offline preview with a photo picked and waiting in the composer.
+    init(model: ChatModel, attaching photo: PreparedPhoto?, caption: String = "") {
+        _model = State(initialValue: model)
+        _attachment = State(initialValue: photo)
+        _draft = State(initialValue: caption)
     }
     #endif
 
@@ -104,11 +117,25 @@ struct ChatView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ChatInputBar(placeholder: "Message", text: $draft) {
-                guard let text = ChatInputBar.sendable(draft) else { return }
-                draft = ""
-                model.send(text)
+            ChatInputBar(placeholder: attachment == nil ? "Message" : "Add a caption", text: $draft,
+                         attachment: attachment?.preview,
+                         onPhoto: { pickingPhoto = true },
+                         onRemoveAttachment: { attachment = nil }) {
+                if let photo = attachment {
+                    guard let caption = ChatInputBar.caption(draft) else { return }
+                    draft = ""
+                    attachment = nil
+                    model.send(photo, caption: caption)
+                } else {
+                    guard let text = ChatInputBar.sendable(draft) else { return }
+                    draft = ""
+                    model.send(text)
+                }
             }
+        }
+        .chatPhotoPicker(isPresented: $pickingPhoto) { attachment = $0 }
+        .fullScreenCover(item: $viewing) { message in
+            PhotoViewer(message: message, senderName: model.name(of: message.sender))
         }
         .overlay(alignment: .bottom) { noticeToast }
         .navigationTitle(model.chat.name)
@@ -256,17 +283,39 @@ struct ChatView: View {
         case .message(let m, let newRun, let endsRun):
             let mine = m.sender == model.myId
             let name = model.name(of: m.sender)
-            ChatBubble(text: m.body,
-                       mine: mine,
-                       pending: m.pending,
-                       failed: m.failed,
-                       senderName: newRun && !mine ? name : nil,
-                       senderColor: Theme.personColor(name: name),
-                       time: m.createdAt,
-                       startsRun: newRun,
-                       endsRun: endsRun,
-                       highlighted: highlighted == m.id,
-                       onRetry: { model.retry(m.id) })
+            HStack(alignment: .bottom, spacing: 8) {
+                // Other people's photos sit by the last bubble of each run.
+                if !mine {
+                    if endsRun {
+                        Avatar(name: name, path: model.avatarPath(of: m.sender), size: avatarSize)
+                    } else {
+                        Color.clear.frame(width: avatarSize, height: 1)
+                    }
+                }
+                if m.imagePath != nil {
+                    PhotoBubble(message: m,
+                                mine: mine,
+                                senderName: newRun && !mine ? name : nil,
+                                senderColor: Theme.personColor(name: name),
+                                startsRun: newRun,
+                                endsRun: endsRun,
+                                highlighted: highlighted == m.id,
+                                onOpen: { viewing = m },
+                                onRetry: { model.retry(m.id) })
+                } else {
+                    ChatBubble(text: m.body,
+                               mine: mine,
+                               pending: m.pending,
+                               failed: m.failed,
+                               senderName: newRun && !mine ? name : nil,
+                               senderColor: Theme.personColor(name: name),
+                               time: m.createdAt,
+                               startsRun: newRun,
+                               endsRun: endsRun,
+                               highlighted: highlighted == m.id,
+                               onRetry: { model.retry(m.id) })
+                }
+            }
                 .padding(.top, newRun ? 10 : 0)
                 .padding(.vertical, 1.5)
                 // Under its neighbors, so the jump mark stays behind every bubble.
