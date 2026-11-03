@@ -37,7 +37,32 @@ final class AppModel {
 
     func loadMe() async {
         guard isSignedIn else { return }
+        nameConfirmed = UserDefaults.standard.bool(forKey: nameKey)
         me = try? await TLDRAPI.myProfile()
+    }
+
+    // MARK: Display name
+
+    /// Sign-up gives everyone their email's local part as a name
+    /// (handle_new_user). Until they confirm or change it once, the app asks.
+    private(set) var nameConfirmed = true
+
+    private var nameKey: String { "nameConfirmed-\(myId?.uuidString ?? "")" }
+
+    /// The name the server picked on sign-up, for prefilling the name step.
+    var defaultName: String {
+        let local = session?.email.split(separator: "@").first.map(String.init) ?? ""
+        return String(local.trimmingCharacters(in: .whitespaces).prefix(30))
+    }
+
+    var needsName: Bool {
+        guard let me, !nameConfirmed else { return false }
+        return me.displayName == defaultName
+    }
+
+    func confirmName() {
+        UserDefaults.standard.set(true, forKey: nameKey)
+        nameConfirmed = true
     }
 
     func rename(to name: String) async throws {
@@ -45,6 +70,7 @@ final class AppModel {
         guard (1...30).contains(trimmed.count) else { throw APIError.server("Names are 1–30 characters.") }
         try await TLDRAPI.setDisplayName(trimmed)
         me?.displayName = trimmed
+        confirmName()
     }
 
     func refreshChats() async {
