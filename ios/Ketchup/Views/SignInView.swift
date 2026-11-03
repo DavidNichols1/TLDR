@@ -25,59 +25,69 @@ struct SignInView: View {
         return e.contains("@") && e.contains(".") && e.count >= 5
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                hero
-                    .padding(.top, 60)
+    /// "an 8-digit code", "a 6-digit code".
+    private var codePhrase: String {
+        let n = Config.otpLength
+        let an = String(n).hasPrefix("8") || n == 11 || n == 18
+        return "\(an ? "an" : "a") \(n)-digit code"
+    }
 
-                VStack(spacing: 14) {
-                    switch step {
-                    case .email: emailStep
-                    case .code:  codeStep
+    var body: some View {
+        GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Wordmark(size: 40, drawIn: true)
+                        .padding(.top, 28)
+                        .padding(.bottom, 36)
+
+                    Group {
+                        switch step {
+                        case .email: emailStep
+                        case .code: codeStep
+                        }
                     }
-                    if let notice, error == nil {
-                        Text(notice)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let error {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                    }
+                    .transition(.opacity)
+
+                    messages
+                        .padding(.top, 14)
+
+                    Spacer(minLength: 40)
+                    byline
+                        .padding(.bottom, 12)
                 }
                 .padding(.horizontal, 24)
+                .frame(maxWidth: 520, minHeight: geo.size.height, alignment: .topLeading)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .scrollDismissesKeyboard(.interactively)
-        .background(alignment: .top) {
-            Theme.aiDiagonal.opacity(0.14)
-                .frame(height: 420)
-                .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                .ignoresSafeArea()
+        .background(Theme.cream)
+        .motion(Motion.fade, value: step)
+        #if DEBUG
+        .task {
+            // Offline preview of the code step: run the resend countdown.
+            if PreviewData.isActive && step == .code && cooldown > 0 {
+                focused = true
+                startCooldown(cooldown)
+            }
         }
+        #endif
     }
 
-    private var hero: some View {
-        VStack(spacing: 12) {
-            Text("Ketchup")
-                .font(.system(size: 56, weight: .heavy, design: .rounded))
-                .foregroundStyle(Theme.aiDiagonal)
-            Text("Come back to 300 unread messages\nand know what matters in seconds.")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-            AILabel(text: "Powered by Muse Spark")
-                .padding(.top, 4)
-        }
-    }
+    // MARK: Steps
 
     private var emailStep: some View {
-        VStack(spacing: 14) {
-            TextField("you@example.com", text: $email)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Missed 300 messages?")
+                .font(.serif(.largeTitle))
+                .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text("Ketchup reads the backlog and serves up the plans, who owes what, and what people asked you.")
+                .font(.body)
+                .foregroundStyle(Theme.inkSoft)
+                .padding(.top, 10)
+
+            TextField("Email", text: $email, prompt: Text(verbatim: "you@example.com").foregroundStyle(Theme.inkFaint))
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -85,35 +95,38 @@ struct SignInView: View {
                 .focused($focused)
                 .submitLabel(.continue)
                 .onSubmit { Task { await sendCode() } }
-                .fieldStyle()
+                .paperField(focused: focused)
+                .padding(.top, 28)
 
             Button {
                 Task { await sendCode() }
             } label: {
-                primaryLabel("Email me a code")
+                busyLabel("Email me a code")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.ketchup)
             .disabled(!validEmail || busy)
+            .padding(.top, 12)
 
-            Text("We'll email you a \(Config.otpLength)-digit code. New here? That makes your account.")
+            Text("We'll email you \(codePhrase). New here? That makes your account.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .foregroundStyle(Theme.inkSoft)
+                .padding(.top, 12)
         }
     }
 
     private var codeStep: some View {
-        VStack(spacing: 14) {
-            Text("Enter the code we sent to\n**\(email)**")
-                .multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Check your email")
+                .font(.serif(.largeTitle))
+                .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text("We sent \(codePhrase) to \(Text(email).fontWeight(.semibold).foregroundStyle(Theme.ink)).")
+                .font(.body)
+                .foregroundStyle(Theme.inkSoft)
+                .padding(.top, 10)
 
-            TextField(String(repeating: "0", count: Config.otpLength), text: $code)
-                .textContentType(.oneTimeCode)
-                .keyboardType(.numberPad)
-                .font(.system(.title, design: .monospaced).weight(.semibold))
-                .multilineTextAlignment(.center)
-                .focused($focused)
-                .fieldStyle()
+            CodeField(text: $code, length: Config.otpLength, kind: .digits, focus: $focused, label: "Sign-in code")
+                .padding(.top, 28)
                 .onChange(of: code) { _, new in
                     let digits = String(new.filter(\.isNumber).prefix(Config.otpLength))
                     if digits != new { code = digits }
@@ -123,36 +136,59 @@ struct SignInView: View {
             Button {
                 Task { await verify() }
             } label: {
-                primaryLabel("Sign in")
+                busyLabel("Sign in")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.ketchup)
             .disabled(code.count != Config.otpLength || busy)
+            .padding(.top, 16)
 
-            HStack(spacing: 20) {
+            HStack(spacing: 0) {
                 Button("Different email") {
                     step = .email
                     code = ""
                     error = nil
                     notice = nil
                 }
+                .foregroundStyle(Theme.ink)
+                Spacer(minLength: 16)
                 Button(cooldown > 0 ? "Resend in \(cooldown)s" : "Resend code") {
                     Task { await sendCode() }
                 }
                 .monospacedDigit()
+                .foregroundStyle(cooldown > 0 ? Theme.inkSoft : Theme.ketchupText)
                 .disabled(busy || cooldown > 0)
             }
-            .font(.footnote)
+            .font(.subheadline.weight(.semibold))
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+            .padding(.horizontal, 4)
         }
     }
 
-    private func primaryLabel(_ title: String) -> some View {
+    /// A notice ("New code sent") or what went wrong, under the form.
+    @ViewBuilder
+    private var messages: some View {
+        if let error {
+            FormError(text: error)
+        } else if let notice {
+            Label(notice, systemImage: "checkmark.circle")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Theme.pickle)
+        }
+    }
+
+    private var byline: some View {
+        Text("Summaries by \(Text(verbatim: Theme.modelName).fontWeight(.semibold)), Meta's model")
+            .font(.footnote)
+            .foregroundStyle(Theme.inkSoft)
+            .frame(maxWidth: .infinity)
+    }
+
+    private func busyLabel(_ title: String) -> some View {
         ZStack {
             Text(title).opacity(busy ? 0 : 1)
-            if busy { ProgressView().tint(.white) }
+            if busy { ProgressView().tint(Theme.onKetchup) }
         }
-        .font(.headline)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
     }
 
     // MARK: Actions
@@ -206,10 +242,15 @@ struct SignInView: View {
     }
 }
 
-private extension View {
-    func fieldStyle() -> some View {
-        padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+#if DEBUG
+extension SignInView {
+    /// Offline preview: the code step for `email`, part of a code typed and
+    /// the resend countdown running.
+    init(previewCodeFor email: String, code: String, cooldown: Int) {
+        _step = State(initialValue: .code)
+        _email = State(initialValue: email)
+        _code = State(initialValue: code)
+        _cooldown = State(initialValue: cooldown)
     }
 }
+#endif
