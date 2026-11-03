@@ -67,6 +67,7 @@ function timeOrNull(v: unknown): string | null {
 /** A log-safe label for a failure. Never the message: a JSON parse error
  *  quotes the model's output, and an API error can echo the request. */
 function failureKind(e: unknown): string {
+  if (e instanceof MuseNotConfigured) return "not_configured";
   if (e instanceof MuseError) return `muse_${e.status}${e.code ? `_${e.code}` : ""}`;
   return e instanceof Error ? e.name : "unknown";
 }
