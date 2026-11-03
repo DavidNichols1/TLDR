@@ -100,6 +100,43 @@ do $$ begin
   insert into results values ('unknown text source refused', false);
 exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
+-- Delete account (0007): Dan joins Friday crew, has the last word, then
+-- deletes his account. His messages go, the inbox line falls back to Bob's,
+-- and a catch-up Alice saved that read him goes too.
+insert into auth.users (id, email, aud, role, instance_id)
+values ('00000000-0000-0000-0000-0000000000d4', 'dan@test.ketchup', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+grant all on results to anon;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000d4","role":"authenticated"}', true);
+select public.join_chat(invite_code) from ctx;
+insert into public.messages (chat_id, body) select id, 'hi from dan' from ctx;
+reset role;
+-- Every message here shares now(): put Bob's last before Dan's. Bob's is a
+-- captioned photo (0006), so the line falls back to "📷 hi from bob".
+update public.messages set created_at = now() - interval '2 minutes' where body = 'hi from alice';
+update public.messages set created_at = now() - interval '1 minute',
+       image_path = chat_id::text || '/00000000-0000-4000-8000-0000000000b2.jpg', image_width = 800, image_height = 600
+ where body = 'hi from bob';
+insert into public.ai_briefs (chat_id, user_id, kind, since, until, message_count, model, result)
+select id, '00000000-0000-0000-0000-0000000000a1', 'catch_up', now() - interval '1 hour', now(), 3, 'test', '{}' from ctx;
+set local role anon;
+do $$ begin
+  perform public.delete_account();
+  insert into results values ('delete account closed to anon', false);
+exception when insufficient_privilege then insert into results values ('delete account closed to anon', true); end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000d4","role":"authenticated"}', true);
+select public.delete_account();
+reset role;
+insert into results select 'deleted account: profile gone',
+  not exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-0000000000d4');
+insert into results select 'deleted account: messages gone',
+  not exists (select 1 from public.messages where sender = '00000000-0000-0000-0000-0000000000d4');
+insert into results select 'deleted account: inbox line falls back',
+  (select last_message_preview = '📷 hi from bob' and member_count = 2 from public.chats where id = (select id from ctx));
+insert into results select 'deleted account: catch-ups that read them go',
+  not exists (select 1 from public.ai_briefs where chat_id = (select id from ctx));
+
 -- Profile photos (0006): your own folder only, a path into your own folder
 -- only, nobody lists the bucket, 10 uploads an hour. storage.operation and
 -- storage.allow_delete_query stand in for what the Storage API sets.

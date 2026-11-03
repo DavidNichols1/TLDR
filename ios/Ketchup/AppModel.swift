@@ -26,14 +26,38 @@ final class AppModel {
 
     init() {
         Supabase.shared.onSessionChange = { [weak self] session in
+            let before = self?.session?.userId
             self?.session = session
             if session == nil {
                 self?.me = nil
                 self?.chats = []
                 self?.chatsLoaded = false
+                // Signing out leaves nothing of theirs on the phone.
+                DeviceStore.shared.wipe()
                 RemoteImages.shared.clear()
+            } else if session?.userId != before {
+                self?.restoreFromDevice()
             }
         }
+        DeviceStore.shared.tidy()
+        restoreFromDevice()
+    }
+
+    // MARK: Kept on the phone
+
+    /// Opens on the inbox and name this phone kept from last time
+    /// (DeviceStore), while refreshChats() asks the server.
+    private func restoreFromDevice() {
+        guard let kept = DeviceStore.shared.inbox() else { return }
+        me = kept.me
+        chats = kept.chats
+        chatsLoaded = true
+    }
+
+    /// Only once the inbox has loaded, so a first launch never keeps an empty one.
+    private func keepOnDevice() {
+        guard previewUser == nil, chatsLoaded else { return }
+        DeviceStore.shared.saveInbox(InboxSnapshot(me: me, chats: chats))
     }
 
     func signOut() async {
@@ -44,7 +68,11 @@ final class AppModel {
     func loadMe() async {
         guard isSignedIn, previewUser == nil else { return }
         nameConfirmed = UserDefaults.standard.bool(forKey: nameKey)
-        me = try? await KetchupAPI.myProfile()
+        // Offline, the name kept on the phone stays.
+        if let profile = try? await KetchupAPI.myProfile() {
+            me = profile
+            keepOnDevice()
+        }
     }
 
     // MARK: Display name
@@ -78,6 +106,7 @@ final class AppModel {
         if previewUser == nil { try await KetchupAPI.setDisplayName(trimmed) }
         me?.displayName = trimmed
         confirmName()
+        keepOnDevice()
     }
 
     /// A new or removed profile photo, once the server has it
@@ -89,12 +118,22 @@ final class AppModel {
     func refreshChats() async {
         guard isSignedIn else { return }
         guard previewUser == nil else {
+            #if DEBUG
+            if previewHoldsLoading { return }
+            #endif
             chatsLoaded = true
             return
         }
+        let user = myId
         do {
-            chats = try await KetchupAPI.myChats()
+            let fresh = try await KetchupAPI.myChats()
+            guard myId == user else { return }  // signed out meanwhile
+            let changed = fresh != chats
+            chats = fresh
             chatsLoaded = true
+            if changed { keepOnDevice() }
+            // A chat you've left (or were removed from) doesn't stay on the phone.
+            DeviceStore.shared.keepThreads(Set(fresh.map(\.id)))
         } catch {
             if !chatsLoaded { notice = error.localizedDescription }
         }
@@ -107,6 +146,7 @@ final class AppModel {
         guard let i = chats.firstIndex(where: { $0.id == id }) else { return }
         chats[i].unreadCount = 0
         chats[i].lastReadAt = Date()
+        keepOnDevice()
     }
 
     #if DEBUG
@@ -117,12 +157,17 @@ final class AppModel {
         self.session = nil
     }
 
+    /// An inbox preview that never finishes loading (`-screen inbox-loading`).
+    @ObservationIgnored private var previewHoldsLoading = false
+
     /// A signed-in app with a fixed name and inbox, for `-screen` previews.
-    static func preview(me: UUID, name: String, chats: [ChatSummary]) -> AppModel {
+    /// `loading` keeps the inbox waiting on its first answer.
+    static func preview(me: UUID, name: String, chats: [ChatSummary], loading: Bool = false) -> AppModel {
         let app = AppModel(previewUser: me)
         app.me = Profile(id: me, displayName: name)
         app.chats = chats
-        app.chatsLoaded = true
+        app.chatsLoaded = !loading
+        app.previewHoldsLoading = loading
         return app
     }
     #endif

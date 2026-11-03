@@ -111,6 +111,24 @@ Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 - It retries once on 429/500/503 and honors `Retry-After`. The key is read from the edge
   function's secrets and is never sent to the app.
 
+## Opens instantly
+
+The phone keeps a copy of what you last saw, so Ketchup opens on your chats at once and
+refreshes from the server behind them.
+
+- **Your inbox and each chat's newest 400 messages stay on the phone.** They show in the
+  first frame, then the server's answer replaces them. Reading a 400-message chat back
+  takes under a millisecond on the simulator. Offline, a chat still opens, and says
+  "Couldn't refresh. Showing saved messages."
+- **Only yours, only here.** The copy lives in the app's own folder, one per signed-in
+  account, protected until the phone's first unlock after a restart and left out of
+  backups. Signing out deletes all of it, and a chat you leave is forgotten at the next
+  refresh ([`DeviceStore.swift`](ios/Ketchup/Store/DeviceStore.swift)).
+- **The server still decides what's unread.** When a chat opens, it takes your read cursor
+  from the server, so an out-of-date copy can't hide new messages from Catch me up.
+- **Paper, not spinners.** A first launch shows blank paper in the shape of the inbox's
+  rows and a chat's bubbles. It breathes slowly, and holds still with Reduce Motion on.
+
 ## Architecture
 
 ```mermaid
@@ -165,6 +183,14 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
+- **Deleting your account deletes what you wrote.** Settings → Delete account first deletes your
+  profile photo and the photos you sent from storage, then calls
+  [`delete_account()`](supabase/migrations/0007_people.sql), one transaction. Your
+  profile, memberships and every message you sent go, and so does a chat you were the
+  last one in. Each chat you wrote in gets its inbox line recomputed, so no preview
+  quotes you, and catch-ups friends saved that read your messages are deleted too: your
+  words don't outlive you inside someone else's summary. Messages don't stay behind as
+  "Deleted account", because in a group of friends the words still say who wrote them.
 - **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
   Profile photos are in a public bucket, so the app loads them without a token, but
   nobody can list it. You can only upload into and delete from your own folder (10 an
@@ -173,12 +199,13 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 44-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
-  plays two members and an outsider. It covers spoofing the sender, self-adding to a
+- **A 49-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+  plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
   Instagram and Snapchat catch-up's usage cap, profile photos (own folder only, no
-  listing, the hourly cap) and chat photos (members only, uploaded first, own chat only,
-  only the sender deletes). It runs in one transaction and rolls back.
+  listing, the hourly cap), chat photos (members only, uploaded first, own chat only,
+  only the sender deletes) and deleting an account. It runs in one transaction and
+  rolls back.
 
 ## Run it yourself
 
@@ -249,6 +276,18 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
   (name, start page, allowed sites, thread URL, reader script, user agent, desktop layout).
 
+## Settings and your account
+
+Settings opens from your initial at the top left of Chats
+([`ios/Ketchup/People/`](ios/Ketchup/People)).
+
+- **Change your name.** Friends see it in your chats, and Muse Spark uses it in catch-ups.
+- **Sign Instagram or Snapchat out of Ketchup.** Each row forgets that one site's sign-in
+  and saved data in Ketchup's web views on this iPhone (cookies, storage, caches, service
+  workers). Your accounts there aren't touched.
+- **Sign out, or delete your account for good** (see Security above). A page says what
+  goes and what stays, then asks once more.
+
 ## Built during the event
 
 This repo was started on November 2, 2026, during the hackathon. The commit history
@@ -258,8 +297,9 @@ then the iOS app.
 ## Built on
 
 The networking and chat plumbing are adapted from **AurariaGO**, a live App Store app I
-built under VibetempLLC. That includes the Supabase client approach and the chat bubble
-and input bar components. Everything specific to Ketchup is new for this event: the
+built under VibetempLLC. That includes the Supabase client approach, the chat bubble
+and input bar components, and the on-device cache and loading skeletons (restyled for
+Ketchup). Everything specific to Ketchup is new for this event: the
 schema, the `catch-up` edge function, the Muse Spark integration, the catch-up and
 ask-the-chat UI, plan cards, and the Realtime websocket (AurariaGO polls).
 

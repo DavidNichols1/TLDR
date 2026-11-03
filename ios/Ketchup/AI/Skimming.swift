@@ -56,9 +56,7 @@ struct SkimmingView: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
-            if !lines.isEmpty {
-                window
-            }
+            window
             clock
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,7 +67,10 @@ struct SkimmingView: View {
 
     private var window: some View {
         Group {
-            if reduceMotion {
+            if lines.isEmpty {
+                // The chat's messages aren't here yet: the window, blank.
+                SkimSkeletonRows(rows: rows, rowHeight: rowHeight, nameWidth: nameWidth)
+            } else if reduceMotion {
                 still
             } else {
                 TimelineView(.animation) { context in

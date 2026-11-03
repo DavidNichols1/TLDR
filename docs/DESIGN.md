@@ -86,6 +86,9 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `.paperCard(padding:radius:)` | The default container: card paper, hairline, no shadow. |
 | `Ticket { plan } stub: { stamp }` | A plan as an order ticket, parts placed either side of the tear line. Built on `TicketShape`, `PerforationLine` and `.ticketCard()`. |
 | `.receiptCard()` | Money, as a diner check with a torn zigzag edge (`ReceiptShape`). |
+| `Skeleton("Loading your chats") { … }` | A first load's blank paper: breathes (an opacity pulse), holds still with Reduce Motion, one "Loading" for VoiceOver. |
+| `Bone(width:share:height:line:)` | One blank line of type in hairline paper, sitting in a real line height. |
+| `InboxSkeleton()`, `ThreadSkeleton()`, `SkimSkeletonRows` | The inbox's rows, a thread's bubbles, the skim window's lines, before the first answer. |
 
 The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
 
@@ -163,6 +166,21 @@ Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on th
 - **The reader is "You"**, in ink; everyone else is in `personColor(name:)`, as in the chat.
 - **Mustard only on what's the reader's**: the times and money in the gist and in answers, their name in questions, their total.
 
+## First loads
+
+Ketchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a first load only shows on a first launch or a chat's first open. It's blank paper in the shape of what's coming, never a spinner. Screenshots: `screens/speed/`.
+
+<p>
+<img src="screens/speed/inbox-loading-light.png" width="200" alt="The inbox's skeleton rows">
+<img src="screens/speed/chat-loading-dark.png" width="200" alt="A thread's skeleton bubbles, dark">
+<img src="screens/speed/ai-loading-blank-light.png" width="200" alt="The skim window, blank">
+<img src="screens/speed/chat-kept-light.png" width="200" alt="A chat opened on its kept copy, offline">
+</p>
+
+- **Bars are hairline paper** (`rule`). Their bubbles are card paper with a hairline, like the real ones; mine are plain hairline paper. Rows keep the real heights at every text size, so nothing jumps when they land, and the real rows fade in (`Motion.fade`).
+- **It breathes, it doesn't shimmer:** a slow opacity pulse, since a shimmer band would be a gradient. With Reduce Motion it holds still.
+- **Offline,** a chat opens on its kept copy and the toast says "Couldn't refresh. Showing saved messages."
+
 ## Web chats (Instagram and Snapchat)
 
 Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one page of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Snapchat only runs its computer version, so its page is laid out 1024 points wide and shrunk to fit; pinch to zoom. Screenshots: `screens/webchat/` (the synthetic test threads, made-up people).
@@ -185,6 +203,27 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **"Experimental" is said, not shouted:** a kicker under the name, a line in the footer.
 
+## Settings
+
+Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of Chats. Screenshots: `screens/people/`.
+
+<p>
+<img src="screens/people/settings-light.png" width="200" alt="Settings: your name and email, Change your name, the web chats' sign-outs, Account">
+<img src="screens/people/settings-about-dark.png" width="200" alt="Account and the About colophon, dark">
+<img src="screens/people/settings-delete-light.png" width="200" alt="Delete your account: what goes, what stays, and the ketchup button">
+<img src="screens/people/settings-name-light.png" width="200" alt="Change your name, with the monogram following what you type">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `SettingsSection("You", kicker:footer:)` | A `SectionTitle` (and a kicker, under it when both don't fit) over rows on one `paperCard`, hairlines between them. Rows that draw nothing take no room, and a section with no rows doesn't show, so a slot can sit empty. |
+| `SettingsRow(_:systemImage:value:detail:destructive:chevron:)` | One row: an `inkSoft` icon, the label, a value on the right, or a `detail` line under a long label ("Nothing saved"). `destructive` is `ketchupText` (Delete account). At accessibility sizes the value goes under the label. Use it as a button's or link's label with `.pressable`. |
+| The header | A "Settings" kicker over your name in New York and your email, with your monogram on the right. |
+| About | A colophon on paper: the drop, the `Wordmark`, the version in a kicker, `MuseByline`, and the hackathon line. |
+
+- **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
+- **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out".
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -204,9 +243,11 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
-| `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too |
+| `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
+| `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |
 
 Light and dark screenshots:
