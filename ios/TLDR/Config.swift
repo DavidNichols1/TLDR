@@ -16,6 +16,10 @@ enum Config {
     /// Publishable (client) key — not a secret, RLS is the gate.
     nonisolated static let publishableKey = "sb_publishable_wBQM04epqb9p6riHKjGmCA_YNF9OpZl"
 
+    /// Digits in the emailed sign-in code. Must match the project's
+    /// Auth → Sign In / Providers → Email → "Email OTP Length" (8 on TLDR).
+    nonisolated static let otpLength = 8
+
     /// Realtime websocket (Phoenix protocol).
     nonisolated static var realtimeURL: URL {
         var c = URLComponents(url: supabaseURL, resolvingAgainstBaseURL: false)!

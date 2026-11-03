@@ -32,8 +32,8 @@ the technical recipe. README.md is the judge-facing overview.
   `cd ios && xcodebuild -project TLDR.xcodeproj -scheme TLDR -destination 'id=<sim udid>' build`
   (`xcrun simctl list devices available` for the udid; the iPhone 17 Pro sim works).
 - Then the iOS Simulator MCP: `launch` with the built `TLDR.app`, `screenshot`.
-- David signs in himself (email + 6-digit code); never type his email or codes.
-- Sign-in needs `{{ .Token }}` in the Magic Link and Confirm signup email templates.
+- David signs in himself (email + 8-digit code; `Config.otpLength` must match Auth → Email OTP Length); never type his email or codes.
+- Sign-in needs `{{ .Token }}` in the Magic Link and Confirm signup email templates (set Nov 2, 2026). Email goes out through Resend SMTP from noreply@vibetemp.com (30/hour cap).
 
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;

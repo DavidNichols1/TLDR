@@ -2,7 +2,7 @@
 //  SignInView.swift
 //  TLDR
 //
-//  Email → 6-digit code → in. The account is created on the first code.
+//  Email → emailed code (Config.otpLength digits) → in. The account is created on the first code.
 //
 
 import SwiftUI
@@ -95,7 +95,7 @@ struct SignInView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!validEmail || busy)
 
-            Text("We'll send a 6-digit code. New here? That makes your account.")
+            Text("We'll email you a \(Config.otpLength)-digit code. New here? That makes your account.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -107,7 +107,7 @@ struct SignInView: View {
             Text("Enter the code we sent to\n**\(email)**")
                 .multilineTextAlignment(.center)
 
-            TextField("123456", text: $code)
+            TextField(String(repeating: "0", count: Config.otpLength), text: $code)
                 .textContentType(.oneTimeCode)
                 .keyboardType(.numberPad)
                 .font(.system(.title, design: .monospaced).weight(.semibold))
@@ -115,9 +115,9 @@ struct SignInView: View {
                 .focused($focused)
                 .fieldStyle()
                 .onChange(of: code) { _, new in
-                    let digits = String(new.filter(\.isNumber).prefix(6))
+                    let digits = String(new.filter(\.isNumber).prefix(Config.otpLength))
                     if digits != new { code = digits }
-                    if digits.count == 6 { Task { await verify() } }
+                    if digits.count == Config.otpLength { Task { await verify() } }
                 }
 
             Button {
@@ -126,7 +126,7 @@ struct SignInView: View {
                 primaryLabel("Sign in")
             }
             .buttonStyle(.borderedProminent)
-            .disabled(code.count != 6 || busy)
+            .disabled(code.count != Config.otpLength || busy)
 
             HStack(spacing: 20) {
                 Button("Different email") {
@@ -192,7 +192,7 @@ struct SignInView: View {
     }
 
     private func verify() async {
-        guard code.count == 6, !busy else { return }
+        guard code.count == Config.otpLength, !busy else { return }
         busy = true
         error = nil
         defer { busy = false }
