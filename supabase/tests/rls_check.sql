@@ -66,11 +66,34 @@ do $$ begin
   perform * from public.ai_briefs;
   insert into results values ('ai_briefs readable but empty', true);
 exception when others then insert into results values ('ai_briefs readable but empty', false); end $$;
+-- catch-up-text's usage counts (0004): no client access at all.
+do $$ begin
+  perform * from public.text_brief_usage;
+  insert into results values ('text usage closed to clients', false);
+exception when others then insert into results values ('text usage closed to clients', true); end $$;
+do $$ begin
+  perform public.take_text_brief(auth.uid(), 'instagram', 'ask', 1, 100);
+  insert into results values ('clients cannot spend the text cap', false);
+exception when others then insert into results values ('clients cannot spend the text cap', true); end $$;
 
 reset role;
 update results set pass = (select count(*) = 1 from public.join_attempts
   where user_id = '00000000-0000-0000-0000-0000000000c3')
  where name = 'wrong code counted (not rolled back)';
+
+-- The text cap, as the edge function calls it: 2 of 2 allowed, then a
+-- refusal that isn't counted.
+grant all on results to service_role;
+set local role service_role;
+insert into results select 'text cap allows the 1st use',
+  public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'catch_up', 120, 2);
+insert into results select 'text cap allows the 2nd use',
+  public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'ask', 120, 2);
+insert into results select 'text cap refuses the 3rd use',
+  not public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'catch_up', 120, 2);
+reset role;
+insert into results select 'refused text use not counted',
+  (select count(*) = 2 from public.text_brief_usage where user_id = '00000000-0000-0000-0000-0000000000a1');
 
 select * from results;
 rollback;

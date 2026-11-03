@@ -97,9 +97,10 @@ function isoOrNull(v: unknown): string | null {
   return isNaN(d.getTime()) ? null : s;
 }
 
-export interface CatchUp {
+/** Refs are message ids for Ketchup chats, message indexes for catch-up-text. */
+export interface CatchUp<Ref = string> {
   tldr: string;
-  highlights: { text: string; refs: string[] }[];
+  highlights: { text: string; refs: Ref[] }[];
   plans: {
     title: string;
     starts_at: string | null;
@@ -108,18 +109,18 @@ export interface CatchUp {
     location: string | null;
     status: "confirmed" | "proposed";
     who: string[];
-    refs: string[];
+    refs: Ref[];
   }[];
-  open_questions: { question: string; asked_by: string | null; refs: string[] }[];
-  owes: { who: string; owes_whom: string | null; what: string; refs: string[] }[];
-  for_you: { text: string; refs: string[] }[];
+  open_questions: { question: string; asked_by: string | null; refs: Ref[] }[];
+  owes: { who: string; owes_whom: string | null; what: string; refs: Ref[] }[];
+  for_you: { text: string; refs: Ref[] }[];
 }
 
 /** Validates and cleans a catch-up; items without supporting refs are dropped. */
-export function cleanCatchUp(raw: Record<string, unknown>, refs: Map<string, string>): CatchUp {
+export function cleanCatchUp<Ref>(raw: Record<string, unknown>, refs: Map<string, Ref>): CatchUp<Ref> {
   const tldr = str(raw.tldr, 600);
   if (!tldr) throw new Error("Model JSON had no tldr");
-  const cited = <T>(items: T[]) => items.filter((i) => (i as { refs: string[] }).refs.length > 0);
+  const cited = <T>(items: T[]) => items.filter((i) => (i as { refs: Ref[] }).refs.length > 0);
 
   return {
     tldr,
@@ -157,13 +158,13 @@ export function cleanCatchUp(raw: Record<string, unknown>, refs: Map<string, str
   };
 }
 
-export interface Answer {
+export interface Answer<Ref = string> {
   answer: string;
   found: boolean;
-  refs: string[];
+  refs: Ref[];
 }
 
-export function cleanAnswer(raw: Record<string, unknown>, refs: Map<string, string>): Answer {
+export function cleanAnswer<Ref>(raw: Record<string, unknown>, refs: Map<string, Ref>): Answer<Ref> {
   const answer = str(raw.answer, 1200);
   if (!answer) throw new Error("Model JSON had no answer");
   const ids = resolveRefs(raw.refs, refs, 5);

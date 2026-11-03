@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Inbox • Direct</title>
+<!--
+  Ketchup test fixture: a SYNTHETIC Instagram web DM thread ("Breck Crew 🎿").
+  Fictional people only. Nothing here was copied from Instagram and nothing is
+  fetched: every image is an inline SVG or a data: URI. Load it with
+  loadHTMLString(html, baseURL: https://www.instagram.com/direct/t/ketchup-test-fixture/).
+
+  It copies the parts of the real page an extractor can rely on, and none it
+  can't. Class names are meaningless atomic classes (one CSS declaration each,
+  hashed like StyleX), and the only id is the React root. Everything is drawn
+  by the script below, the way React draws Instagram:
+
+    #mount_0_0_Ab > div > div > div
+      header bar: Back button, 32px avatar, title "Breck Crew 🎿", member names,
+                  Audio call / Video call / Conversation information buttons
+      div[role=main]
+        scroll container (overflow-y: auto)
+          div > div > div[role=grid][aria-label="Messages in conversation with Breck Crew 🎿"]
+            div[role=row] > div[role=none] > div[role=gridcell] > div > ...
+        composer: div[role=textbox][contenteditable][aria-label=Message] holding a draft
+
+  Rows are time separators, system notices, messages (theirs on the left in gray
+  bubbles with a name label over each run and an avatar by its last bubble, mine
+  on the right in gradient bubbles), media, a reply, reactions, an edited
+  message, a read receipt and a typing indicator.
+
+  Lazy loading works like Instagram's upward infinite scroll: only the newest
+  items render at first. When the scroll container comes within 80px of its top
+  a progressbar row appears, and 700ms later the next 15 older items are added
+  above while the visible messages stay put. A scroll listener and a 200ms poll
+  both trigger it, because WebKit throttles hidden pages. After the last batch,
+  the thread-start header (avatar, title, "Instagram", "View profile") shows at
+  the very top.
+
+  ig-thread-fixture.expected.json is the ground truth for the fully loaded
+  thread. It follows THREAD below; change both together.
+-->
+<style>
+html, body { margin: 0; padding: 0; height: 100%; background-color: rgb(255, 255, 255); }
+body { overflow: hidden; color: rgb(0, 0, 0); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#mount_0_0_Ab { height: 100%; }
+@keyframes xq2e8kj { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@keyframes x1n9e3tl { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="mount_0_0_Ab"></div>
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // The conversation. Keys: k = kind, by = sender (a PEOPLE key, or 'me'),
+  // t = text (a string, "\n" is a line break, or a list of strings and links),
+  // r = reaction pill, ed = edited, to/q = reply target and quoted text,
+  // user/cap = shared post, dur = voice note length.
+  // ---------------------------------------------------------------------------
+  const PEOPLE = /*PEOPLE_BEGIN*/{
+    m: { name: 'Maya', user: 'maya.k', color: '#c2255c' },
+    j: { name: 'Jordan', user: 'jordan.r', color: '#364fc7' },
+    s: { name: 'Sam', user: 'sam.t', color: '#e8590c' },
+    p: { name: 'Priya', user: 'priya.n', color: '#087f5b' }
+  }/*PEOPLE_END*/;
+
+  const THREAD = /*THREAD_BEGIN*/[
+    // ---- batch 3 (oldest), items 0-14 ----
+    { k: 'sep', t: 'Oct 28, 4:12 PM' },
+    { k: 'notice', t: 'Maya named the group Breck Crew 🎿' },
+    { k: 'msg', by: 'm', t: "ok it's official" },
+    { k: 'msg', by: 'm', t: "breck weekend, the 14th. who's in" },
+    { k: 'msg', by: 'm', t: 'snow report is lookin unreal btw' },
+    { k: 'msg', by: 'j', t: 'IN' },
+    { k: 'msg', by: 'j', t: 'been waiting all year for this' },
+    { k: 'msg', by: 's', t: 'wait which weekend' },
+    { k: 'msg', by: 'm', t: 'the 14th sam. I literally just said that' },
+    { k: 'msg', by: 's', t: "ok ok in. as long as we're not leaving at like 4am lol" },
+    { k: 'msg', by: 'p', t: "ugh I want to but my cousin's engagement party is that saturday" },
+    { k: 'msg', by: 'p', t: 'let me see if I can drive up after' },
+    { k: 'msg', by: 'me', t: "I'm in", r: '❤️ 2' },
+    { k: 'jumbo', by: 'me', t: '🙌' },
+    { k: 'msg', by: 'm', t: 'ok so 5 of us max' },
+    // ---- batch 2, items 15-29 ----
+    { k: 'msg', by: 'j', t: 'where are we staying' },
+    { k: 'msg', by: 'm', t: 'found a 3br in town, walkable to the gondola' },
+    { k: 'msg', by: 'm', t: 'waiting on the host to confirm, will send tonight' },
+    { k: 'msg', by: 'p', t: 'omg yes' },
+    { k: 'msg', by: 's', t: 'does it have a hot tub. asking for me' },
+    { k: 'msg', by: 'm', t: "you'll see" },
+    { k: 'sep', t: 'Wed 7:05 PM' },
+    { k: 'msg', by: 'm', t: ['booked it!! ', { a: 'https://l.instagram.com/?u=https%3A%2F%2Fwww.airbnb.com%2Frooms%2F4417&e=AT0kFixture', t: 'airbnb.com/rooms/4417' }], r: '❤️ 3' },
+    { k: 'msg', by: 'm', t: 'total is $1,240 for the whole weekend' },
+    { k: 'msg', by: 'j', t: 'honestly not bad split 5 ways' },
+    { k: 'msg', by: 's', t: '$248 each if my math is mathing' },
+    { k: 'msg', by: 'm', t: 'yep $248 each. venmo me by friday pls 🙏', r: '👍 2' },
+    { k: 'msg', by: 'p', t: 'sending now' },
+    { k: 'msg', by: 'j', t: "venmo'd" },
+    { k: 'msg', by: 's', t: 'can I pay you in snacks' },
+    // ---- batch 1, items 30-44 ----
+    { k: 'msg', by: 'm', t: 'no' },
+    { k: 'msg', by: 'm', t: 'the hot tub tho' },
+    { k: 'photo', by: 'm', r: '❤️ 2' },
+    { k: 'msg', by: 's', t: 'SHE DELIVERED' },
+    { k: 'video', by: 's' },
+    { k: 'msg', by: 's', t: 'me last year on peak 8 lol' },
+    { k: 'msg', by: 'j', t: 'that fall was majestic' },
+    { k: 'msg', by: 'j', t: 'I can drive btw, the 4runner fits 5 + gear' },
+    { k: 'msg', by: 'j', t: 'leaving sat at 7 from my place?' },
+    { k: 'msg', by: 's', t: '7 works' },
+    { k: 'msg', by: 'me', t: 'works for me' },
+    { k: 'msg', by: 'p', t: "I'll drive up separately after the party" },
+    { k: 'msg', by: 'p', t: 'prob get there around 9 or 10' },
+    { k: 'msg', by: 'm', t: "noo ok we'll save you a bed" },
+    { k: 'sep', t: 'Fri 8:30 PM' },
+    // ---- rendered on load, items 45-95 ----
+    { k: 'post', by: 'j', user: 'breckresort', cap: 'first chair at 8:30 or bust', r: '🔥 2' },
+    { k: 'msg', by: 'j', t: 'lifts open at 8:30 this year 👀' },
+    { k: 'msg', by: 's', t: 'ok if we want first chair we have to leave way earlier than 7' },
+    { k: 'msg', by: 'j', t: 'leaving at 6am instead, still from my place', ed: true },
+    { k: 'msg', by: 'm', t: '6am 😭' },
+    { k: 'msg', by: 'm', t: 'fine. coffee is on jordan', r: '😂 3' },
+    { k: 'msg', by: 'j', t: 'deal' },
+    { k: 'msg', by: 's', t: '6am is the middle of the night jordan' },
+    { k: 'msg', by: 'j', t: "you'll survive" },
+    { k: 'gif', by: 'me' },
+    { k: 'msg', by: 'p', t: 'can we at least stop for coffee in idaho springs' },
+    { k: 'msg', by: 'j', t: "if we're making good time" },
+    { k: 'msg', by: 'm', t: 'also I got us a dinner rez saturday!! 7:30 at The Rusty Gondola', r: '❤️ 2' },
+    { k: 'msg', by: 'm', t: 'table for 4 since priya gets in late' },
+    { k: 'msg', by: 'p', t: 'save me fries' },
+    { k: 'msg', by: 's', t: "david what size boots are you? I'm reserving rentals for both of us at the shop on main st" },
+    { k: 'sep', t: 'Yesterday 9:02 PM' },
+    { k: 'msg', by: 'm', t: 'packing list:\n- helmet + goggles\n- hand warmers\n- swimsuit for the hot tub\n- snacks for the drive' },
+    { k: 'msg', by: 'j', t: 'and chains just in case, might snow friday night' },
+    { k: 'msg', by: 's', t: "the 4runner doesn't need chains it's a tank" },
+    { k: 'msg', by: 'j', t: "it's literally the law on I-70 sometimes sam" },
+    { k: 'notice', t: 'Sam unsent a message' },
+    { k: 'msg', by: 's', t: 'anyway' },
+    { k: 'msg', by: 'p', t: "what's parking like at the airbnb" },
+    { k: 'msg', by: 'm', t: "2 spots in the garage, we're fine" },
+    { k: 'reply', by: 'j', to: 'm', q: "2 spots in the garage, we're fine", t: 'perfect, 4runner gets one and priya gets the other' },
+    { k: 'msg', by: 'j', t: "priya you're on your own for snow tires tho" },
+    { k: 'msg', by: 'p', t: 'rude but fair' },
+    { k: 'msg', by: 'p', t: 'do we need towels or does the place have them' },
+    { k: 'msg', by: 'm', t: 'it has towels and a washer' },
+    { k: 'msg', by: 's', t: 'and a hot tub' },
+    { k: 'msg', by: 'm', t: 'and a hot tub sam yes' },
+    { k: 'sep', t: 'Today 11:14 AM' },
+    { k: 'msg', by: 'm', t: "reminder to venmo me by friday if you haven't!!" },
+    { k: 'msg', by: 'm', t: 'still waiting on sam and david' },
+    { k: 'msg', by: 's', t: 'sent!!' },
+    { k: 'voice', by: 'j', dur: '0:12' },
+    { k: 'msg', by: 'j', t: 'basically 6am sharp or we sit in I-70 traffic all morning' },
+    { k: 'jumbo', by: 's', t: '😴' },
+    { k: 'msg', by: 's', t: "I'll bring breakfast burritos for the drive" },
+    { k: 'msg', by: 'm', t: "sam you're a hero" },
+    { k: 'msg', by: 'p', t: 'a true hero' },
+    { k: 'sep', t: 'Today 3:41 PM' },
+    { k: 'msg', by: 'p', t: 'ok good news I can leave the party a little early' },
+    { k: 'msg', by: 'p', t: "still can't get up there until saturday night tho, like 9pm" },
+    { k: 'msg', by: 'p', t: "it's a whole thing, long story" },
+    { k: 'msg', by: 'p', t: "I'll text when I leave denver" },
+    { k: 'msg', by: 'j', t: 'David are you bringing the speaker?' },
+    { k: 'msg', by: 's', t: 'also david boot size?? need it by tomorrow for the rental' },
+    { k: 'msg', by: 'm', t: "who's bringing cards for game night" },
+    { k: 'msg', by: 'me', t: 'sorry slammed at work today, will catch up on all this tonight' }
+  ]/*THREAD_END*/;
+
+  const OLDER = 45;     // items [0, OLDER) are not rendered until you scroll up
+  const BATCH = 15;     // older items added per load
+  const RECEIPT = 'Seen by Maya, Jordan';
+  const TYPING_BY = 's';
+  const MSG_KINDS = { msg: 1, jumbo: 1, photo: 1, video: 1, voice: 1, post: 1, gif: 1, reply: 1 };
+
+  // ---------------------------------------------------------------------------
+  // Atomic CSS. Every declaration becomes one class named by a hash of it, so
+  // class names say nothing about what an element is.
+  // ---------------------------------------------------------------------------
+  const RULES = [];
+  const CLASS_OF = new Map();
+  const TAKEN = new Set();
+  const SEEDED = {
+    'box-sizing:border-box': 'x9f619', 'position:relative': 'x1n2onr6', 'z-index:0': 'x1ja2u2z',
+    'display:flex': 'x78zum5', 'flex-direction:column': 'xdt5ytf', 'flex-grow:1': 'x1iyjqo2',
+    'flex-shrink:0': 'x2lah0s', 'align-items:center': 'x6s0dn4', 'justify-content:center': 'xl56j7k',
+    'display:block': 'x1lliihq', 'max-width:100%': 'x193iq5w', 'width:100%': 'xh8yej3'
+  };
+  function fnv(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(36);
+  }
+  function atom(decl) {
+    let c = CLASS_OF.get(decl);
+    if (c) return c;
+    c = SEEDED[decl] || 'x' + fnv(decl);
+    for (let salt = 1; TAKEN.has(c); salt++) c = 'x' + fnv(decl + '#' + salt);
+    TAKEN.add(c);
+    CLASS_OF.set(decl, c);
+    RULES.push('.' + c + '{' + decl + '}');
+    return c;
+  }
+  // sx('display:flex; color:red', ...) merges declarations (a later one wins) into atomic classes.
+  function sx() {
+    const byProp = new Map();
+    for (let a = 0; a < arguments.length; a++) {
+      String(arguments[a]).split(';').forEach(function (d) {
+        const i = d.indexOf(':');
+        if (i < 0) return;
+        const prop = d.slice(0, i).trim();
+        if (!prop) return;
+        byProp.delete(prop);
+        byProp.set(prop, d.slice(i + 1).trim());
+      });
+    }
+    return Array.from(byProp, function (pv) { return atom(pv[0] + ':' + pv[1]); }).join(' ');
+  }
+
+  // Shorthand resets are registered first so the longhands below win the cascade.
+  const RESET = 'box-sizing:border-box; margin:0; padding:0; min-width:0; min-height:0';
+  sx(RESET);
+  const BUBBLE = 'display:block; border-radius:18px; padding-top:7px; padding-bottom:7px; padding-left:12px; padding-right:12px';
+  const THEIRS = 'background-color:rgb(239,239,239)';
+  const MINE = 'background-color:transparent; background-image:linear-gradient(135deg, rgb(55,151,240) 0%, rgb(131,58,180) 100%)';
+  const TEXT15 = 'display:block; font-size:15px; line-height:20px; font-weight:400; overflow-wrap:anywhere; text-align:start';
+  const GRAY12 = 'display:block; font-size:12px; line-height:16px; font-weight:400; color:rgb(115,115,115)';
+  const COL = 'display:flex; flex-direction:column; max-width:70%; position:relative';
+  const GROUP = 'display:flex; flex-direction:column; padding-left:16px; padding-right:16px';
+  const PILL = 'position:absolute; bottom:-16px; display:flex; flex-direction:row; align-items:center; height:24px; padding-left:6px; padding-right:6px; border-radius:12px; background-color:rgb(239,239,239); border:2px solid rgb(255,255,255); white-space:nowrap; cursor:pointer; z-index:1';
+  const VOICE = 'display:flex; flex-direction:row; align-items:center; width:220px; max-width:100%; padding-top:6px; padding-bottom:6px; padding-left:8px; padding-right:12px';
+  const DOT = 'display:block; width:7px; height:7px; border-radius:50%; background-color:rgb(142,142,142); margin-left:2px; margin-right:2px; animation-name:xq2e8kj; animation-duration:1.2s; animation-iteration-count:infinite; animation-timing-function:ease-in-out';
+  const ICONBTN = 'display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; color:rgb(0,0,0)';
+
+  const B = {
+    outer1: sx(RESET, 'display:flex; flex-direction:column; height:100%; position:relative; z-index:0'),
+    outer2: sx(RESET, 'display:flex; flex-direction:column; flex-grow:1; height:100%'),
+    app: sx(RESET, 'display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; position:relative; background-color:rgb(255,255,255)'),
+    headerWrap: sx(RESET, 'flex-shrink:0; position:relative; z-index:1; background-color:rgb(255,255,255)'),
+    header: sx(RESET, 'display:flex; flex-direction:row; align-items:center; height:60px; padding-left:6px; padding-right:6px; border-bottom:1px solid rgb(219,219,219)'),
+    iconBtn: sx(RESET, ICONBTN, 'width:40px; height:40px'),
+    iconBtnSm: sx(RESET, ICONBTN, 'width:34px; height:34px'),
+    headTitleBtn: sx(RESET, 'display:flex; flex-direction:row; align-items:center; flex-grow:1; overflow:hidden; cursor:pointer; padding-left:4px'),
+    headAvatarWrap: sx(RESET, 'flex-shrink:0; width:32px; height:32px; margin-right:10px'),
+    headAvatar: sx(RESET, 'display:block; width:32px; height:32px; border-radius:50%; object-fit:cover'),
+    headText: sx(RESET, 'display:flex; flex-direction:column; flex-grow:1; overflow:hidden'),
+    headTitle: sx(RESET, 'display:block; font-size:16px; line-height:20px; font-weight:600; color:rgb(0,0,0); white-space:nowrap; overflow:hidden; text-overflow:ellipsis'),
+    headSub: sx(RESET, GRAY12, 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis'),
+    headIcons: sx(RESET, 'display:flex; flex-direction:row; align-items:center; flex-shrink:0'),
+    svg: sx('display:block; position:relative'),
+    main: sx(RESET, 'display:flex; flex-direction:column; flex-grow:1; flex-shrink:1; flex-basis:0%; position:relative'),
+    scroller: sx(RESET, 'flex-grow:1; flex-shrink:1; flex-basis:0%; overflow-x:hidden; overflow-y:auto; overflow-anchor:none; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; position:relative'),
+    scrollInner: sx(RESET, 'display:flex; flex-direction:column; justify-content:flex-end; min-height:100%; padding-bottom:12px'),
+    gridWrap: sx(RESET, 'display:block; width:100%'),
+    grid: sx(RESET, 'display:flex; flex-direction:column; width:100%'),
+    row: sx(RESET, 'display:block; width:100%; position:relative'),
+    rowInner: sx(RESET, 'display:flex; flex-direction:column'),
+    cell: sx(RESET, 'display:flex; flex-direction:column; outline:none'),
+    cellInner: sx(RESET, 'display:block'),
+    sepWrap: sx(RESET, 'display:flex; flex-direction:row; justify-content:center; padding-top:16px; padding-bottom:8px; padding-left:16px; padding-right:16px'),
+    sepText: sx(RESET, GRAY12, 'font-weight:500; text-align:center'),
+    noticeWrap: sx(RESET, 'display:flex; flex-direction:row; justify-content:center; padding-top:10px; padding-bottom:6px; padding-left:32px; padding-right:32px'),
+    noticeText: sx(RESET, GRAY12, 'text-align:center'),
+    groupFirst: sx(RESET, GROUP, 'margin-top:8px'),
+    groupNext: sx(RESET, GROUP, 'margin-top:2px'),
+    groupMineFirst: sx(RESET, GROUP, 'align-items:flex-end; margin-top:8px'),
+    groupMineNext: sx(RESET, GROUP, 'align-items:flex-end; margin-top:2px'),
+    nameWrap: sx(RESET, 'display:flex; flex-direction:row; padding-left:48px; padding-bottom:2px'),
+    nameText: sx(RESET, GRAY12, 'white-space:nowrap'),
+    line: sx(RESET, 'display:flex; flex-direction:row; align-items:flex-end; width:100%'),
+    lineMine: sx(RESET, 'display:flex; flex-direction:row; align-items:flex-end; justify-content:flex-end; width:100%'),
+    avatarSlot: sx(RESET, 'flex-shrink:0; width:28px; height:28px; margin-right:8px; align-self:flex-end'),
+    avatarLink: sx(RESET, 'display:block; width:28px; height:28px; border-radius:50%; overflow:hidden; cursor:pointer'),
+    avatarImg: sx(RESET, 'display:block; width:28px; height:28px; border-radius:50%; object-fit:cover'),
+    colTheirs: sx(RESET, COL, 'align-items:flex-start'),
+    colMine: sx(RESET, COL, 'align-items:flex-end'),
+    colTheirsReacted: sx(RESET, COL, 'align-items:flex-start; margin-bottom:16px'),
+    colMineReacted: sx(RESET, COL, 'align-items:flex-end; margin-bottom:16px'),
+    bubbleWrap: sx(RESET, 'display:block; max-width:100%; position:relative'),
+    bubbleTheirs: sx(RESET, BUBBLE, THEIRS),
+    bubbleMine: sx(RESET, BUBBLE, MINE),
+    textTheirs: sx(RESET, TEXT15, 'color:rgb(0,0,0)'),
+    textMine: sx(RESET, TEXT15, 'color:rgb(255,255,255)'),
+    spanOuter: sx('display:inline; position:relative'),
+    spanInner: sx('display:inline; overflow-wrap:anywhere'),
+    link: sx('color:inherit; text-decoration:underline; cursor:pointer; overflow-wrap:anywhere'),
+    jumbo: sx(RESET, 'display:block; background-color:transparent; padding-top:2px; padding-bottom:2px'),
+    jumboText: sx(RESET, 'display:block; font-size:40px; line-height:48px'),
+    mediaBtn: sx(RESET, 'display:block; position:relative; cursor:pointer'),
+    mediaBox: sx(RESET, 'display:block; width:200px; height:260px; border-radius:18px; overflow:hidden; position:relative; background-color:rgb(239,239,239)'),
+    gifBox: sx(RESET, 'display:block; width:200px; height:150px; border-radius:18px; overflow:hidden; position:relative; background-color:rgb(239,239,239)'),
+    mediaImg: sx(RESET, 'display:block; width:100%; height:100%; object-fit:cover'),
+    playOverlay: sx(RESET, 'position:absolute; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; pointer-events:none'),
+    voiceTheirs: sx(RESET, BUBBLE, THEIRS, VOICE, 'color:rgb(0,0,0)'),
+    voiceMine: sx(RESET, BUBBLE, MINE, VOICE, 'color:rgb(255,255,255)'),
+    playBtn: sx(RESET, 'display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex-shrink:0; cursor:pointer'),
+    wave: sx('display:block; flex-grow:1; height:24px; margin-left:6px; margin-right:8px'),
+    voiceLen: sx(RESET, 'display:block; flex-shrink:0; font-size:12px; line-height:16px'),
+    postWrap: sx(RESET, 'display:block; position:relative'),
+    postCard: sx(RESET, 'display:block; width:220px; border-radius:18px; overflow:hidden; background-color:rgb(239,239,239); color:rgb(0,0,0); text-decoration:none; cursor:pointer'),
+    postHead: sx(RESET, 'display:flex; flex-direction:row; align-items:center; padding-top:8px; padding-bottom:8px; padding-left:12px; padding-right:12px'),
+    postAvatar: sx(RESET, 'display:block; width:24px; height:24px; border-radius:50%; margin-right:8px; flex-shrink:0'),
+    postUser: sx(RESET, 'display:block; font-size:13px; line-height:18px; font-weight:600'),
+    postThumb: sx(RESET, 'display:block; width:220px; height:220px; object-fit:cover'),
+    postCapWrap: sx(RESET, 'display:block; padding-top:8px; padding-bottom:10px; padding-left:12px; padding-right:12px'),
+    postCap: sx(RESET, 'display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-size:13px; line-height:18px'),
+    replyHeadWrap: sx(RESET, 'display:flex; flex-direction:row; padding-left:48px; padding-bottom:4px'),
+    replyHead: sx(RESET, GRAY12, 'white-space:nowrap'),
+    quoteWrap: sx(RESET, 'display:flex; flex-direction:row; padding-left:36px; margin-bottom:2px'),
+    quoteBubble: sx(RESET, BUBBLE, THEIRS, 'max-width:70%; opacity:0.6; padding-top:6px; padding-bottom:6px'),
+    quoteText: sx(RESET, 'display:block; font-size:13px; line-height:17px; color:rgb(0,0,0); overflow-wrap:anywhere'),
+    pillTheirs: sx(RESET, PILL, 'left:10px'),
+    pillMine: sx(RESET, PILL, 'right:10px'),
+    pillText: sx(RESET, 'display:block; font-size:12px; line-height:16px; color:rgb(38,38,38)'),
+    edited: sx(RESET, GRAY12, 'margin-top:2px; padding-left:12px; padding-right:12px'),
+    receiptWrap: sx(RESET, 'display:flex; flex-direction:row; justify-content:flex-end; padding-left:16px; padding-right:20px; margin-top:4px'),
+    receiptText: sx(RESET, GRAY12),
+    typing: sx(RESET, THEIRS, 'display:flex; flex-direction:row; align-items:center; height:36px; padding-left:14px; padding-right:14px; border-radius:18px'),
+    dot1: sx(RESET, DOT),
+    dot2: sx(RESET, DOT, 'animation-delay:0.15s'),
+    dot3: sx(RESET, DOT, 'animation-delay:0.3s'),
+    tsWrap: sx(RESET, 'display:flex; flex-direction:column; align-items:center; padding-top:32px; padding-bottom:24px; padding-left:16px; padding-right:16px'),
+    tsAvatarWrap: sx(RESET, 'display:block; width:96px; height:96px; margin-bottom:12px'),
+    tsAvatar: sx(RESET, 'display:block; width:96px; height:96px; border-radius:50%; object-fit:cover'),
+    tsTitle: sx(RESET, 'display:block; font-size:20px; line-height:25px; font-weight:600; color:rgb(0,0,0); text-align:center'),
+    tsSub: sx(RESET, 'display:block; font-size:14px; line-height:18px; color:rgb(115,115,115); text-align:center; margin-top:2px'),
+    tsBtn: sx(RESET, 'display:flex; align-items:center; justify-content:center; height:32px; margin-top:16px; padding-left:16px; padding-right:16px; border-radius:8px; background-color:rgb(239,239,239); cursor:pointer'),
+    tsBtnText: sx(RESET, 'display:block; font-size:14px; line-height:18px; font-weight:600; color:rgb(0,0,0)'),
+    loader: sx(RESET, 'display:flex; align-items:center; justify-content:center; width:100%; height:48px; flex-shrink:0; color:rgb(115,115,115)'),
+    spin: sx('display:block; animation-name:x1n9e3tl; animation-duration:0.8s; animation-iteration-count:infinite; animation-timing-function:linear'),
+    composerOuter: sx(RESET, 'flex-shrink:0; padding-top:8px; padding-bottom:12px; padding-left:12px; padding-right:12px; background-color:rgb(255,255,255)'),
+    composerPill: sx(RESET, 'display:flex; flex-direction:row; align-items:center; min-height:44px; padding-left:6px; padding-right:6px; border:1px solid rgb(219,219,219); border-radius:22px'),
+    fieldWrap: sx(RESET, 'flex-grow:1; position:relative; padding-left:6px; padding-right:6px'),
+    field: sx(RESET, 'display:block; max-height:96px; overflow-y:auto; font-size:15px; line-height:20px; color:rgb(0,0,0); outline:none; white-space:pre-wrap; overflow-wrap:break-word; cursor:text'),
+    fieldP: sx(RESET, 'display:block')
+  };
+
+  // ---------------------------------------------------------------------------
+  // Pictures: inline SVG only, so nothing is fetched.
+  // ---------------------------------------------------------------------------
+  const NS = 'xmlns="http://www.w3.org/2000/svg"';
+  function svgURI(svg) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
+  function avatarURI(p) {
+    return svgURI('<svg ' + NS + ' width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="' + p.color + '"/>' +
+      '<text x="32" y="42" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="28" font-weight="700" fill="#ffffff">' + p.name[0] + '</text></svg>');
+  }
+  const AVATAR = {};
+  Object.keys(PEOPLE).forEach(function (k) { AVATAR[k] = avatarURI(PEOPLE[k]); });
+  const IMG = {
+    group: svgURI('<svg ' + NS + ' width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" fill="#4c6ef5"/><path d="M6 80 36 38l14 18 14-22 26 46z" fill="#e7f5ff"/><path d="M36 38l7 10-7-3-6 4zM64 34l8 12-8-4-6 5z" fill="#ffffff"/></svg>'),
+    resort: svgURI('<svg ' + NS + ' width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#1864ab"/><text x="24" y="32" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff">B</text></svg>'),
+    photo: svgURI('<svg ' + NS + ' width="400" height="520" viewBox="0 0 400 520"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#182848"/><stop offset="1" stop-color="#6d83b8"/></linearGradient></defs>' +
+      '<rect width="400" height="520" fill="url(#s)"/><circle cx="310" cy="90" r="26" fill="#f8f3d4"/><path d="M0 290 120 160l70 80 90-120 120 150v250H0z" fill="#dfe7f3"/>' +
+      '<path d="M120 160l26 30-26-8-22 14zM280 120l30 36-30-10-26 16z" fill="#ffffff"/><rect y="360" width="400" height="160" fill="#6b4f3a"/>' +
+      '<ellipse cx="200" cy="410" rx="160" ry="58" fill="#2b8db3"/><ellipse cx="200" cy="404" rx="140" ry="44" fill="#74d0e8"/>' +
+      '<path d="M150 360c-14-18 14-30 0-50s14-30 0-48M200 350c-14-18 14-30 0-50s14-30 0-48M250 360c-14-18 14-30 0-50s14-30 0-48" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="7" stroke-linecap="round"/></svg>'),
+    poster: svgURI('<svg ' + NS + ' width="400" height="520" viewBox="0 0 400 520"><rect width="400" height="520" fill="#9ec5f8"/><path d="M0 200 400 120v400H0z" fill="#dde7f5"/>' +
+      '<path d="M0 262 400 172" stroke="#b9cbe4" stroke-width="6"/><path d="M40 420l18-40 18 40zM300 470l22-48 22 48zM330 300l16-34 16 34z" fill="#2b8a3e"/><g transform="translate(190 250) rotate(-18)"><circle cx="0" cy="-46" r="12" fill="#e8590c"/>' +
+      '<path d="M-14 -32h28l6 40h-40z" fill="#e8590c"/><path d="M-8 8l-6 22M8 8l10 22" stroke="#343a40" stroke-width="8" stroke-linecap="round"/>' +
+      '<path d="M-30 32h72" stroke="#212529" stroke-width="6" stroke-linecap="round"/></g></svg>'),
+    thumb: svgURI('<svg ' + NS + ' width="440" height="440" viewBox="0 0 440 440"><rect width="440" height="440" fill="#4dabf7"/><path d="M0 330 150 120l70 90 80-130 140 210v150H0z" fill="#f1f3f5"/>' +
+      '<path d="M150 120l30 40-30-10-25 20zM300 80l34 50-34-14-28 22z" fill="#ffffff"/><path d="M-10 90 450 250" stroke="#343a40" stroke-width="3"/>' +
+      '<g fill="#212529"><rect x="96" y="128" width="26" height="16" rx="3"/><rect x="246" y="180" width="26" height="16" rx="3"/><rect x="376" y="226" width="26" height="16" rx="3"/></g></svg>'),
+    gif: svgURI('<svg ' + NS + ' width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#ffe066"/><circle cx="200" cy="205" r="70" fill="#ffffff"/>' +
+      '<circle cx="200" cy="108" r="45" fill="#ffffff"/><circle cx="185" cy="100" r="5" fill="#212529"/><circle cx="215" cy="100" r="5" fill="#212529"/>' +
+      '<path d="M200 110l28 8-28 6z" fill="#f76707"/><path d="M60 60l20 20M80 60l-20 20M330 50l16 16M346 50l-16 16" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/></svg>')
+  };
+
+  function icon(label, inner) {
+    return svgEl('<svg aria-label="' + label + '" class="' + B.svg + '" fill="currentColor" height="24" role="img" viewBox="0 0 24 24" width="24"><title>' + label + '</title>' + inner + '</svg>');
+  }
+  const STROKE = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ICON = {
+    back: '<path d="M15 4.5 7.5 12 15 19.5" ' + STROKE + '/>',
+    phone: '<path d="M18.2 21c-1 0-2.3-.3-3.8-.9a19 19 0 0 1-5.8-4 19 19 0 0 1-4-5.8C3.9 8.8 3.6 7.5 3.6 6.5c0-.8.3-1.5.9-2l1.2-1.1c.6-.6 1.6-.6 2.2 0l2 2.3c.5.6.5 1.5 0 2.1l-1 1.1c.7 1.6 2.6 3.6 4.2 4.3l1.1-1c.6-.6 1.5-.6 2.1-.1l2.3 2c.6.6.6 1.6 0 2.2l-1.1 1.2c-.5.6-1.3 1-2.1 1z" ' + STROKE + '/>',
+    video: '<rect height="12" rx="2.5" width="13" x="2" y="6" ' + STROKE + '/><path d="M15 10.5 22 6.8v10.4L15 13.5z" ' + STROKE + '/>',
+    info: '<circle cx="12" cy="12" r="10" ' + STROKE + '/><circle cx="12" cy="7.8" r="1.3"/><path d="M12 11v6.5" ' + STROKE + '/>',
+    emoji: '<circle cx="12" cy="12" r="10" ' + STROKE + '/><circle cx="8.8" cy="9.8" r="1.3"/><circle cx="15.2" cy="9.8" r="1.3"/><path d="M7.8 14.2a5 5 0 0 0 8.4 0" ' + STROKE + '/>',
+    mic: '<rect height="11" rx="3" width="6" x="9" y="2.5" ' + STROKE + '/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4" ' + STROKE + '/>',
+    photo: '<rect height="17" rx="3" width="19" x="2.5" y="3.5" ' + STROKE + '/><circle cx="8.5" cy="9" r="1.6"/><path d="m3.5 18 5-5 3.5 3.5 3-3 5.5 5" ' + STROKE + '/>',
+    heart: '<path d="M12 20.5s-7.5-4.6-9.2-9.1C1.6 8.1 3.7 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.5 0 5.6 3.6 4.4 6.9-1.7 4.5-9.2 9.1-9.2 9.1z" ' + STROKE + '/>'
+  };
+  const PLAY_SMALL = '<svg aria-hidden="true" class="' + B.svg + '" fill="currentColor" height="20" viewBox="0 0 24 24" width="20"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+  const PLAY_BIG = '<svg aria-hidden="true" class="' + B.svg + '" height="48" viewBox="0 0 48 48" width="48"><circle cx="24" cy="24" r="22" fill="rgba(0,0,0,0.45)"/><path d="M19 15v18l15-9z" fill="#ffffff"/></svg>';
+  const SPINNER = '<svg aria-hidden="true" class="' + B.spin + '" height="24" viewBox="0 0 24 24" width="24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3"/></svg>';
+  function waveform() {
+    let bars = '';
+    for (let k = 0; k < 28; k++) {
+      const hgt = 4 + Math.round(16 * Math.abs(Math.sin(k * 1.7) * Math.cos(k * 0.45)));
+      bars += '<rect x="' + k * 4 + '" y="' + (24 - hgt) / 2 + '" width="2" height="' + hgt + '" rx="1"/>';
+    }
+    return '<svg aria-hidden="true" class="' + B.wave + '" fill="currentColor" height="24" viewBox="0 0 112 24" width="112">' + bars + '</svg>';
+  }
+
+  // ---------------------------------------------------------------------------
+  // DOM helpers
+  // ---------------------------------------------------------------------------
+  function add(parent, kids) {
+    if (kids === null || kids === undefined || kids === false) return;
+    if (Array.isArray(kids)) { kids.forEach(function (k) { add(parent, k); }); return; }
+    parent.appendChild(typeof kids === 'string' ? document.createTextNode(kids) : kids);
+  }
+  function el(tag, cls, attrs, kids) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      const v = attrs[k];
+      if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? '' : String(v));
+    });
+    add(e, kids);
+    return e;
+  }
+  function svgEl(markup) {
+    const t = document.createElement('template');
+    t.innerHTML = markup;
+    return t.content.firstChild;
+  }
+  function isMsg(it) { return !!it && MSG_KINDS[it.k] === 1; }
+  function sameSender(a, b) { return isMsg(a) && a.by === b.by; }
+
+  // ---------------------------------------------------------------------------
+  // Rows
+  // ---------------------------------------------------------------------------
+  function row(inner) {
+    return el('div', B.row, { role: 'row' },
+      el('div', B.rowInner, { role: 'none' },
+        el('div', B.cell, { role: 'gridcell', tabindex: '-1' },
+          el('div', B.cellInner, null, inner))));
+  }
+
+  function avatarSlot(key, show) {
+    const p = PEOPLE[key];
+    return el('div', B.avatarSlot, null, show
+      ? el('a', B.avatarLink, { href: '/' + p.user + '/', role: 'link', tabindex: '0' },
+        el('img', B.avatarImg, { alt: p.user + "'s profile picture", src: AVATAR[key], draggable: 'false' }))
+      : null);
+  }
+
+  function richText(t) {
+    const out = [];
+    (Array.isArray(t) ? t : [t]).forEach(function (part) {
+      if (typeof part === 'string') {
+        part.split('\n').forEach(function (line, n) {
+          if (n) out.push(el('br'));
+          if (line) out.push(line);
+        });
+      } else {
+        out.push(el('a', B.link, { href: part.a, target: '_blank', rel: 'nofollow noopener noreferrer', role: 'link', tabindex: '0' }, part.t));
+      }
+    });
+    return out;
+  }
+
+  function textBlock(t, mine, nested) {
+    const kids = richText(t);
+    return el('div', mine ? B.textMine : B.textTheirs, { dir: 'auto' },
+      nested ? el('span', B.spanOuter, null, el('span', B.spanInner, null, kids)) : kids);
+  }
+
+  function bubble(cls, kids) {
+    return el('div', B.bubbleWrap, { role: 'presentation' }, el('div', cls, { role: 'none' }, kids));
+  }
+
+  function content(it, mine, i) {
+    switch (it.k) {
+      case 'msg':
+      case 'reply':
+        return bubble(mine ? B.bubbleMine : B.bubbleTheirs, textBlock(it.t, mine, i % 4 === 1));
+      case 'jumbo':
+        return el('div', B.jumbo, { role: 'none' }, el('div', B.jumboText, { dir: 'auto' }, it.t));
+      case 'photo':
+        return el('div', B.mediaBtn, { role: 'button', tabindex: '0' },
+          el('div', B.mediaBox, null,
+            el('img', B.mediaImg, { alt: 'Photo', src: IMG.photo, width: '200', height: '260', draggable: 'false' })));
+      case 'video':
+        return el('div', B.mediaBtn, { role: 'button', tabindex: '0' },
+          el('div', B.mediaBox, null, [
+            el('video', B.mediaImg, { poster: IMG.poster, playsinline: true, preload: 'none', width: '200', height: '260' }),
+            el('div', B.playOverlay, { 'aria-hidden': 'true' }, svgEl(PLAY_BIG))
+          ]));
+      case 'voice':
+        return bubble(mine ? B.voiceMine : B.voiceTheirs, [
+          el('div', B.playBtn, { role: 'button', tabindex: '0', 'aria-label': 'Play' }, svgEl(PLAY_SMALL)),
+          svgEl(waveform()),
+          el('span', B.voiceLen, null, it.dur)
+        ]);
+      case 'post':
+        return el('div', B.postWrap, null,
+          el('a', B.postCard, { href: '/p/Cxyz123/', role: 'link', tabindex: '0' }, [
+            el('div', B.postHead, null, [
+              el('img', B.postAvatar, { alt: it.user + "'s profile picture", src: IMG.resort, draggable: 'false' }),
+              el('span', B.postUser, { dir: 'auto' }, it.user)
+            ]),
+            el('img', B.postThumb, { alt: 'Photo by ' + it.user + '. May be an image of snow and mountain.', src: IMG.thumb, width: '220', height: '220', draggable: 'false' }),
+            el('div', B.postCapWrap, null, el('span', B.postCap, { dir: 'auto' }, it.cap))
+          ]));
+      case 'gif':
+        return el('div', B.mediaBtn, { role: 'button', tabindex: '0' },
+          el('div', B.gifBox, null,
+            el('img', B.mediaImg, { alt: 'GIF', src: IMG.gif, width: '200', height: '150', draggable: 'false' })));
+    }
+    throw new Error('unknown kind ' + it.k);
+  }
+
+  function column(it, mine, i) {
+    const kids = [content(it, mine, i)];
+    if (it.r) {
+      kids.push(el('div', mine ? B.pillMine : B.pillTheirs, { role: 'button', tabindex: '0', 'aria-label': 'See who reacted to this' },
+        el('span', B.pillText, null, it.r)));
+    }
+    if (it.ed) kids.push(el('span', B.edited, { dir: 'auto' }, 'Edited'));
+    const cls = mine ? (it.r ? B.colMineReacted : B.colMine) : (it.r ? B.colTheirsReacted : B.colTheirs);
+    return el('div', cls, null, kids);
+  }
+
+  function renderItem(i) {
+    const it = THREAD[i];
+    if (it.k === 'sep') return row(el('div', B.sepWrap, null, el('span', B.sepText, { dir: 'auto' }, it.t)));
+    if (it.k === 'notice') return row(el('div', B.noticeWrap, null, el('span', B.noticeText, { dir: 'auto' }, it.t)));
+    const mine = it.by === 'me';
+    const first = !sameSender(THREAD[i - 1], it);
+    const last = !sameSender(THREAD[i + 1], it);
+    const col = column(it, mine, i);
+    if (mine) {
+      return row(el('div', first ? B.groupMineFirst : B.groupMineNext, null, el('div', B.lineMine, null, col)));
+    }
+    const kids = [];
+    if (it.k === 'reply') {
+      kids.push(el('div', B.replyHeadWrap, null,
+        el('span', B.replyHead, { dir: 'auto' }, PEOPLE[it.by].name + ' replied to ' + PEOPLE[it.to].name)));
+      kids.push(el('div', B.quoteWrap, null,
+        el('div', B.quoteBubble, { role: 'none' }, el('div', B.quoteText, { dir: 'auto' }, it.q))));
+    } else if (first) {
+      kids.push(el('div', B.nameWrap, null, el('span', B.nameText, { dir: 'auto' }, PEOPLE[it.by].name)));
+    }
+    kids.push(el('div', B.line, null, [avatarSlot(it.by, last), col]));
+    return row(el('div', first ? B.groupFirst : B.groupNext, null, kids));
+  }
+
+  function receiptRow() {
+    return row(el('div', B.receiptWrap, null, el('span', B.receiptText, { dir: 'auto' }, RECEIPT)));
+  }
+
+  function typingRow() {
+    return row(el('div', B.groupFirst, null, el('div', B.line, null, [
+      avatarSlot(TYPING_BY, true),
+      el('div', B.colTheirs, null, el('div', B.typing, { 'aria-label': 'Typing' }, [el('div', B.dot1), el('div', B.dot2), el('div', B.dot3)]))
+    ])));
+  }
+
+  function threadStartRow() {
+    return row(el('div', B.tsWrap, null, [
+      el('div', B.tsAvatarWrap, null, el('img', B.tsAvatar, { alt: 'Group photo', src: IMG.group, draggable: 'false' })),
+      el('span', B.tsTitle, { dir: 'auto' }, 'Breck Crew 🎿'),
+      el('span', B.tsSub, { dir: 'auto' }, 'Instagram'),
+      el('div', B.tsBtn, { role: 'button', tabindex: '0' }, el('div', B.tsBtnText, null, 'View profile'))
+    ]));
+  }
+
+  function loaderRow() {
+    return el('div', B.loader, { role: 'progressbar', 'aria-label': 'Loading...', 'aria-valuemin': '0', 'aria-valuemax': '100' }, svgEl(SPINNER));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Page shell
+  // ---------------------------------------------------------------------------
+  function iconButton(cls, label, inner) {
+    return el('div', cls, { role: 'button', tabindex: '0' }, icon(label, inner));
+  }
+
+  const grid = el('div', B.grid, { role: 'grid', 'aria-label': 'Messages in conversation with Breck Crew 🎿' });
+  const scroller = el('div', B.scroller, null,
+    el('div', B.scrollInner, null, el('div', B.gridWrap, { role: 'presentation' }, grid)));
+
+  const header = el('div', B.headerWrap, null, el('div', B.header, null, [
+    iconButton(B.iconBtn, 'Back', ICON.back),
+    el('div', B.headTitleBtn, { role: 'button', tabindex: '0' }, [
+      el('div', B.headAvatarWrap, null, el('img', B.headAvatar, { alt: 'Group photo', src: IMG.group, draggable: 'false' })),
+      el('div', B.headText, null, [
+        el('span', B.headTitle, { dir: 'auto' }, 'Breck Crew 🎿'),
+        el('span', B.headSub, { dir: 'auto' }, 'Maya, Jordan, Sam, Priya')
+      ])
+    ]),
+    el('div', B.headIcons, null, [
+      iconButton(B.iconBtn, 'Audio call', ICON.phone),
+      iconButton(B.iconBtn, 'Video call', ICON.video),
+      iconButton(B.iconBtn, 'Conversation information', ICON.info)
+    ])
+  ]));
+
+  const composer = el('div', B.composerOuter, null, el('div', B.composerPill, null, [
+    iconButton(B.iconBtnSm, 'Choose an emoji', ICON.emoji),
+    el('div', B.fieldWrap, null,
+      el('div', B.field, { role: 'textbox', contenteditable: 'true', 'aria-label': 'Message', 'aria-placeholder': 'Message...', spellcheck: 'true', tabindex: '0' },
+        el('p', B.fieldP, { dir: 'auto' }, el('span', null, null, 'DRAFT SHOULD NOT BE EXTRACTED')))),
+    iconButton(B.iconBtnSm, 'Voice Clip', ICON.mic),
+    iconButton(B.iconBtnSm, 'Add Photo or Video', ICON.photo),
+    iconButton(B.iconBtnSm, 'Like', ICON.heart)
+  ]));
+
+  const app = el('div', B.outer1, null,
+    el('div', B.outer2, { role: 'presentation' },
+      el('div', B.app, null, [header, el('div', B.main, { role: 'main' }, [scroller, composer])])));
+
+  const style = document.createElement('style');
+  document.head.appendChild(style);
+  style.textContent = RULES.join('\n');
+
+  // Newest items first render, oldest stay in THREAD until scrolled to.
+  let loadedFrom = OLDER;
+  const first = document.createDocumentFragment();
+  for (let i = OLDER; i < THREAD.length; i++) first.appendChild(renderItem(i));
+  first.appendChild(receiptRow());
+  first.appendChild(typingRow());
+  grid.appendChild(first);
+  document.getElementById('mount_0_0_Ab').appendChild(app);
+
+  function toBottom() { scroller.scrollTop = scroller.scrollHeight; }
+  toBottom();
+  window.addEventListener('load', toBottom);
+
+  // ---------------------------------------------------------------------------
+  // Upward infinite scroll
+  // ---------------------------------------------------------------------------
+  let loading = false;
+  let done = false;
+  let poll = 0;
+
+  // Keep what's on screen in place while rows are added above it.
+  function keepPosition(change) {
+    const fromBottom = scroller.scrollHeight - scroller.scrollTop;
+    change();
+    scroller.scrollTop = scroller.scrollHeight - fromBottom;
+  }
+
+  function maybeLoadOlder() {
+    if (loading || done || scroller.scrollTop > 80) return;
+    loading = true;
+    const spinner = loaderRow();
+    keepPosition(function () { grid.insertBefore(spinner, grid.firstChild); });
+    setTimeout(function () {
+      keepPosition(function () {
+        spinner.remove();
+        const from = Math.max(0, loadedFrom - BATCH);
+        const batch = document.createDocumentFragment();
+        for (let i = from; i < loadedFrom; i++) batch.appendChild(renderItem(i));
+        loadedFrom = from;
+        if (from === 0) {
+          batch.insertBefore(threadStartRow(), batch.firstChild);
+          done = true;
+        }
+        grid.insertBefore(batch, grid.firstChild);
+      });
+      loading = false;
+      if (done) {
+        clearInterval(poll);
+        scroller.removeEventListener('scroll', maybeLoadOlder);
+      }
+    }, 700);
+  }
+
+  scroller.addEventListener('scroll', maybeLoadOlder, { passive: true });
+  poll = setInterval(maybeLoadOlder, 200);
+})();
+</script>
+</body>
+</html>
