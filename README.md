@@ -136,10 +136,10 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **A 21-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 27-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays two members and an outsider. It covers spoofing the sender, self-adding to a
-  chat, editing chats directly, outsider reads and posts, and wrong-code counting. It
-  runs in one transaction and rolls back.
+  chat, editing chats directly, outsider reads and posts, wrong-code counting, and the
+  Instagram catch-up's usage cap. It runs in one transaction and rolls back.
 
 ## Run it yourself
 
@@ -171,6 +171,32 @@ with everything unread:
 cp scripts/seed-demo/.env.example scripts/seed-demo/.env   # add the secret key
 deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts
 ```
+
+## Instagram catch-up (experimental, not released)
+
+Nobody moves their group chat to a new app. So this experiment tries the same catch-up
+on a chat people already have: an Instagram DM thread.
+
+- **How it works.** Instagram's own website opens inside the app. You sign in on
+  Instagram's page and open a DM thread. Tap **Catch me up on this chat** and Ketchup
+  reads the conversation that's on the page, then runs the same Muse Spark catch-up as
+  its own chats through a second edge function,
+  [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
+  transcript, prompts, JSON schemas and validation. Each item quotes the messages behind
+  it.
+- **It reads only the thread you have open, in your own signed-in session.** Ketchup
+  never sees your Instagram password or cookies. The reader
+  ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js)) runs
+  only when you tap the button on a DM thread. It goes by page structure (roles, labels,
+  layout), not Instagram's class names. It scrolls up a few times to load older
+  messages, keeps at most 300, then puts the scroll back.
+- **Nothing is stored.** No saved catch-up, and no message text in the logs (counts and
+  token usage only). The server keeps one usage count per call, with no content, for an
+  hourly cap of 20.
+- **It isn't sanctioned by Instagram's terms.** They don't allow automated collection,
+  and the messages, your friends' included, go to Muse Spark to summarize. So it's not
+  in the released app, and it won't ship unless Meta is fine with it. Ketchup's own chat
+  doesn't depend on it.
 
 ## Built during the event
 

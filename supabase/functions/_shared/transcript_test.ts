@@ -44,7 +44,7 @@ Deno.test("index 0 is a real ref; unknown and repeated refs are dropped", () => 
   const refs = new Map([["m1", 0], ["m2", 1]]);
   assertEquals(resolveRefs(["m1", "[m2]", "m1", "m9", 3, null], refs), [0, 1]);
   const brief = cleanCatchUp({
-    tldr: "Trip is Saturday — 6am",
+    tldr: "Trip is Saturday \u2014 6am", // an em dash the cleaner must strip
     highlights: [{ text: "Leaving at 6", refs: ["m1"] }, { text: "Made up", refs: ["m9"] }],
     plans: [], open_questions: [], owes: [], for_you: [],
   }, refs);
