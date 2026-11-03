@@ -1,11 +1,20 @@
 package com.vibetemp.ketchup.debug
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.vibetemp.ketchup.data.ApiException
 import com.vibetemp.ketchup.data.AskResponse
 import com.vibetemp.ketchup.data.BriefResponse
@@ -14,6 +23,7 @@ import com.vibetemp.ketchup.data.CatchUp
 import com.vibetemp.ketchup.data.CatchUpResponse
 import com.vibetemp.ketchup.data.ChatAnswer
 import com.vibetemp.ketchup.data.KetchupJson
+import com.vibetemp.ketchup.ui.brief.BriefActivity
 import com.vibetemp.ketchup.ui.brief.BriefBackend
 import com.vibetemp.ketchup.ui.brief.BriefErrors
 import com.vibetemp.ketchup.ui.brief.BriefPage
@@ -25,6 +35,8 @@ import com.vibetemp.ketchup.ui.brief.Phase
 import com.vibetemp.ketchup.ui.brief.Refs
 import com.vibetemp.ketchup.ui.brief.Skim
 import com.vibetemp.ketchup.ui.brief.SkimLines
+import com.vibetemp.ketchup.ui.design.CapsuleButton
+import com.vibetemp.ketchup.ui.design.Kicker
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -44,6 +56,7 @@ val BriefPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "brief-plans" to { BriefPreview(Script.breck(), landed = true, section = BriefSection.Plans) },
     "brief-owes" to { BriefPreview(Script.breck(), landed = true, section = BriefSection.Owes) },
     "brief-questions" to { BriefPreview(Script.breck(), landed = true, section = BriefSection.Questions) },
+    "brief-checked" to { BriefPreview(Script.breck(), landed = true, done = setOf(0, 2)) },
     "brief-cached" to { BriefPreview(Script.breck(cached = true), landed = true) },
     "brief-thread" to { BriefPreview(Script.instagram(), landed = true) },
     "brief-thread-loading" to { BriefPreview(Script.instagram(catchUp = Script.FOREVER)) },
@@ -57,7 +70,31 @@ val BriefPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "ask" to { BriefPreview(Script.breck(), landed = true, section = BriefSection.Ask) },
     "ask-answer" to { BriefPreview(Script.breck(), landed = true, answered = Answered.FOUND, section = BriefSection.Ask) },
     "ask-notfound" to { BriefPreview(Script.breck(), landed = true, answered = Answered.NOT_FOUND, section = BriefSection.Ask) },
+    "brief-own-task" to { OwnTaskLauncher() },
 )
+
+/**
+ * Opens the real BriefActivity the way the reader service will: from a
+ * context that isn't an activity, so it gets a task of its own and Back
+ * returns here. Not signed in on a preview phone, so it lands on Sign in.
+ */
+@Composable
+private fun OwnTaskLauncher() {
+    val context = LocalContext.current
+    val thread = previewData().instagramThread
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(KetchupTheme.colors.cream)
+            .safeDrawingPadding()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Kicker("Reader handoff")
+        Text("Open the brief in its own task", style = KetchupTheme.type.serifTitle2, color = KetchupTheme.colors.ink)
+        CapsuleButton("Open over this app", onClick = { BriefActivity.start(context.applicationContext, thread) })
+    }
+}
 
 private enum class Answered { FOUND, NOT_FOUND }
 
@@ -78,6 +115,7 @@ private fun BriefPreview(
     section: BriefSection? = null,
     cited: CitedRequest? = null,
     reduceMotion: Boolean? = null,
+    done: Set<Int> = emptySet(),
 ) {
     val data = previewData()
     val context = LocalContext.current
@@ -111,6 +149,7 @@ private fun BriefPreview(
         onOpenApp = { Toast.makeText(context, "Opens Ketchup", Toast.LENGTH_SHORT).show() },
         initialSection = section,
         initialCited = cited,
+        initiallyDone = done,
         reduceMotion = reduceMotion ?: KetchupTheme.reduceMotion,
     )
 }

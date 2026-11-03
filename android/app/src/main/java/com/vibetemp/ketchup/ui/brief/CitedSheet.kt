@@ -25,6 +25,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -65,7 +66,8 @@ fun CitedSheet(request: CitedRequest, cited: Map<String, Cited>, app: String, ti
         containerColor = colors.cream,
         contentColor = colors.ink,
         tonalElevation = 0.dp,
-        scrimColor = colors.ink.copy(alpha = 0.32f),
+        // Dims the page under it in both modes (ink is light in dark mode).
+        scrimColor = if (colors.isDark) Color.Black.copy(alpha = 0.5f) else colors.ink.copy(alpha = 0.32f),
         dragHandle = { BottomSheetDefaults.DragHandle(color = colors.rule) },
     ) {
         Column(

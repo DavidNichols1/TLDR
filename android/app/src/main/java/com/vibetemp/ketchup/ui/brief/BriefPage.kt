@@ -52,6 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Where the page is: what the bar and the content show. */
 enum class BriefStage { SignedOut, Gone, Reading, Failed, Empty, Brief }
@@ -111,6 +112,22 @@ fun BriefPage(
             view.performHapticFeedback(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY)
         }
         landed = stage
+    }
+    // Asking brings the question and what comes back up to the top of the page.
+    LaunchedEffect(session) {
+        session ?: return@LaunchedEffect
+        var asked: Phase<*> = session.answer
+        snapshotFlow { session.answer }.collect { phase ->
+            val moved = phase != asked && (phase == Phase.Loading || asked == Phase.Loading)
+            asked = phase
+            val top = sections[BriefSection.Ask]
+            if (moved && top != null) {
+                // The new content animates in: wait for the room to scroll (or the page's end).
+                val target = (top - margin).toInt().coerceAtLeast(0)
+                withTimeoutOrNull(700) { snapshotFlow { scroll.maxValue }.first { it >= target } }
+                scroll.animateScrollTo(target.coerceAtMost(scroll.maxValue))
+            }
+        }
     }
     // A preview can open scrolled to a section, once it's laid out.
     LaunchedEffect(initialSection) {
