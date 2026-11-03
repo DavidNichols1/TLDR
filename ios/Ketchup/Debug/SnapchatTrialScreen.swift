@@ -8,8 +8,16 @@
 //  lays the page out 1280 pt wide and scales it down to fit, so the page
 //  gets a genuinely wide window. Nothing runs in any page: the trail is the
 //  web view's own URL as it changes (host and path, ids and queries left
-//  out), and the page title only in the simulator, where nobody signs in.
-//  `-screen web-snapchat-trial`, `-KetchupSnapchatStep 3` to start on step 3.
+//  out), and the page title in the simulator.
+//  `-screen web-snapchat-trial`, `-KetchupSnapchatStep 3` to start on step 3,
+//  `-KetchupSnapchatWidth 1024` for another width, and
+//  `-KetchupSnapchatAppBound YES` in a build whose Info.plist lists
+//  WKAppBoundDomains (snapchat.com, sc-cdn.net, sc-static.net, snap.com,
+//  instagram.com), passed as `INFOPLIST_FILE=<that plist>` to xcodebuild.
+//
+//  Signed in, Nov 3, 2026: step 3 alone reaches the chat app, which then
+//  shows "Oops! Something went wrong". Step 3 in app-bound mode loads the
+//  chat list, at 1280 and at 1024 pt.
 //
 
 #if DEBUG
@@ -71,13 +79,23 @@ final class SnapchatTrial {
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     private(set) var trail: [String] = []
 
-    var layoutWidth: CGFloat? { step == 3 ? 1280 : nil }
+    var layoutWidth: CGFloat? {
+        guard step == 3 else { return nil }
+        let width = UserDefaults.standard.double(forKey: "KetchupSnapchatWidth")
+        return width > 0 ? width : 1280
+    }
 
     init(step: Int) {
         self.step = step
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.defaultWebpagePreferences.preferredContentMode = .desktop
+        // App-bound mode: the web view stays on the app's WKAppBoundDomains
+        // (Info.plist), and WebKit lets those pages run service workers.
+        // Snapchat for Web only loads this way.
+        if UserDefaults.standard.bool(forKey: "KetchupSnapchatAppBound") {
+            config.limitsNavigationsToAppBoundDomains = true
+        }
         webView = WKWebView(frame: .zero, configuration: config)
         webView.customUserAgent = Self.desktopAgent
         webView.isInspectable = true
@@ -94,7 +112,8 @@ final class SnapchatTrial {
             MainActor.assumeIsolated { if let t = web.title, !t.isEmpty { self?.log("title \(t)") } }
         })
         #endif
-        log("step \(step): desktop mode, Mac Safari agent" + (step == 3 ? ", laid out 1280 pt wide" : ""))
+        log("step \(step): desktop mode, Mac Safari agent" + (layoutWidth.map { ", laid out \(Int($0)) pt wide" } ?? "")
+            + (config.limitsNavigationsToAppBoundDomains ? ", app-bound" : ""))
     }
 
     func open(_ url: URL) { webView.load(URLRequest(url: url)) }
