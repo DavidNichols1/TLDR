@@ -37,7 +37,9 @@ struct CatchUpSheet: View {
             }
         }
         .presentationDragIndicator(.visible)
-        .task { await model.catchUpIfNeeded() }
+        // Unstructured on purpose: swiping the sheet away mid-request
+        // shouldn't cancel it; the brief is waiting when it reopens.
+        .onAppear { Task { await model.catchUpIfNeeded() } }
     }
 
     private var header: some View {

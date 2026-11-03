@@ -271,6 +271,9 @@ struct ChatView: View {
         }
         try? await Task.sleep(for: .milliseconds(350))
         positioned = true
+        // A short thread fits on screen: the bottom is already visible and
+        // won't "change" into view, so count it as seen now.
+        if atBottom { model.sawBottom = true }
     }
 
     private func jump(to id: UUID, proxy: ScrollViewProxy) async {
