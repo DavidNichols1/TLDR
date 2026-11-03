@@ -63,7 +63,10 @@ the technical recipe. README.md is the judge-facing overview.
 - AppModel and ChatModel restore it in their inits, and the server replaces it. ChatModel's
   first page drops kept messages it didn't send back (`ThreadSnapshot.reconcile`), then takes
   your read cursor from your member row and pages back to it, so a stale kept inbox can't hide
-  unread (the seed's `--rearm`). "Load earlier" and polling wait for that page.
+  unread (the seed's `--rearm`). Only then is `synced` set: ChatView places the thread and starts
+  counting what's been seen (`sawBottom`), so backing out of a stale copy marks nothing read.
+  A current kept copy is scrolled into place earlier, without that. Until `synced`, the poll loop
+  retries the first page every 4 s, whether or not Realtime is live.
 - `Profile`, `ChatSummary`, `Member` and `Message` are `Codable` for this: new fields are kept
   automatically and must be Codable too.
 - Offline check, no sign-in: `-screen store-check` must show "11 of 11 passed, 1 skipped" on a

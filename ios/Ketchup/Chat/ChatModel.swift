@@ -71,9 +71,11 @@ final class ChatModel {
     private var unseenUntil: Date?
 
     /// Messages from the copy the phone kept (DeviceStore), until the
-    /// server's first page replaces them; `synced` once that page is in.
+    /// server's first page replaces them.
     private var keptIds: Set<UUID> = []
-    private var synced = false
+    /// The server's first page is in, with the unread count from your
+    /// member row: what's on screen is the server's now, not the phone's.
+    private(set) var synced = false
     private var opening = false
     private var prefetched = false
 
@@ -110,6 +112,7 @@ final class ChatModel {
         guard !synced, !opening else { return }
         opening = true
         defer { opening = false }
+        var paged = false
         do {
             // Reach back past the first unread message (plus a little context),
             // so the "N new messages" divider lands where the unread part starts.
@@ -121,14 +124,15 @@ final class ChatModel {
             hasOlder = page.count >= limit
             merge(page)
             loaded = true
-            synced = true
+            paged = true
             loadError = nil
         } catch {
             loadError = error.localizedDescription
         }
         var exact = false
-        if await loadMembers(), synced { exact = await readFromServerCursor() }
+        if await loadMembers(), paged { exact = await readFromServerCursor() }
         computeUnread(exact: exact)
+        if paged { synced = true }
         keepOnDevice()
         // A big backlog: start Muse Spark now so the tap feels instant. Once:
         // poll() runs open() again until the first page is in.
@@ -169,7 +173,7 @@ final class ChatModel {
     }
 
     func loadOlder() async {
-        guard !isPreview, synced, hasOlder, !loadingOlder, let oldest = messages.first(where: { !$0.pending && !$0.failed }) else { return }
+        guard !isPreview, hasOlder, !loadingOlder, let oldest = messages.first(where: { !$0.pending && !$0.failed }) else { return }
         loadingOlder = true
         defer { loadingOlder = false }
         guard let page = try? await KetchupAPI.messages(in: chat.id, before: oldest.createdAt, limit: Self.pageSize) else { return }
@@ -458,6 +462,7 @@ extension ChatModel {
         guard !loaded, !script.holdsLoading else { return }
         loaded = true
         computeUnread()
+        synced = true
         if unreadCount >= Self.prefetchAt {
             Task { await runCatchUp(prefetch: true) }
         }
