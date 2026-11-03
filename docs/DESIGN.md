@@ -79,6 +79,7 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `Kicker("For you")` | Small mono caps over a headline or card. |
 | `SectionTitle("Plans", count: 6)` | Section heading, a VoiceOver header. |
 | `Monogram(name:color:size:)` | Initials on a soft tile of the person's color. Decorative. |
+| `Avatar(name:path:size:)` | A person's photo in the monogram's rounded square with a hairline, or their `Monogram` while it loads or when there's none. Use it wherever a person shows. Decorative. |
 | `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` and `dashed: true` for "Maybe". |
 | `.marked(_:color:sweep:delay:)` | Marker behind a short phrase on one line. |
 | `Text("…\(Text("$90").markedRun())…").markRuns(sweep:)` | Marker inside a sentence; follows the words as they wrap. |
@@ -105,6 +106,23 @@ After sign-in, the home is three pages side by side: **Chats** (the inbox, first
 - **Over a web page** a sideways swipe still pages, unless the page can scroll sideways itself (zoomed in, a wide carousel): then the page gets it, and the switcher still works. Vertical scrolling and taps are always the page's. From the left edge the pager wins even when the site could go back; the bar's back button does that.
 - **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
 - **`HomePage.all`** lists the pages, left to right, and `HomePage.content` says what each shows: another chat app is one more `.web(…)` in the list.
+
+## Profile photos
+
+A photo is a print pinned to the paper: the same rounded square as a monogram, edged with a hairline. Screenshots: `screens/photos/` (made-up photos, no real people).
+
+<p>
+<img src="screens/photos/crop-light.png" width="200" alt="Frame it: a mountain photo under a rounded-square window cut in the paper">
+<img src="screens/photos/chat-light.png" width="200" alt="Photos by the last bubble of each sender's run">
+<img src="screens/photos/info-dark.png" width="200" alt="Members with their photos, Sam with his monogram, dark">
+<img src="screens/photos/inbox-light.png" width="200" alt="David's photo on the account button">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `AvatarCropper` | "Frame it": the picked photo under paper with a rounded-square window cut out; drag and pinch, the photo always covers the window. "Use photo" is the one ketchup button and says "Saving" until the upload is done. VoiceOver can zoom with swipe up and down. |
+| In a chat | Other people's photos sit by the last bubble of each run, bottom-aligned, 28 pt. Mine get none. |
+| Account button | My photo inside the top bar's glass button. Its menu adds, changes or removes the photo (until Settings takes that over). |
 
 ## Muse Spark screens
 
@@ -178,6 +196,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
+| `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info` | Profile photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo, then the inbox, the Breck thread and its members with made-up photos (`Debug/PreviewPhotos.swift`). Sam has none, to show the monogram |
 
 Light and dark screenshots:
 

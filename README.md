@@ -38,6 +38,9 @@ time are we leaving?" and get groaned at.
   doesn't say, it tells you so.
 - **A real group chat underneath.** Sign in with an email code, create a chat, and
   invite friends with a 6-character code. Messages arrive in real time.
+- **Profile photos.** Pick a photo, frame it in the square, and it shows by your
+  messages, in the member list and on your account button. No photo, no problem: your
+  initials stand in.
 
 <table>
   <tr>
@@ -140,6 +143,12 @@ flowchart LR
   with JWT verification on. It reads messages *with the caller's token*, so Row Level
   Security decides what the model can see. It uses the service role only to write and
   check `ai_briefs`.
+- **Photos** ([`ios/Ketchup/Photos/`](ios/Ketchup/Photos), [`Storage.swift`](ios/Ketchup/Net/Storage.swift)):
+  a small Storage client (upload with progress, public and signed URLs, delete) and one
+  image pipeline for every photo. Decoded photos stay in memory at the size they're
+  drawn, the original bytes stay on disk, and each upload gets a new path, so every
+  phone downloads each photo once. A profile photo is cropped on the phone to a 512 px
+  JPEG (66 to 153 KB on the simulator's sample photos).
 
 ### Security
 
@@ -150,10 +159,15 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **A 28-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
+  Profile photos are in a public bucket, so the app loads them without a token, but
+  nobody can list it. You can only upload into and delete from your own folder (10 an
+  hour), and your profile can only point at a photo in your own folder.
+- **A 36-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays two members and an outsider. It covers spoofing the sender, self-adding to a
-  chat, editing chats directly, outsider reads and posts, wrong-code counting, and the
-  Instagram and Snapchat catch-up's usage cap. It runs in one transaction and rolls back.
+  chat, editing chats directly, outsider reads and posts, wrong-code counting, the
+  Instagram and Snapchat catch-up's usage cap, and profile photos (own folder only, no
+  listing, the hourly cap). It runs in one transaction and rolls back.
 
 ## Run it yourself
 

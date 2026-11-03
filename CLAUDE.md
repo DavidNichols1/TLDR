@@ -59,6 +59,31 @@ the technical recipe. README.md is the judge-facing overview.
 the viewer sets display name **David**, joins with the printed invite code, and has
 302 unread. `--rearm` resets David to all-unread between video takes.
 
+## Photos (profile photos; chat photos next)
+Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
+`.profilePhotoPicker(isPresented:)`, `RemoteImages`) and `ios/Ketchup/Net/Storage.swift`.
+Migration `0006_photos.sql`, applied live in parts (`0006_photos_1_avatars`).
+- `avatars` bucket: public (the app loads a photo by its public URL, no token), JPEG up to
+  1 MB. On storage.objects you can insert, select and delete only in your own `<uid>/`
+  folder, names `<uuid>.jpg`, 10 uploads an hour (`storage_uploads_ok`). No broad select
+  policy, so nobody can list the bucket. `profiles.avatar_path` must be
+  `<own id>/<uuid>.jpg` (check constraint); the app lowercases both ids to match.
+- Never delete storage files with SQL: it orphans the file (`storage.protect_delete`
+  refuses anyway). The app deletes a replaced photo through the Storage API.
+- One image pipeline, `RemoteImages.shared`: decoded photos in memory at the drawn size,
+  original bytes on disk in `Caches/photos` (150 MB, least recently used goes first),
+  keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale.
+- For now the account button's menu (Chats page, top left) has Add a photo, Change photo
+  and Remove photo. A Settings page takes it over at merge: `.profilePhotoPicker` moves with it.
+- Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`. The
+  photos are drawn on the fly (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his
+  monogram to show the fallback.
+- Checks: the RLS suite covers it (36/36 on Nov 3, 2026). As anon, with the publishable
+  key: `POST /storage/v1/object/list/avatars` returns `[]` and an upload returns 403. After
+  a real upload: `select id, avatar_path from profiles where avatar_path is not null;` and
+  `select bucket_id, count(*) from storage.objects group by 1;` (one file per person: the
+  replaced one is gone).
+
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
 `WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` and `ios/Ketchup/Snapchat/` hold each
