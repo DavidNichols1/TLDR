@@ -2,9 +2,9 @@
 //  HomePager.swift
 //  Ketchup
 //
-//  The signed-in home: Chats, Instagram and Snapchat side by side. Swipe
-//  between them, or tap a name in the switcher at the top. Chats is the
-//  first page, and the app comes back to the page you were on last.
+//  The signed-in home: Chats and Instagram side by side. Swipe between
+//  them, or tap a name in the switcher at the top. Chats is the first
+//  page, and the app comes back to the page you were on last.
 //
 //  Paging uses the system scroll physics. While a chat is open the pages
 //  stay put, so the chat's own back swipe works, and the switcher steps
@@ -13,17 +13,27 @@
 
 import SwiftUI
 
-/// The home's pages, left to right.
-enum HomePage: String, CaseIterable, Identifiable {
-    case chats, instagram, snapchat
+/// A page of the home.
+enum HomePage: Hashable, Identifiable {
+    case chats
+    /// A chat app's own website, with Catch me up for the open thread (WebChat/).
+    case web(WebChatSource)
 
-    var id: Self { self }
+    /// The pages, left to right. Another chat app is one more `.web(…)` here.
+    static let all: [HomePage] = [.chats, .web(.instagram)]
+
+    /// What `home.page` remembers.
+    var id: String {
+        switch self {
+        case .chats: "chats"
+        case .web(let source): source.id
+        }
+    }
 
     var title: String {
         switch self {
         case .chats: "Chats"
-        case .instagram: "Instagram"
-        case .snapchat: "Snapchat"
+        case .web(let source): source.name
         }
     }
 }
@@ -32,15 +42,11 @@ enum HomePage: String, CaseIterable, Identifiable {
 
 extension HomePage {
     /// What each page shows: the one place the pager hosts other screens.
-    /// The Instagram session is turning its screen into `WebChatTab(source:)`;
-    /// at merge the Instagram and Snapchat lines become
-    /// `WebChatTab(source: .instagram)` and `WebChatTab(source: .snapchat)`.
     @ViewBuilder
     var content: some View {
         switch self {
         case .chats: ChatsListView()
-        case .instagram: InstagramCatchUpScreen()
-        case .snapchat: SnapchatComingSoon()
+        case .web(let source): WebChatTab(source: source)
         }
     }
 }
@@ -55,9 +61,9 @@ final class HomePagerState {
 }
 
 struct HomePager: View {
-    @AppStorage("home.page") private var saved = HomePage.chats
+    @AppStorage("home.page") private var saved = HomePage.chats.id
     @State private var page: HomePage?
-    /// Where the pages are: 0 is Chats, 1 Instagram, 2 Snapchat, fractions mid-swipe.
+    /// Where the pages are: 0 is the first, 1 the next, fractions mid-swipe.
     @State private var position: CGFloat
     /// Pages built so far. A web page is built the first time you head its
     /// way, then kept, so it doesn't reload every time you swipe past.
@@ -77,8 +83,8 @@ struct HomePager: View {
     private static let barRow: CGFloat = 44
 
     init() {
-        let last = UserDefaults.standard.string(forKey: "home.page").flatMap(HomePage.init) ?? .chats
-        self.init(start: last, remembers: true)
+        let last = UserDefaults.standard.string(forKey: "home.page")
+        self.init(start: HomePage.all.first { $0.id == last } ?? .chats, remembers: true)
     }
 
     #if DEBUG
@@ -91,7 +97,7 @@ struct HomePager: View {
     private init(start: HomePage, remembers: Bool) {
         _page = State(initialValue: start)
         _position = State(initialValue: CGFloat(start.index))
-        _built = State(initialValue: [.chats, .snapchat, start])
+        _built = State(initialValue: [.chats, start])
         self.start = start
         self.remembers = remembers
     }
@@ -141,7 +147,7 @@ struct HomePager: View {
     private func pages(size: CGSize, belowBar: CGFloat) -> some View {
         ScrollView(.horizontal) {
             HStack(spacing: 0) {
-                ForEach(HomePage.allCases) { page in
+                ForEach(HomePage.all) { page in
                     pageView(page, belowBar: belowBar)
                         .frame(width: size.width, height: size.height)
                         .id(page)
@@ -152,7 +158,7 @@ struct HomePager: View {
         .scrollTargetBehavior(.paging)
         .scrollIndicators(.hidden)
         // Opens on the starting page (the scroll position alone starts at Chats).
-        .defaultScrollAnchor(UnitPoint(x: CGFloat(start.index) / CGFloat(HomePage.allCases.count - 1), y: 0.5),
+        .defaultScrollAnchor(UnitPoint(x: CGFloat(start.index) / CGFloat(max(HomePage.all.count - 1, 1)), y: 0.5),
                              for: .initialOffset)
         .scrollPosition(id: $page)
         .scrollDisabled(pager.locked)
@@ -168,7 +174,7 @@ struct HomePager: View {
             guard let new else { return }
             // A tap's scroll passes pages on its way; select() built the one it's going to.
             if phase != .animating { build(new) }
-            if remembers { saved = new }
+            if remembers { saved = new.id }
         }
     }
 
@@ -205,10 +211,10 @@ struct HomePager: View {
     }
 
     private func buildNeighbors(of position: CGFloat) {
-        let last = CGFloat(HomePage.allCases.count - 1)
+        let last = CGFloat(HomePage.all.count - 1)
         let clamped = min(max(position, 0), last)
         for index in [clamped.rounded(.down), clamped.rounded(.up)] {
-            build(HomePage.allCases[Int(index)])
+            build(HomePage.all[Int(index)])
         }
     }
 
@@ -225,7 +231,7 @@ struct HomePager: View {
 }
 
 private extension HomePage {
-    var index: Int { Self.allCases.firstIndex(of: self) ?? 0 }
+    var index: Int { Self.all.firstIndex(of: self) ?? 0 }
 }
 
 /// A page in its own hosting controller. Its content is set once: pages take
@@ -244,10 +250,10 @@ private struct HostedPage<Content: View>: UIViewControllerRepresentable {
 
 // MARK: - Switcher
 
-/// Chats, Instagram and Snapchat across the top bar, with a mustard mark
-/// under the page you're on. The mark slides along as the pages scroll.
+/// The pages' names across the top bar, with a mustard mark under the page
+/// you're on. The mark slides along as the pages scroll.
 private struct HomeSwitcher: View {
-    /// 0 is Chats, 1 Instagram, 2 Snapchat; fractions mid-swipe.
+    /// 0 is the first page, 1 the next; fractions mid-swipe.
     let position: CGFloat
     let select: (HomePage) -> Void
 
@@ -257,8 +263,8 @@ private struct HomeSwitcher: View {
 
     /// The page nearest the middle of the screen.
     private var current: HomePage {
-        let index = min(max(Int(position.rounded()), 0), HomePage.allCases.count - 1)
-        return HomePage.allCases[index]
+        let index = min(max(Int(position.rounded()), 0), HomePage.all.count - 1)
+        return HomePage.all[index]
     }
 
     var body: some View {
@@ -273,7 +279,7 @@ private struct HomeSwitcher: View {
 
     private func row(_ font: Font) -> some View {
         HStack(spacing: 2) {
-            ForEach(HomePage.allCases) { page in
+            ForEach(HomePage.all) { page in
                 Button { select(page) } label: {
                     Text(page.title)
                         .font(font)
@@ -299,7 +305,7 @@ private struct HomeSwitcher: View {
     /// The marker stroke under the current name; part way between two names mid-swipe.
     @ViewBuilder
     private var mark: some View {
-        let pages = HomePage.allCases
+        let pages = HomePage.all
         let clamped = min(max(position, 0), CGFloat(pages.count - 1))
         let lower = Int(clamped.rounded(.down))
         let upper = min(lower + 1, pages.count - 1)
@@ -313,37 +319,5 @@ private struct HomeSwitcher: View {
                 .offset(x: x - 3, y: from.maxY)
                 .accessibilityHidden(true)
         }
-    }
-}
-
-// MARK: - Snapchat, for now
-
-/// Until Snapchat's page lands: an order ticket for what's coming.
-private struct SnapchatComingSoon: View {
-    var body: some View {
-        ScrollView {
-            Ticket(notchAt: 0.74) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Kicker("In the kitchen")
-                    Text("Snapchat is on the way")
-                        .font(.serif(.title2))
-                        .foregroundStyle(Theme.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("Catching up on Snapchat chats isn't ready yet. Instagram is one page back.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.inkSoft)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } stub: {
-                Stamp("Soon", color: Theme.inkSoft, dashed: true)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
-            .frame(maxWidth: 520)
-            .frame(maxWidth: .infinity)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .defaultScrollAnchor(.center, for: .alignment)
-        .background(Theme.cream)
     }
 }

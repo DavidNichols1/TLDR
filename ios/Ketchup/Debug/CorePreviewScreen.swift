@@ -20,7 +20,6 @@ struct CorePreviewScreen: View {
         case name
         case home
         case homeInstagram = "home-instagram"
-        case homeSnapchat = "home-snapchat"
         case inbox
         case inboxEmpty = "inbox-empty"
         case newChat = "new-chat"
@@ -68,9 +67,7 @@ struct CorePreviewScreen: View {
             case .home, .inbox, .inboxEmpty:
                 HomePager(previewing: .chats)
             case .homeInstagram:
-                HomePager(previewing: .instagram)
-            case .homeSnapchat:
-                HomePager(previewing: .snapchat)
+                HomePager(previewing: .web(.instagram))
             case .newChat:
                 HomePager(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
