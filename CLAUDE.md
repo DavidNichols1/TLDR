@@ -73,7 +73,9 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
   `-destination 'id=<udid>' -allowProvisioningUpdates`, then
   `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`.
-  First real run (Nov 3, 2026): 32 messages, 200 in about 14 s, logs held counts only.
+  Real runs (Nov 3, 2026, David's account): before the virtualization fix about 31 messages
+  with every sender shown as the group's name; after it, 136 messages with real names, 200 in
+  about 16 s (5,727 prompt tokens), logs held counts only.
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
   `{source, mode, attempt, messages, prompt, completion, reasoning}` and nothing else. Usage:
   `select mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
