@@ -100,6 +100,95 @@ do $$ begin
   insert into results values ('unknown text source refused', false);
 exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
+-- Block (0007): Bob blocks Alice. Her messages leave his reads, his unread
+-- count and his inbox line, and his saved catch-up that read her goes. Alice
+-- still sees Bob, and nobody can see who blocked them. Then he unblocks.
+update public.chat_members set last_read_at = now() - interval '1 hour'
+ where user_id = '00000000-0000-0000-0000-0000000000b2';
+insert into public.ai_briefs (chat_id, user_id, kind, since, until, message_count, model, result)
+select id, '00000000-0000-0000-0000-0000000000b2', 'catch_up', now() - interval '1 hour', now(), 2, 'test', '{}' from ctx;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into public.messages (chat_id, body) select id, 'alice again' from ctx;
+reset role;
+-- Earlier than the messages below, so the delete-account checks keep Bob's as the last.
+update public.messages set created_at = now() - interval '3 minutes' where body = 'alice again';
+create temp table alice_msg as select id from public.messages where body = 'alice again';
+grant select on alice_msg to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'before block: her 2 messages unread', (select unread_count from public.my_chats()) = 2;
+select public.block_person('00000000-0000-0000-0000-0000000000a1');
+insert into results select 'blocked: her messages hidden',
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000a1') = 0;
+insert into results select 'blocked: his own still there',
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2') = 1;
+insert into results select 'blocked: unread leaves her out', (select unread_count from public.my_chats()) = 0;
+insert into results select 'blocked: inbox line skips her',
+  (select last_message_preview = 'hi from bob' and last_message_sender_name = 'bob' from public.my_chats());
+insert into results select 'blocked: listed in my_blocks',
+  (select count(*) from public.my_blocks() where id = '00000000-0000-0000-0000-0000000000a1') = 1;
+do $$ begin
+  perform public.block_person(auth.uid());
+  insert into results values ('cannot block yourself', false);
+exception when others then insert into results values ('cannot block yourself', true); end $$;
+do $$ begin
+  insert into public.blocks (blocker, blocked) values (auth.uid(), '00000000-0000-0000-0000-0000000000c3');
+  insert into results values ('blocks written only through the RPCs', false);
+exception when insufficient_privilege then insert into results values ('blocks written only through the RPCs', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'blocked person still sees the blocker',
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2') = 1;
+insert into results select 'nobody sees who blocked them', (select count(*) from public.blocks) = 0;
+reset role;
+insert into results select 'block drops saved catch-ups that read her',
+  not exists (select 1 from public.ai_briefs where user_id = '00000000-0000-0000-0000-0000000000b2');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+select public.unblock_person('00000000-0000-0000-0000-0000000000a1');
+insert into results select 'unblocked: her messages are back',
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000a1') = 2;
+
+-- Report (0007): Bob reports Alice's message (twice: the second is dropped)
+-- and Alice herself. Nobody can read reports back, report themselves or set
+-- the reporter, and an outsider can't report into a chat they aren't in.
+insert into public.reports (message_id, reason) select id, 'spam' from alice_msg;
+insert into public.reports (message_id, reason) select id, 'harassment' from alice_msg;
+insert into public.reports (reported_user, reason, note) values ('00000000-0000-0000-0000-0000000000a1', 'other', '  rude  ');
+do $$ begin
+  perform * from public.reports;
+  insert into results values ('reports unreadable', false);
+exception when insufficient_privilege then insert into results values ('reports unreadable', true); end $$;
+do $$ begin
+  insert into public.reports (message_id, reason) select id, 'spam' from public.messages where body = 'hi from bob';
+  insert into results values ('cannot report own message', false);
+exception when others then insert into results values ('cannot report own message', true); end $$;
+do $$ begin
+  insert into public.reports (reporter, reported_user, reason)
+  values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000c3', 'spam');
+  insert into results values ('cannot set the reporter', false);
+exception when insufficient_privilege then insert into results values ('cannot set the reporter', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
+do $$ begin
+  insert into public.reports (message_id, reason) select id, 'spam' from alice_msg;
+  insert into results values ('outsider cannot report a message', false);
+exception when others then insert into results values ('outsider cannot report a message', true); end $$;
+do $$ begin
+  insert into public.reports (reported_user, reason) values ('00000000-0000-0000-0000-0000000000a1', 'spam');
+  insert into results values ('outsider cannot report a stranger', false);
+exception when others then insert into results values ('outsider cannot report a stranger', true); end $$;
+reset role;
+insert into results select 'report filed with copies',
+  (select count(*) = 1 from public.reports
+    where reporter = '00000000-0000-0000-0000-0000000000b2' and message_id = (select id from alice_msg)
+      and reported_user = '00000000-0000-0000-0000-0000000000a1' and reported_name = 'alice'
+      and message_body = 'alice again' and reason = 'spam' and chat_id = (select id from ctx));
+insert into results select 'person report trims the note',
+  (select note = 'rude' from public.reports
+    where reporter = '00000000-0000-0000-0000-0000000000b2' and message_id is null);
+insert into results select 'nothing stored for the outsider',
+  not exists (select 1 from public.reports where reporter = '00000000-0000-0000-0000-0000000000c3');
+
 -- Delete account (0007): Dan joins Friday crew, has the last word, then
 -- deletes his account. His messages go, the inbox line falls back to Bob's,
 -- and a catch-up Alice saved that read him goes too.
