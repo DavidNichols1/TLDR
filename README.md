@@ -399,9 +399,12 @@ no website inside Ketchup. You use the real Instagram app.
 - **Snapchat needed its own mode.** A layout dump from the phone (view names, positions and
   text lengths, never text) showed that every Snapchat message sits on the left under a
   name row, so the reader takes each message's sender from the row above it instead of
-  from its side, and finds the chat by Snapchat's own view names. Still unchecked on a real
-  phone: a long Instagram thread, and whether Snapchat marks your own messages as yours
-  (none were counted as yours in that test).
+  from its side, and finds the chat by Snapchat's own view names. The first time you use
+  it, Ketchup asks your name on Snapchat once and keeps it on the phone; messages under
+  that name or "ME" are yours. Snapchat mostly ignores an app's scrolling, so the panel
+  asks you to scroll up slowly and reads as you go. On the phone at 2:25 PM it read 30
+  messages, 7 of them yours, with no repeats. Still unchecked on a real phone: a long
+  Instagram thread.
 - **Same terms problem as the iPhone version, plus Google Play's.** Play only allows
   accessibility services for accessibility, so this is a sideloaded, experimental build.
   On Android 13 and later, a sideloaded app needs Allow restricted settings (App info,
