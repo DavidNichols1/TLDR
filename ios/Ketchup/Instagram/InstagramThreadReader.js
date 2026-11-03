@@ -10,9 +10,12 @@
 // thread (instagram.com/direct/t/...). It checks that again itself and does
 // nothing anywhere else, so it never touches login pages. It never clicks,
 // types or sends anything, and never reads cookies, storage or the network.
-// It reads what Instagram has already rendered, scrolls the thread up a few
-// times (with pauses) so Instagram loads older messages the way it does for
-// a person, then puts the scroll position back.
+// Instagram only fills in the rows near the screen (the rest are empty
+// placeholders), so it steps up through the thread a screen at a time,
+// reading rows as Instagram fills them in. At the top of what's loaded
+// Instagram fetches older messages itself, the way it does for a person; the
+// reader lets that happen at most `maxScrolls` times, then puts the scroll
+// position back.
 //
 // Instagram's class names are obfuscated and change often, so nothing here
 // relies on them. It goes by what any browser exposes: ARIA roles and
@@ -24,17 +27,22 @@
 // - Exact times. Instagram prints a time only at breaks in the conversation,
 //   so each message carries the last time shown above it. English labels
 //   only ("Today 3:41 PM", "Fri 8:30 PM", "Oct 28, 4:12 PM").
-// - Anything older than what loads in `maxScrolls` scroll-ups, and only the
-//   newest `maxMessages` are returned. No read cursor either: the page has no
-//   "unread" marker, so this is the loaded thread, not just what's new.
-// - Media itself. Photos, videos, voice notes, GIFs and shared posts become
-//   placeholders like "[photo]"; a shared post keeps its caption.
+// - Anything older than what loads in `maxScrolls` fetches or ~28 seconds of
+//   reading, and only the newest `maxMessages` are returned. No read cursor
+//   either: the page has no "unread" marker, so this is the loaded thread,
+//   not just what's new.
+// - Media itself. Photos, videos, voice notes, GIFs and shared posts or reels
+//   become placeholders like "[photo]"; a shared post keeps its caption.
+//   View-once photos and videos can't be seen on the web at all
+//   ("[view-once photo]").
 // - Reactions, read receipts, typing, unsent messages and other notices
 //   (left out on purpose), link-preview cards, and view-once or vanish-mode
 //   messages that aren't rendered as text.
-// - A sender's name when Instagram shows neither a name label nor an avatar
-//   for a run of messages in a group ("Someone"). In a 1:1 thread the other
-//   person is named after the thread title.
+// - Display names, sometimes. A group shows a name label over each run of
+//   messages; when a label isn't there, the sender comes from Instagram's
+//   button labels ("React to message from <username>"), so it's a username.
+//   With neither, it's "Someone". In a 1:1 thread the other person is named
+//   after the thread title.
 
 const MAX = Math.max(1, Math.min(Number(typeof maxMessages === "undefined" ? 300 : maxMessages) || 300, 600));
 const SCROLLS = Math.max(0, Math.min(Number(typeof maxScrolls === "undefined" ? 6 : maxScrolls) || 0, 12));
@@ -176,6 +184,13 @@ function threadTitle(root, scroller) {
 
 // ---------------------------------------------------------------------------
 // Reading what's rendered
+//
+// Instagram virtualizes the thread: only rows near the screen hold content,
+// and every other row is an empty, invisible placeholder that keeps its
+// height. So the reader steps up through the thread one screen at a time and
+// keeps each row the first time it is filled in. Positions are measured up
+// from the bottom of the list, which doesn't move when Instagram adds older
+// messages on top, so rows read at different scroll positions line up.
 
 function paints(cs) {
   const bg = cs.backgroundColor;
@@ -192,18 +207,49 @@ function textRect(el) {
   return r.width > 0 ? r : el.getBoundingClientRect();
 }
 const skipZone = (el) => el.closest('[contenteditable="true"], [role="textbox"], textarea, input, select, [role="progressbar"]');
+const opacity = (el) => {
+  const v = parseFloat(getComputedStyle(el).opacity);
+  return isNaN(v) ? 1 : v;
+};
 
-/** Reads the thread as it is on screen right now, oldest first. */
-function readThread(root) {
-  const box = root.getBoundingClientRect();
-  const mid = box.left + box.width / 2;
-  const centered = (r) => Math.abs(r.left + r.width / 2 - mid) <= Math.max(20, box.width * 0.06) && r.width < box.width * 0.9;
-  const sideOf = (r) => (r.left - box.left > box.right - r.right ? "me" : "them");
+/** The element whose children are the rows (one message or time stamp each). */
+function findList(root) {
+  let n = root;
+  for (let depth = 0; depth < 12; depth++) {
+    const kids = [...n.children].filter((c) => getComputedStyle(c).display !== "none");
+    if (kids.length >= 6) return n;
+    const next = kids.sort((a, b) => b.getElementsByTagName("*").length - a.getElementsByTagName("*").length)[0];
+    if (!next || next.getElementsByTagName("*").length === 0) return n;
+    n = next;
+  }
+  return n;
+}
+
+const rowsOf = (list) => (list.children.length >= 2 ? [...list.children] : [list]);
+const filled = (row) => !!row.firstElementChild && opacity(row) > 0;
+
+/** Who wrote a row, from Instagram's button labels ("React to message from
+ *  <username>", "Open the profile page of <username>"). A username, not a
+ *  display name. */
+function userIn(row) {
+  for (const el of [row, ...row.querySelectorAll("[aria-label]")]) {
+    const m = (el.getAttribute("aria-label") || "").match(/\bmessage\s+\S+\s+(\S+)\s*$|\bprofile\s+\S+\s+of\s+(\S+)\s*$/i);
+    if (m) return (m[1] || m[2]).trim();
+  }
+  return null;
+}
+
+/** The pieces of one row: loose text (labels, time stamps), bubbles (one
+ *  message each) and avatars, with where they sit. */
+function unitsIn(row, g) {
+  const { box, base, centered, sideOf } = g;
+  const user = userIn(row);
+  const stop = row.parentElement;
 
   // The bubble around a text or media element: the nearest ancestor that
   // paints a background or clips, has rounded corners, and isn't full width.
   const bubbleOf = (el) => {
-    for (let n = el, i = 0; n && n !== root && i < 12; n = n.parentElement, i++) {
+    for (let n = el, i = 0; n && n !== stop && i < 14; n = n.parentElement, i++) {
       const r = n.getBoundingClientRect();
       if (r.width > box.width * 0.92) return null;
       const cs = getComputedStyle(n);
@@ -211,20 +257,19 @@ function readThread(root) {
     }
     return null;
   };
-  const opacityOf = (el) => {
+  const fadedOf = (el) => {
     let o = 1;
-    for (let n = el, i = 0; n && n !== root && i < 10; n = n.parentElement, i++) o *= parseFloat(getComputedStyle(n).opacity) || 1;
-    return o;
+    for (let n = el, i = 0; n && n !== stop && i < 10; n = n.parentElement, i++) o *= opacity(n);
+    return o < 0.9;
   };
   const isReaction = (el) => {
     const b = el.closest('[role="button"]');
-    return !!b && root.contains(b) && /react/i.test(b.getAttribute("aria-label") || "");
+    return !!b && row.contains(b) && /react/i.test(b.getAttribute("aria-label") || "");
   };
 
-  // 1. Leaves: outermost dir="auto" text, plus media and avatars.
-  const leaves = [];
-  // A row-sized wrapper that is itself dir="auto" mustn't swallow the messages inside it.
-  let texts = [];
+  // Leaves: outermost dir="auto" text (a row-sized dir="auto" wrapper mustn't
+  // swallow what's inside it), media, avatars.
+  const texts = [];
   const take = (els) => {
     for (const el of els) {
       const wide = el.getBoundingClientRect().width > box.width * 0.92 && el.querySelector('[dir="auto"]');
@@ -232,15 +277,20 @@ function readThread(root) {
       else texts.push(el);
     }
   };
-  take([...root.querySelectorAll('[dir="auto"]')].filter((el) => {
-    const outer = el.parentElement.closest('[dir="auto"]');
-    return !outer || outer === root || !root.contains(outer);
-  }));
-  if (texts.length < 2) {
-    // No dir="auto" markup: fall back to any element that holds text itself.
-    texts = [...root.querySelectorAll("*")].filter((el) =>
-      [...el.childNodes].some((c) => c.nodeType === Node.TEXT_NODE && c.nodeValue.trim()));
+  if (g.plainText) {
+    // A page without dir="auto": any element that holds text itself.
+    texts.push(...[row, ...row.querySelectorAll("*")].filter((el) =>
+      [...el.childNodes].some((c) => c.nodeType === Node.TEXT_NODE && c.nodeValue.trim())));
+  } else if (row.matches('[dir="auto"]')) {
+    take([row]);
+  } else {
+    take([...row.querySelectorAll('[dir="auto"]')].filter((el) => {
+      const outer = el.parentElement.closest('[dir="auto"]');
+      return !outer || !row.contains(outer);
+    }));
   }
+
+  const leaves = [];
   for (const el of texts) {
     if (skipZone(el) || isReaction(el)) continue;
     const text = textOf(el);
@@ -249,16 +299,19 @@ function readThread(root) {
     if (/^edited$/i.test(text)) continue;
     leaves.push({ kind: "text", el, text, r, bubble: bubbleOf(el), size: parseFloat(getComputedStyle(el).fontSize) || 15 });
   }
-  for (const el of root.querySelectorAll("img, video, audio, [role='button'][aria-label]")) {
+  for (const el of row.querySelectorAll("img, video, audio, [role='button'][aria-label]")) {
     if (skipZone(el) || isReaction(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
     const tag = el.tagName.toUpperCase();
     if (tag === "IMG") {
       const alt = el.getAttribute("alt") || "";
-      const round = parseFloat(getComputedStyle(el).borderTopLeftRadius) >= r.width * 0.4;
-      if (/profile picture/i.test(alt) || (r.width <= 48 && round)) {
-        leaves.push({ kind: "avatar", el, r, name: alt.replace(/'s profile picture$/i, "").trim() });
+      const link = el.closest("a[aria-label]");
+      const linked = link && row.contains(link) ? (link.getAttribute("aria-label") || "").match(/\bprofile\s+\S+\s+of\s+(\S+)\s*$/i) : null;
+      const round = (n) => !!n && parseFloat(getComputedStyle(n).borderTopLeftRadius) >= r.width * 0.4;
+      if (/profile[\s_-]?pic/i.test(alt) || linked || (r.width <= 48 && (round(el) || round(el.parentElement)))) {
+        const name = linked ? linked[1] : /'s profile picture$/i.test(alt) ? alt.replace(/'s profile picture$/i, "").trim() : "";
+        leaves.push({ kind: "avatar", el, r, name });
         continue;
       }
       if (r.width <= 40) continue; // inline emoji, read as text
@@ -270,7 +323,7 @@ function readThread(root) {
     }
   }
 
-  // 2. Messages: everything inside one bubble is one message.
+  // Everything inside one bubble is one message.
   const units = [];
   const byBubble = new Map();
   for (const leaf of leaves) {
@@ -291,26 +344,100 @@ function readThread(root) {
   }
   for (const u of units) {
     if (u.kind !== "message") continue;
+    const icons = [...u.el.querySelectorAll("svg[aria-label]")].map((s) => s.getAttribute("aria-label") || "");
+    const once = icons.map((l) => l.match(/^this (photo|video)\b/i)).find(Boolean);
     const post = u.el.querySelector('a[href*="/p/"], a[href*="/reel/"]') || u.el.closest('a[href*="/p/"], a[href*="/reel/"]');
-    if (post) {
-      const caption = u.texts.filter((t, i) => !(i === 0 && /^[a-z0-9._]{1,30}$/i.test(t)));
-      u.media = [/\/reel\//.test(post.getAttribute("href")) ? "[shared reel]" : "[shared post]"];
-      u.texts = caption;
+    if (once) {
+      // "This photo/video can only be viewed once..." is Instagram's note, not the message.
+      u.media = [`[view-once ${once[1].toLowerCase()}]`];
+      u.texts = [];
+    } else if (post || icons.some((l) => /^(clip|reel)$/i.test(l))) {
+      u.media = [post && !/\/reel\//.test(post.getAttribute("href")) ? "[shared post]" : "[shared reel]"];
+      u.texts = u.texts.filter((t, i) => !(i === 0 && /^[a-z0-9._]{1,30}$/i.test(t))); // the poster's username
     }
     if (u.media.includes("[video]")) u.media = u.media.filter((x) => x !== "[voice message]");
     u.text = [...new Set(u.media)].concat(u.texts.length ? [u.texts.join("\n")] : []).join(" ").trim();
-    u.small = u.leaves.some((l) => l.kind === "text") && Math.max(...u.leaves.filter((l) => l.kind === "text").map((l) => l.size)) < 14;
+    const sizes = u.leaves.filter((l) => l.kind === "text").map((l) => l.size);
+    u.small = sizes.length > 0 && Math.max(...sizes) < 14;
+    u.faded = fadedOf(u.el);
   }
 
-  // 3. Walk top to bottom.
-  const order = new Map(units.map((u, i) => [u, i]));
-  units.sort((a, b) => (a.r.top - b.r.top) || (order.get(a) - order.get(b)));
+  return units.map((u) => ({
+    kind: u.kind,
+    text: u.text,
+    media: u.kind === "message" && u.media.length > 0,
+    name: u.name,
+    size: u.size,
+    small: !!u.small,
+    faded: !!u.faded,
+    side: sideOf(u.r),
+    centered: centered(u.r),
+    topY: base - u.r.top,
+    bottomY: base - u.r.bottom,
+    user,
+    order: g.order(),
+  }));
+}
+
+/** Reads the rows filled in right now and keeps the ones not seen yet. */
+function collect(ctx) {
+  const box = ctx.root.getBoundingClientRect();
+  const mid = box.left + box.width / 2;
+  const g = {
+    box,
+    base: ctx.list.getBoundingClientRect().bottom,
+    centered: (r) => Math.abs(r.left + r.width / 2 - mid) <= Math.max(20, box.width * 0.06) && r.width < box.width * 0.9,
+    sideOf: (r) => (r.left - box.left > box.right - r.right ? "me" : "them"),
+    plainText: ctx.plainText,
+    order: () => ctx.order++,
+  };
+  for (const row of rowsOf(ctx.list)) {
+    if (ctx.rows.has(row) || !filled(row)) continue;
+    const units = unitsIn(row, g);
+    if (units.length) ctx.rows.set(row, units);
+  }
+}
+
+const isMessageUnit = (u) => u.kind === "message" || (u.kind === "text" && !u.centered && u.size > 13.5);
+const messageCount = (ctx) => {
+  let n = 0;
+  for (const units of ctx.rows.values()) for (const u of units) if (isMessageUnit(u)) n++;
+  return n;
+};
+
+/** Waits until every row on screen has been filled in (or gives up). */
+async function settle(ctx, scroller) {
+  for (let t = 0; t < 1500; t += 50) {
+    await sleep(50);
+    const view = scroller === document.scrollingElement
+      ? { top: 0, bottom: window.innerHeight } : scroller.getBoundingClientRect();
+    let pending = 0;
+    for (const row of rowsOf(ctx.list)) {
+      const b = row.getBoundingClientRect();
+      if (b.height === 0 || b.bottom < view.top || b.top > view.bottom) continue;
+      if (!filled(row)) pending++;
+    }
+    if (pending === 0) return;
+  }
+}
+
+/** Turns the pieces, top to bottom, into messages with senders and times. */
+function walk(all) {
+  // A row Instagram re-created while we scrolled is read twice: same text, same place.
+  const seen = new Set();
+  const units = all.filter((u) => {
+    const key = `${u.kind}|${u.text || u.name || ""}|${Math.round(u.topY / 3)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => (b.topY - a.topY) || (a.order - b.order));
+
   const out = [];
   const stats = { separators: 0, labels: 0, avatars: 0, media: 0, skipped: 0 };
-  let at = null, atLabel = null, sender = null, reply = null;
-
-  const nextMessage = (i) => {
-    for (let j = i + 1; j < units.length; j++) if (units[j].kind === "message" || units[j].kind === "text") return units[j];
+  const names = new Map(); // username → the display name its label showed
+  let at = null, atLabel = null, label = null, labelUser, reply = null;
+  const after = (i) => {
+    for (let j = i + 1; j < units.length; j++) if (units[j].kind !== "avatar") return units[j];
     return null;
   };
 
@@ -320,7 +447,7 @@ function readThread(root) {
     let msg = null;
     if (u.kind === "text") {
       const t = u.text;
-      const stamp = centered(u.r) ? parseStamp(t) : null;
+      const stamp = u.centered ? parseStamp(t) : null;
       if (stamp) { at = stamp.toISOString(); atLabel = t; stats.separators++; reply = null; continue; }
       if (RECEIPT.test(t) && t.length < 80) { stats.skipped++; continue; }
       if (REPLY_LABEL.test(t) && t.length < 120) {
@@ -330,28 +457,27 @@ function readThread(root) {
         const to = you ? you[1] : by ? by[2] : /your story/i.test(t) ? "your story" : "";
         reply = { to: /^you$/i.test(to) ? READER : to, quote: null };
         // Who is replying names the next message (not a group signal: 1:1 threads say it too).
-        if (!you && by) sender = by[1].trim();
+        if (!you && by) { label = by[1].trim(); labelUser = undefined; }
         continue;
       }
       if (EMOJI_ONLY.test(t) && u.size >= 24) {
-        msg = { side: sideOf(u.r), text: t, small: false, el: u.el };
-      } else if (centered(u.r)) {
+        msg = { side: u.side, text: t, small: false, user: u.user };
+      } else if (u.centered) {
         stats.skipped++; // a notice ("Maya named the group"), or the thread-start header
         continue;
       } else {
-        const next = nextMessage(i);
-        const nextSide = next ? sideOf(next.r) : null;
-        if (u.size <= 13.5 && t.length <= 50 && sideOf(u.r) === "them" && nextSide === "them" && next.r.top - u.r.bottom < 40) {
-          sender = t; stats.labels++; reply = null;
+        const next = after(i);
+        if (u.size <= 13.5 && t.length <= 50 && u.side === "them" && next && next.side === "them" && u.bottomY - next.topY < 40) {
+          label = t; labelUser = undefined; stats.labels++; reply = null;
           continue;
         }
         if (u.size <= 13.5) { stats.skipped++; continue; } // small loose text: a status line, not a message
-        msg = { side: sideOf(u.r), text: t, small: false, el: u.el }; // a message whose bubble we couldn't see
+        msg = { side: u.side, text: t, small: false, user: u.user }; // a message whose bubble we couldn't see
       }
     } else {
       if (!u.text) { stats.skipped++; continue; }
-      if (u.media.length) stats.media++;
-      msg = { side: sideOf(u.r), text: u.text, small: u.small || opacityOf(u.el) < 0.9, el: u.el };
+      if (u.media) stats.media++;
+      msg = { side: u.side, text: u.text, small: u.small || u.faded, user: u.user };
     }
 
     if (reply && reply.quote === null && msg.small) { reply.quote = msg.text; continue; }
@@ -362,19 +488,33 @@ function readThread(root) {
         : `(replying to ${reply.to ? `${reply.to}: ` : ""}"${quote}") ${text}`;
       reply = null;
     }
-    if (msg.side === "me") sender = null;
-    out.push({ sender: msg.side === "me" ? "" : sender, text, isMe: msg.side === "me", at, atLabel, el: msg.el, r: u.r });
+    let sender = "";
+    if (msg.side === "me") {
+      label = null; labelUser = undefined;
+    } else {
+      // A name label covers its run. A different username without a new label means the run ended.
+      if (label !== null && labelUser === undefined) {
+        labelUser = msg.user || null;
+        if (msg.user) names.set(msg.user, label);
+      } else if (label !== null && msg.user && labelUser && msg.user !== labelUser) {
+        label = null; labelUser = undefined;
+      }
+      sender = label !== null ? label : msg.user;
+    }
+    out.push({ sender, text, isMe: msg.side === "me", at, atLabel, user: msg.user, topY: u.topY, bottomY: u.bottomY });
   }
 
-  // 4. Runs of their messages with no name label: take the avatar next to the run.
-  const avatars = units.filter((u) => u.kind === "avatar" && u.name && sideOf(u.r) === "them");
+  // Usernames that a label later named get that display name everywhere.
+  for (const m of out) if (!m.isMe && m.sender && m.sender === m.user && names.has(m.user)) m.sender = names.get(m.user);
+
+  // Runs of their messages still unnamed: take the avatar next to the run.
+  const avatars = units.filter((u) => u.kind === "avatar" && u.name && u.side === "them");
   for (let i = 0; i < out.length;) {
     if (out[i].isMe || out[i].sender) { i++; continue; }
     let j = i;
     while (j + 1 < out.length && !out[j + 1].isMe && !out[j + 1].sender) j++;
-    const top = out[i].r.top, bottom = out[j].r.bottom;
-    const near = avatars.find((a) => a.r.top < bottom + 30 && a.r.bottom > top - 4);
-    if (near) for (let k = i; k <= j; k++) out[k].sender = near.name;
+    const near = avatars.find((a) => a.topY > out[j].bottomY - 30 && a.bottomY < out[i].topY + 4);
+    if (near) for (let k = i; k <= j; k++) out[k].sender = names.get(near.name) || near.name;
     i = j + 1;
   }
   stats.distinctAvatars = new Set(avatars.map((a) => a.name)).size;
@@ -382,54 +522,56 @@ function readThread(root) {
 }
 
 // ---------------------------------------------------------------------------
-// Scroll up for older messages, then put the thread back where it was.
+// Step up through the thread (Instagram loads older messages when the top is
+// reached), then put the scroll back where it was.
+
+const BUDGET_MS = 28000;
 
 try {
   const { root, how } = findRoot();
   const scroller = findScroller(root);
+  const list = findList(root);
   const title = threadTitle(root, scroller);
-  let snapshot = readThread(root);
-  const firstEls = snapshot.messages.map((m) => m.el);
-  const snapshots = [snapshot];
-  let scrolls = 0, reachedStart = false, reversed = false;
+  const ctx = { root, list, rows: new Map(), order: 0, plainText: !root.querySelector('[dir="auto"]') };
+  const placeholders = rowsOf(list).filter((row) => !filled(row)).length;
+  collect(ctx);
+  let loads = 0, steps = 0, reachedStart = false, reversed = false;
 
-  if (scroller && SCROLLS > 0) {
+  if (scroller) {
     reversed = scroller.scrollTop < 0 || getComputedStyle(scroller).flexDirection === "column-reverse";
     const fromBottom = reversed ? -scroller.scrollTop : scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
-    const size = () => scroller.scrollHeight + root.querySelectorAll('[dir="auto"], img, video').length;
-    while (scrolls < SCROLLS && snapshot.messages.length < MAX) {
-      const before = size();
-      scroller.scrollTop = -1e9; // the oldest end, for top-down and bottom-up (column-reverse) lists alike
+    const step = Math.max(120, Math.round(scroller.clientHeight * 0.9));
+    while (messageCount(ctx) < MAX && Date.now() - started < BUDGET_MS && steps < 250) {
+      const before = scroller.scrollTop;
+      scroller.scrollTop = before - step;
       if (scroller.scrollTop < 0) reversed = true;
-      scrolls++;
+      steps++;
+      await settle(ctx, scroller);
+      collect(ctx);
+      if (Math.abs(scroller.scrollTop - before) >= 1) continue;
+      // The top of what's loaded. Instagram fetches older messages on its own
+      // when the top is reached; wait for that, at most `maxScrolls` times.
+      if (loads >= SCROLLS) break;
+      const height = scroller.scrollHeight;
       let grew = false;
-      for (let waited = 0; waited < 3000 && !grew; waited += 150) {
+      for (let waited = 0; waited < 3500 && !grew; waited += 150) {
         await sleep(150);
-        grew = size() > before;
+        grew = scroller.scrollHeight > height + 4;
       }
       if (!grew) { reachedStart = true; break; }
-      await sleep(500 + Math.floor(Math.random() * 300)); // let it settle; be gentle
-      snapshot = readThread(root);
-      snapshots.push(snapshot);
+      loads++;
+      await sleep(300 + Math.floor(Math.random() * 300)); // be gentle
+      await settle(ctx, scroller);
+      collect(ctx);
     }
     scroller.scrollTop = reversed ? -fromBottom : scroller.scrollHeight - scroller.clientHeight - fromBottom;
   }
 
-  // A list that unmounts what scrolled away (virtualized) loses the newest
-  // messages from the last read: stitch the reads together instead.
-  let messages = snapshots[snapshots.length - 1].messages;
-  const virtualized = firstEls.some((el) => !el.isConnected);
-  if (virtualized) {
-    const seen = new Set();
-    messages = [];
-    for (const snap of [...snapshots].reverse()) {
-      for (const m of snap.messages) if (!seen.has(m.el)) { seen.add(m.el); messages.push(m); }
-    }
-  }
-
-  const stats = snapshots[snapshots.length - 1].stats;
-  const named = messages.filter((m) => !m.isMe && m.sender);
-  const isGroup = stats.labels > 0 || stats.distinctAvatars >= 2;
+  const { messages, stats } = walk([...ctx.rows.values()].flat());
+  const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
+  // Only group threads show name labels. A thread with none and only one
+  // other person in it is 1:1: that person is named after the thread.
+  const isGroup = stats.labels > 0 || named.size >= 2;
   for (const m of messages) {
     if (m.isMe) continue;
     if (!isGroup && title) m.sender = title;
@@ -449,9 +591,9 @@ try {
     messages: kept,
     truncated,
     // Counts only, safe to log.
-    stats: { root: how, scrolls, reachedStart, reversed, virtualized, found: messages.length, named: named.length,
-             separators: stats.separators, labels: stats.labels, avatars: stats.avatars, media: stats.media,
-             skipped: stats.skipped, ms: Date.now() - started },
+    stats: { root: how, scrolls: loads, steps, reachedStart, reversed, placeholders, rows: ctx.rows.size,
+             found: messages.length, named: named.size, separators: stats.separators, labels: stats.labels,
+             avatars: stats.avatars, media: stats.media, skipped: stats.skipped, ms: Date.now() - started },
   });
 } catch (e) {
   return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });
