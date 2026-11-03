@@ -141,8 +141,8 @@ struct AskSheet: View {
 }
 
 /// The question box: a page of a notepad, ruled to the text, with Ask in
-/// ketchup red at its foot.
-private struct NotepadField: View {
+/// ketchup red at its foot. Also asks about a chat read off a website (WebChat/).
+struct NotepadField: View {
     @Binding var text: String
     var focused: FocusState<Bool>.Binding
     let canAsk: Bool
@@ -211,8 +211,8 @@ nonisolated private struct RuledLines: Shape {
 
 /// What Muse Spark said, under the question it answers, with the messages
 /// behind it. When the chat doesn't say, the card goes quiet: no paper, a
-/// dashed edge, and the closest messages it found.
-private struct AnswerCard: View {
+/// dashed edge, and the closest messages it found. Also used by WebChat/.
+struct AnswerCard: View {
     let question: String
     let answer: ChatAnswer
     let byline: [String]
