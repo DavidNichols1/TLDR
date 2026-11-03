@@ -61,8 +61,11 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
 - Offline: `deno test supabase/functions/_shared/` (transcript format, index refs), then the
   reader against the synthetic fixture (real WebKit, no network):
   `swift scripts/ig-extractor-check/check.swift --html ios/Ketchup/Instagram/Fixture/ig-thread-fixture.html --js ios/Ketchup/Instagram/InstagramThreadReader.js --expected ios/Ketchup/Instagram/Fixture/ig-thread-fixture.expected.json`
-  must print `PASS 88/88` (about 6 s; exit 1 = a mismatch, 2 = the reader failed). Change the
-  fixture and its `.expected.json` together.
+  must print `PASS 88/88` (about 6 s; exit 1 = a mismatch, 2 = the reader failed). Then the
+  same against `ig-thread-fixture-virtual.html` and its `.expected.json` (the real page's
+  structure: column-reverse scroller, virtualized rows), once as is and once with
+  `--url 'https://www.instagram.com/direct/t/ketchup-test-fixture/?anchoring=on'`; all three
+  must pass 88/88. Change a fixture and its `.expected.json` together.
 - Deploy: `supabase functions deploy catch-up-text --project-ref cfqlnthmqwkhjbhylvgu --use-api`,
   and redeploy `catch-up` after any `_shared` change. `list_edge_functions` → `verify_jwt: true`
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.

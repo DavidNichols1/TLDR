@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Instagram • Messages</title>
+<!--
+  Ketchup test fixture 2: a SYNTHETIC Instagram web DM thread ("Breck Crew 🎿") shaped like the
+  real mobile web page, as a redacted outline measured it on Nov 3, 2026 (iPhone, dark mode). The
+  two things that broke the first reader are here: the message list is VIRTUALIZED, and it sits
+  in a COLUMN-REVERSE scroller. Fictional people only. Nothing here was copied from Instagram and
+  nothing is fetched: every image is an inline SVG or a data: URI. Load it with
+  loadHTMLString(html, baseURL: https://www.instagram.com/direct/t/ketchup-test-fixture/).
+
+  Same conversation as ig-thread-fixture.html (people, texts, order, time separators), except
+  that the shared post is now a shared reel card and the photo and the video are view-once
+  placeholders. Class names are meaningless atomic classes, and there is no [role=main]:
+
+    #mount_0_0_Vt > div
+      header:   div[role=button][aria-label="Open the details page of the chat"] holding the Back
+                button, a 32px avatar and h2[dir=auto] > span (the title); "Conversation
+                information" on the right
+      pinned:   a bar with a 14px preview of a pinned message (never to be extracted), Previous
+                and Next buttons and a "1/2" counter
+      scroller: overflow-y auto, flex-direction column-reverse, so scrollTop is 0 at the bottom
+                (newest) and negative going up
+        div: the rows, oldest first
+          div[role=progressbar] > svg[aria-label="Loading..."], while older messages remain
+          row: a div with an explicit height
+            message:   div[role=group][tabindex="-1"] > sender label span[dir=auto] (first of a
+                       run), avatar link (last of a run, else a 28px spacer),
+                       div[role=article] > ... > bubble > span[dir=auto], the hover actions
+                       div[role=group][aria-label="Message actions"] (opacity 0), reactions
+            separator: span[dir=auto], full width, centered, 12px ("Today 3:41 PM")
+            also: notices, an empty 0px row, a read receipt, typing, the thread-start header
+      composer: div[role=textbox][contenteditable] > p[dir=auto] holding a draft, an aria-hidden
+                "Message..." placeholder, Voice Clip / Add Photo or Video / Choose a GIF or sticker
+
+  Virtualization: a row more than 200px outside the scroller's visible area is an empty
+  placeholder. It keeps its measured height (inline style), has opacity 0 and no children. When
+  it comes within range its content is built again (new elements, same row element) and the
+  opacity goes back to 1; when it leaves the range it is emptied again. A scroll listener (30ms
+  after the event, like an IntersectionObserver plus a React commit) and a 100ms poll both
+  drive it, so rows fill in within about 50ms of a scroll.
+
+  Lazy loading: only items 45 onward are rows at first. While older ones remain, the
+  progressbar sits at the top of the list (the real outline found it there with the view at
+  the bottom). When the scroller comes within 80px of its top, 700ms later the next 15 older
+  items are added above, and nothing on screen moves (scrollTop counts from the bottom and is
+  kept). After the last batch the progressbar gives way to the thread-start header. Without
+  overflow-anchor: none on the scroller, WebKit's scroll anchoring holds the progressbar in view
+  instead and pushes the visible messages down by the batch's height. ?anchoring=on leaves it
+  that way, to test a reader against the jump; whether the real page jumps is not measured.
+
+  document.title is "Instagram • Messages" (the real outline masked it to a nine-letter word,
+  not the chat's name). Add ?doctitle=group to the URL for "Breck Crew 🎿 • Messages".
+
+  ig-thread-fixture-virtual.expected.json is the ground truth for the fully loaded thread. It
+  follows THREAD below; change both together.
+-->
+<style>
+html, body { margin: 0; padding: 0; height: 100%; background-color: rgb(12, 16, 20); }
+body { overflow: hidden; color: rgb(245, 245, 245); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#mount_0_0_Vt { height: 100%; background-color: rgb(12, 16, 20); }
+@keyframes xq2e8kj { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@keyframes x1n9e3tl { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="mount_0_0_Vt"></div>
+<script>
+(function () {
+  'use strict';
+
+  const TITLE = 'Breck Crew 🎿';
+  const PINNED = 'PINNED SHOULD NOT BE EXTRACTED';
+  const DRAFT = 'DRAFT SHOULD NOT BE EXTRACTED';
+  if (/[?&]doctitle=group(&|$)/.test(location.search)) document.title = TITLE + ' • Messages';
+  // ?anchoring=on leaves WebKit's scroll anchoring alone (see the note at the top).
+  const ANCHORING = /[?&]anchoring=on(&|$)/.test(location.search);
+
+  // ---------------------------------------------------------------------------
+  // The conversation. Keys: k = kind, by = sender (a PEOPLE key, or 'me'),
+  // t = text (a string, "\n" is a line break, or a list of strings and links),
+  // r = reactions ("❤️ 2": emoji then a count, "❤️ @j": emoji then who reacted),
+  // ed = edited, to/q = reply target and quoted text, what = view-once photo or
+  // video, poster = whose reel, dur = voice note length.
+  // ---------------------------------------------------------------------------
+  const PEOPLE = /*PEOPLE_BEGIN*/{
+    m: { name: 'Maya', user: 'maya.k', color: '#c2255c' },
+    j: { name: 'Jordan', user: 'jordan.r', color: '#364fc7' },
+    s: { name: 'Sam', user: 'sam.t', color: '#e8590c' },
+    p: { name: 'Priya', user: 'priya.n', color: '#087f5b' }
+  }/*PEOPLE_END*/;
+  const ME = 'david.n';   // my username; it only shows up in the hover-action labels
+
+  const THREAD = /*THREAD_BEGIN*/[
+    // ---- batch 3 (oldest), items 0-14 ----
+    { k: 'sep', t: 'Oct 28, 4:12 PM' },
+    { k: 'notice', t: 'Maya named the group Breck Crew 🎿' },
+    { k: 'msg', by: 'm', t: "ok it's official" },
+    { k: 'msg', by: 'm', t: "breck weekend, the 14th. who's in" },
+    { k: 'msg', by: 'm', t: 'snow report is lookin unreal btw' },
+    { k: 'msg', by: 'j', t: 'IN' },
+    { k: 'msg', by: 'j', t: 'been waiting all year for this' },
+    { k: 'msg', by: 's', t: 'wait which weekend' },
+    { k: 'msg', by: 'm', t: 'the 14th sam. I literally just said that' },
+    { k: 'msg', by: 's', t: "ok ok in. as long as we're not leaving at like 4am lol" },
+    { k: 'msg', by: 'p', t: "ugh I want to but my cousin's engagement party is that saturday" },
+    { k: 'msg', by: 'p', t: 'let me see if I can drive up after' },
+    { k: 'msg', by: 'me', t: "I'm in", r: '❤️ 2' },
+    { k: 'jumbo', by: 'me', t: '🙌' },
+    { k: 'msg', by: 'm', t: 'ok so 5 of us max' },
+    // ---- batch 2, items 15-29 ----
+    { k: 'msg', by: 'j', t: 'where are we staying' },
+    { k: 'msg', by: 'm', t: 'found a 3br in town, walkable to the gondola' },
+    { k: 'msg', by: 'm', t: 'waiting on the host to confirm, will send tonight' },
+    { k: 'msg', by: 'p', t: 'omg yes' },
+    { k: 'msg', by: 's', t: 'does it have a hot tub. asking for me' },
+    { k: 'msg', by: 'm', t: "you'll see" },
+    { k: 'sep', t: 'Wed 7:05 PM' },
+    { k: 'msg', by: 'm', t: ['booked it!! ', { a: 'https://l.instagram.com/?u=https%3A%2F%2Fwww.airbnb.com%2Frooms%2F4417&e=AT0kFixture', t: 'airbnb.com/rooms/4417' }], r: '❤️ 3' },
+    { k: 'msg', by: 'm', t: 'total is $1,240 for the whole weekend' },
+    { k: 'msg', by: 'j', t: 'honestly not bad split 5 ways' },
+    { k: 'msg', by: 's', t: '$248 each if my math is mathing' },
+    { k: 'msg', by: 'm', t: 'yep $248 each. venmo me by friday pls 🙏', r: '👍 2' },
+    { k: 'msg', by: 'p', t: 'sending now' },
+    { k: 'msg', by: 'j', t: "venmo'd" },
+    { k: 'msg', by: 's', t: 'can I pay you in snacks' },
+    // ---- batch 1, items 30-44 ----
+    { k: 'msg', by: 'm', t: 'no' },
+    { k: 'msg', by: 'm', t: 'the hot tub tho' },
+    { k: 'once', by: 'm', what: 'photo', r: '❤️ @j' },
+    { k: 'msg', by: 's', t: 'SHE DELIVERED' },
+    { k: 'once', by: 's', what: 'video' },
+    { k: 'msg', by: 's', t: 'me last year on peak 8 lol' },
+    { k: 'msg', by: 'j', t: 'that fall was majestic' },
+    { k: 'msg', by: 'j', t: 'I can drive btw, the 4runner fits 5 + gear' },
+    { k: 'msg', by: 'j', t: 'leaving sat at 7 from my place?' },
+    { k: 'msg', by: 's', t: '7 works' },
+    { k: 'msg', by: 'me', t: 'works for me' },
+    { k: 'msg', by: 'p', t: "I'll drive up separately after the party" },
+    { k: 'msg', by: 'p', t: 'prob get there around 9 or 10' },
+    { k: 'msg', by: 'm', t: "noo ok we'll save you a bed" },
+    { k: 'sep', t: 'Fri 8:30 PM' },
+    // ---- rows at load, items 45-96 ----
+    { k: 'reel', by: 'j', poster: 'breckresort', r: '🔥 😂 3' },
+    { k: 'msg', by: 'j', t: 'lifts open at 8:30 this year 👀' },
+    { k: 'msg', by: 's', t: 'ok if we want first chair we have to leave way earlier than 7' },
+    { k: 'msg', by: 'j', t: 'leaving at 6am instead, still from my place', ed: true },
+    { k: 'msg', by: 'm', t: '6am 😭' },
+    { k: 'msg', by: 'm', t: 'fine. coffee is on jordan', r: '😂 3' },
+    { k: 'msg', by: 'j', t: 'deal' },
+    { k: 'msg', by: 's', t: '6am is the middle of the night jordan' },
+    { k: 'msg', by: 'j', t: "you'll survive" },
+    { k: 'gif', by: 'me' },
+    { k: 'msg', by: 'p', t: 'can we at least stop for coffee in idaho springs' },
+    { k: 'msg', by: 'j', t: "if we're making good time" },
+    { k: 'msg', by: 'm', t: 'also I got us a dinner rez saturday!! 7:30 at The Rusty Gondola', r: '❤️ 2' },
+    { k: 'msg', by: 'm', t: 'table for 4 since priya gets in late' },
+    { k: 'msg', by: 'p', t: 'save me fries' },
+    { k: 'msg', by: 's', t: "david what size boots are you? I'm reserving rentals for both of us at the shop on main st" },
+    { k: 'sep', t: 'Yesterday 9:02 PM' },
+    { k: 'msg', by: 'm', t: 'packing list:\n- helmet + goggles\n- hand warmers\n- swimsuit for the hot tub\n- snacks for the drive' },
+    { k: 'msg', by: 'j', t: 'and chains just in case, might snow friday night' },
+    { k: 'msg', by: 's', t: "the 4runner doesn't need chains it's a tank" },
+    { k: 'msg', by: 'j', t: "it's literally the law on I-70 sometimes sam" },
+    { k: 'notice', t: 'Sam unsent a message' },
+    { k: 'empty' },
+    { k: 'msg', by: 's', t: 'anyway' },
+    { k: 'msg', by: 'p', t: "what's parking like at the airbnb" },
+    { k: 'msg', by: 'm', t: "2 spots in the garage, we're fine" },
+    { k: 'reply', by: 'j', to: 'm', q: "2 spots in the garage, we're fine", t: 'perfect, 4runner gets one and priya gets the other' },
+    { k: 'msg', by: 'j', t: "priya you're on your own for snow tires tho" },
+    { k: 'msg', by: 'p', t: 'rude but fair' },
+    { k: 'msg', by: 'p', t: 'do we need towels or does the place have them' },
+    { k: 'msg', by: 'm', t: 'it has towels and a washer' },
+    { k: 'msg', by: 's', t: 'and a hot tub' },
+    { k: 'msg', by: 'm', t: 'and a hot tub sam yes' },
+    { k: 'sep', t: 'Today 11:14 AM' },
+    { k: 'msg', by: 'm', t: "reminder to venmo me by friday if you haven't!!" },
+    { k: 'msg', by: 'm', t: 'still waiting on sam and david' },
+    { k: 'msg', by: 's', t: 'sent!!' },
+    { k: 'voice', by: 'j', dur: '0:12' },
+    { k: 'msg', by: 'j', t: 'basically 6am sharp or we sit in I-70 traffic all morning' },
+    { k: 'jumbo', by: 's', t: '😴' },
+    { k: 'msg', by: 's', t: "I'll bring breakfast burritos for the drive" },
+    { k: 'msg', by: 'm', t: "sam you're a hero" },
+    { k: 'msg', by: 'p', t: 'a true hero' },
+    { k: 'sep', t: 'Today 3:41 PM' },
+    { k: 'msg', by: 'p', t: 'ok good news I can leave the party a little early' },
+    { k: 'msg', by: 'p', t: "still can't get up there until saturday night tho, like 9pm" },
+    { k: 'msg', by: 'p', t: "it's a whole thing, long story" },
+    { k: 'msg', by: 'p', t: "I'll text when I leave denver" },
+    { k: 'msg', by: 'j', t: 'David are you bringing the speaker?' },
+    { k: 'msg', by: 's', t: 'also david boot size?? need it by tomorrow for the rental' },
+    { k: 'msg', by: 'm', t: "who's bringing cards for game night" },
+    { k: 'msg', by: 'me', t: 'sorry slammed at work today, will catch up on all this tonight' }
+  ]/*THREAD_END*/;
+
+  const OLDER = 45;       // items [0, OLDER) become rows only when you scroll up
+  const BATCH = 15;       // older items added per load
+  const LOAD_MS = 700;    // how long a load takes
+  const NEAR_TOP = 80;    // a load starts when the view is this close to the top (px)
+  const OVERSCAN = 200;   // rows this far outside the visible area still have content (px)
+  const MOUNT_MS = 30;    // rows fill or empty this long after a scroll event
+  const POLL_MS = 100;    // and on this poll, in case no scroll event comes
+  const RECEIPT = 'Seen by Maya, Jordan';
+  const TYPING_BY = 's';
+  const MSG_KINDS = { msg: 1, jumbo: 1, once: 1, voice: 1, reel: 1, gif: 1, reply: 1 };
+
+  // ---------------------------------------------------------------------------
+  // Atomic CSS. Every declaration becomes one class named by a hash of it, so
+  // class names say nothing about what an element is.
+  // ---------------------------------------------------------------------------
+  const RULES = [];
+  const CLASS_OF = new Map();
+  const TAKEN = new Set();
+  const SEEDED = {
+    'box-sizing:border-box': 'x9f619', 'position:relative': 'x1n2onr6', 'z-index:0': 'x1ja2u2z',
+    'display:flex': 'x78zum5', 'flex-direction:column': 'xdt5ytf', 'flex-grow:1': 'x1iyjqo2',
+    'flex-shrink:0': 'x2lah0s', 'align-items:center': 'x6s0dn4', 'justify-content:center': 'xl56j7k',
+    'display:block': 'x1lliihq', 'max-width:100%': 'x193iq5w', 'width:100%': 'xh8yej3'
+  };
+  function fnv(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(36);
+  }
+  function atom(decl) {
+    let c = CLASS_OF.get(decl);
+    if (c) return c;
+    c = SEEDED[decl] || 'x' + fnv(decl);
+    for (let salt = 1; TAKEN.has(c); salt++) c = 'x' + fnv(decl + '#' + salt);
+    TAKEN.add(c);
+    CLASS_OF.set(decl, c);
+    RULES.push('.' + c + '{' + decl + '}');
+    return c;
+  }
+  // sx('display:flex; color:red', ...) merges declarations (a later one wins) into atomic classes.
+  function sx() {
+    const byProp = new Map();
+    for (let a = 0; a < arguments.length; a++) {
+      String(arguments[a]).split(';').forEach(function (d) {
+        const i = d.indexOf(':');
+        if (i < 0) return;
+        const prop = d.slice(0, i).trim();
+        if (!prop) return;
+        byProp.delete(prop);
+        byProp.set(prop, d.slice(i + 1).trim());
+      });
+    }
+    return Array.from(byProp, function (pv) { return atom(pv[0] + ':' + pv[1]); }).join(' ');
+  }
+
+  // Shorthand resets are registered first so the longhands below win the cascade.
+  const RESET = 'box-sizing:border-box; margin:0; padding:0; min-width:0; min-height:0';
+  sx(RESET);
+  const PAGE = 'background-color:rgb(12,16,20)';
+  const THEIRS = 'background-color:rgb(38,38,38)';
+  const MINE = 'background-color:transparent; background-image:linear-gradient(180deg, rgb(55,151,240) 0%, rgb(131,58,180) 100%)';
+  const GRAY12 = 'display:block; font-size:12px; line-height:16px; font-weight:400; color:rgb(168,168,168)';
+  const TEXT14 = 'display:block; font-size:14px; line-height:18px; font-weight:400; color:rgb(245,245,245); white-space:pre-wrap; overflow-wrap:anywhere; text-align:start';
+  const BUBBLE = 'display:block; max-width:236px; border-radius:18px; padding-top:8px; padding-bottom:8px; padding-left:12px; padding-right:12px';
+  const ICONBTN = 'display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer; color:rgb(245,245,245)';
+  const GROUP = 'display:flex; flex-direction:column; position:relative; width:100%; outline:none; padding-bottom:2px';
+  const DOT = 'display:block; width:7px; height:7px; border-radius:50%; background-color:rgb(168,168,168); margin-left:2px; margin-right:2px; animation-name:xq2e8kj; animation-duration:1.2s; animation-iteration-count:infinite; animation-timing-function:ease-in-out';
+
+  const B = {
+    app: sx(RESET, PAGE, 'display:flex; flex-direction:column; height:100%; width:100%; overflow:hidden; position:relative; z-index:0'),
+    header: sx(RESET, 'display:flex; flex-direction:row; align-items:center; flex-shrink:0; height:61px; padding-left:8px; padding-right:8px; border-bottom:1px solid rgb(38,38,38)'),
+    titleBtn: sx(RESET, 'display:block; flex-grow:1; flex-shrink:1; margin-right:46px; border-radius:4px; overflow:hidden; cursor:pointer; outline:none'),
+    titleRow: sx(RESET, 'display:flex; flex-direction:row; align-items:center; height:40px; border-radius:4px'),
+    icon40: sx(RESET, ICONBTN, 'width:40px; height:40px'),
+    icon38: sx(RESET, ICONBTN, 'width:38px; height:40px'),
+    headAvatar: sx(RESET, 'display:block; flex-shrink:0; width:32px; height:32px; margin-left:12px; margin-right:8px; border-radius:50%; overflow:hidden'),
+    cover: sx(RESET, 'display:block; width:100%; height:100%; object-fit:cover'),
+    headText: sx(RESET, 'display:flex; flex-direction:column; flex-grow:1; flex-shrink:1; overflow:hidden'),
+    h2: sx(RESET, 'display:block; font-size:16px; line-height:20px; font-weight:600; color:rgb(245,245,245); white-space:nowrap; overflow:hidden; text-overflow:ellipsis'),
+    headSub: sx(RESET, GRAY12, 'white-space:nowrap'),
+    svg: sx('display:block; position:relative'),
+    pinned: sx(RESET, THEIRS, 'display:flex; flex-direction:row; align-items:center; flex-shrink:0; height:59px; padding-left:12px; padding-right:12px'),
+    pinBtn: sx(RESET, 'display:flex; flex-direction:row; align-items:center; flex-grow:1; flex-shrink:1; overflow:hidden; cursor:pointer; color:rgb(245,245,245)'),
+    pinSpan: sx(RESET, 'display:block; flex-shrink:1; overflow:hidden; margin-left:8px; margin-right:8px'),
+    pinText: sx(RESET, 'display:block; font-size:14px; line-height:18px; font-weight:400; color:rgb(245,245,245); white-space:nowrap; overflow:hidden; text-overflow:ellipsis'),
+    pinNav: sx(RESET, ICONBTN, 'width:32px; height:32px; border-radius:50%'),
+    pinCount: sx(RESET, 'display:block; flex-shrink:0; margin-left:8px; margin-right:8px; font-size:12px; line-height:16px; color:rgb(168,168,168); white-space:nowrap'),
+    scroller: sx(RESET, 'display:flex; flex-direction:column-reverse; flex-grow:1; flex-shrink:1; flex-basis:0%; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; position:relative',
+      ANCHORING ? 'overflow-anchor:auto' : 'overflow-anchor:none'),
+    list: sx(RESET, 'display:flex; flex-direction:column; flex-shrink:0; width:100%'),
+    progress: sx(RESET, 'display:block; position:relative; flex-shrink:0; align-self:center; width:32px; height:32px; margin-top:8px; margin-bottom:9px; color:rgb(168,168,168)'),
+    spinner: sx('display:block; position:absolute; left:-6px; top:-6px; animation-name:x1n9e3tl; animation-duration:0.8s; animation-iteration-count:infinite; animation-timing-function:linear'),
+    row: sx(RESET, 'display:block; position:relative; flex-shrink:0; width:100%; padding-left:16px'),
+    groupFirst: sx(RESET, GROUP, 'padding-top:12px'),
+    groupMineFirst: sx(RESET, GROUP, 'padding-top:10px'),
+    groupNext: sx(RESET, GROUP, 'padding-top:2px'),
+    label: sx(RESET, GRAY12, 'align-self:flex-start; margin-left:43px; margin-bottom:8px; white-space:nowrap'),
+    line: sx(RESET, 'display:flex; flex-direction:row; align-items:flex-end; width:100%'),
+    lineMine: sx(RESET, 'display:flex; flex-direction:row; align-items:flex-end; justify-content:flex-end; width:100%; padding-right:16px'),
+    avatarCol: sx(RESET, 'display:block; flex-shrink:0; width:28px; height:28px; margin-right:7px'),
+    avatarLink: sx(RESET, 'display:block; width:28px; height:28px; cursor:pointer; outline:none'),
+    round28: sx(RESET, 'display:block; width:28px; height:28px; border-radius:50%; overflow:hidden'),
+    col: sx(RESET, 'display:flex; flex-direction:column; align-items:flex-start; flex-shrink:1; min-width:0'),
+    colMine: sx(RESET, 'display:flex; flex-direction:column; align-items:flex-end; flex-shrink:1; min-width:0'),
+    article: sx(RESET, 'display:block; position:relative; max-width:100%; outline:none'),
+    none: sx(RESET, 'display:block; max-width:100%'),
+    bubbleBtn: sx(RESET, 'display:block; max-width:100%; cursor:pointer'),
+    bubbleTheirs: sx(RESET, BUBBLE, THEIRS),
+    bubbleMine: sx(RESET, BUBBLE, MINE),
+    text: sx(RESET, TEXT14),
+    inner: sx('display:inline'),
+    link: sx('color:inherit; text-decoration:underline; cursor:pointer; overflow-wrap:anywhere'),
+    jumboBox: sx(RESET, 'display:block; background-color:transparent; padding-top:2px; padding-bottom:2px'),
+    jumboText: sx(RESET, 'display:block; font-size:40px; line-height:48px'),
+    onceBox: sx(RESET, 'display:flex; flex-direction:row; align-items:center; width:230px; padding-top:9px; padding-bottom:9px; padding-left:12px; padding-right:12px; border-radius:18px; background-color:rgb(37,41,46); color:rgb(168,168,168)'),
+    onceIcon: sx('display:block; position:relative; flex-shrink:0; margin-right:4px'),
+    onceText: sx(RESET, 'display:block; flex-grow:1; flex-shrink:1; font-size:14px; line-height:16px; font-weight:400; color:rgb(245,245,245); text-align:center'),
+    reelBox: sx(RESET, PAGE, 'display:block; width:200px; height:356px; border-radius:18px; overflow:hidden; position:relative'),
+    reelBtn: sx(RESET, 'display:block; position:relative; width:200px; height:356px; border-radius:18px; overflow:hidden; cursor:pointer'),
+    reelAvatar: sx(RESET, 'display:block; position:absolute; top:12px; left:12px; width:35px; height:35px; border-radius:50%; object-fit:cover; z-index:1'),
+    reelUserLink: sx(RESET, 'display:block; position:absolute; top:21px; left:55px; z-index:1; color:rgb(255,255,255); text-decoration:none; cursor:pointer'),
+    reelUserOuter: sx(RESET, 'display:block'),
+    reelUser: sx(RESET, 'display:block; font-size:14px; line-height:18px; font-weight:700; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,0.6)'),
+    reelThumb: sx(RESET, 'display:block; width:200px; height:356px; object-fit:cover'),
+    reelClip: sx('display:block; position:absolute; left:12px; bottom:12px; z-index:1; color:rgb(255,255,255)'),
+    reelOverlay: sx(RESET, 'position:absolute; top:0; left:0; right:0; bottom:0; border-radius:18px; opacity:0; background-color:rgba(0,0,0,0.2); z-index:2'),
+    gifBox: sx(RESET, 'display:block; width:200px; height:150px; border-radius:18px; overflow:hidden'),
+    gifImg: sx(RESET, 'display:block; width:200px; height:150px; object-fit:cover'),
+    voice: sx(RESET, THEIRS, 'display:flex; flex-direction:row; align-items:center; width:220px; max-width:100%; padding-top:6px; padding-bottom:6px; padding-left:8px; padding-right:12px; border-radius:18px; color:rgb(245,245,245)'),
+    playBtn: sx(RESET, ICONBTN, 'width:32px; height:32px'),
+    wave: sx('display:block; flex-grow:1; height:24px; margin-left:6px; margin-right:8px'),
+    voiceLen: sx(RESET, 'display:block; flex-shrink:0; font-size:12px; line-height:16px'),
+    actions: sx(RESET, 'display:flex; flex-direction:row; align-items:center; align-self:center; flex-shrink:0; width:80px; height:24px; margin-left:8px; opacity:0'),
+    actionsMine: sx(RESET, 'display:flex; flex-direction:row; align-items:center; justify-content:flex-end; align-self:center; flex-shrink:0; width:80px; height:24px; margin-right:8px; opacity:0'),
+    actBtn: sx(RESET, ICONBTN, 'width:24px; height:24px; margin-right:4px; border-radius:50%'),
+    actBtnHidden: sx(RESET, ICONBTN, 'width:24px; height:24px; margin-right:4px; border-radius:50%; opacity:0'),
+    reacts: sx(RESET, 'display:flex; flex-direction:row; height:6px; margin-top:8px; margin-left:35px; margin-right:16px'),
+    reactsMine: sx(RESET, 'display:flex; flex-direction:row; justify-content:flex-end; height:6px; margin-top:8px; margin-right:26px'),
+    reactWrap: sx(RESET, 'display:block; height:6px'),
+    reactBtn: sx(RESET, 'display:block; height:6px; cursor:pointer'),
+    pill: sx(RESET, THEIRS, 'display:flex; flex-direction:row; align-items:center; height:22px; margin-top:-16px; padding-left:8px; padding-right:8px; border-radius:11px; white-space:nowrap'),
+    pillEmoji: sx(RESET, 'display:block; font-size:12px; line-height:16px; margin-right:2px'),
+    pillCount: sx(RESET, 'display:block; font-size:14px; line-height:14px; color:rgb(245,245,245); margin-left:2px'),
+    pillAvatar: sx(RESET, 'display:block; width:14px; height:14px; margin-left:2px'),
+    round14: sx(RESET, 'display:block; width:14px; height:14px; border-radius:50%; overflow:hidden'),
+    reactSpacer: sx(RESET, 'display:block; width:8px; height:6px'),
+    edited: sx(RESET, GRAY12, 'align-self:flex-start; margin-top:2px; margin-left:47px'),
+    replyHead: sx(RESET, GRAY12, 'align-self:flex-start; margin-left:43px; margin-bottom:4px; white-space:nowrap'),
+    quoteLine: sx(RESET, 'display:flex; flex-direction:row; padding-left:35px; margin-bottom:2px'),
+    quote: sx(RESET, THEIRS, 'display:block; max-width:236px; padding-top:6px; padding-bottom:12px; padding-left:12px; padding-right:12px; border-radius:18px; opacity:0.6; cursor:pointer'),
+    quoteText: sx(RESET, 'display:block; font-size:13px; line-height:17px; color:rgb(245,245,245); white-space:pre-wrap; overflow-wrap:anywhere'),
+    sepWrap: sx(RESET, 'display:block; padding-top:26px; padding-bottom:16px'),
+    sepText: sx(RESET, GRAY12, 'width:100%; text-align:center'),
+    noticeWrap: sx(RESET, 'display:block; padding-top:12px; padding-bottom:8px'),
+    empty: sx(RESET, 'display:block; height:0'),
+    receiptWrap: sx(RESET, 'display:flex; flex-direction:row; justify-content:flex-end; padding-top:4px; padding-bottom:2px; padding-right:20px'),
+    receiptText: sx(RESET, GRAY12, 'white-space:nowrap'),
+    typing: sx(RESET, THEIRS, 'display:flex; flex-direction:row; align-items:center; height:36px; padding-left:14px; padding-right:14px; border-radius:18px'),
+    dot1: sx(RESET, DOT),
+    dot2: sx(RESET, DOT, 'animation-delay:0.15s'),
+    dot3: sx(RESET, DOT, 'animation-delay:0.3s'),
+    tsWrap: sx(RESET, 'display:flex; flex-direction:column; align-items:center; padding-top:32px; padding-bottom:24px; padding-right:16px'),
+    tsAvatar: sx(RESET, 'display:block; width:96px; height:96px; margin-bottom:12px; border-radius:50%; overflow:hidden'),
+    tsTitle: sx(RESET, 'display:block; font-size:20px; line-height:25px; font-weight:600; color:rgb(245,245,245); text-align:center'),
+    tsSub: sx(RESET, 'display:block; font-size:14px; line-height:18px; color:rgb(168,168,168); text-align:center; margin-top:2px'),
+    tsBtn: sx(RESET, THEIRS, 'display:flex; align-items:center; justify-content:center; height:32px; margin-top:16px; padding-left:16px; padding-right:16px; border-radius:8px; cursor:pointer'),
+    tsBtnText: sx(RESET, 'display:block; font-size:14px; line-height:18px; font-weight:600; color:rgb(245,245,245)'),
+    composer: sx(RESET, PAGE, 'display:block; flex-shrink:0; height:78px; padding-top:16px; padding-bottom:16px; padding-left:16px; padding-right:16px'),
+    composerPill: sx(RESET, 'display:block; height:46px; border-radius:22px; border:1px solid rgb(54,54,54)'),
+    composerInner: sx(RESET, PAGE, 'display:flex; flex-direction:row; align-items:center; height:44px; border-radius:22px; padding-left:17px; padding-right:7px'),
+    fieldCol: sx(RESET, 'display:flex; flex-direction:column; flex-grow:1; flex-shrink:1; margin-right:6px'),
+    field: sx(RESET, 'display:block; max-height:96px; overflow-y:auto; font-size:15px; line-height:18px; color:rgb(245,245,245); outline:none; white-space:pre-wrap; overflow-wrap:break-word; cursor:text'),
+    fieldP: sx(RESET, 'display:block'),
+    placeholderWrap: sx(RESET, 'display:block; position:relative; height:0'),
+    placeholder: sx(RESET, 'display:block; position:absolute; left:0; bottom:0; font-size:15px; line-height:18px; color:rgb(168,168,168); white-space:nowrap; pointer-events:none; visibility:hidden')
+  };
+
+  // ---------------------------------------------------------------------------
+  // Pictures: inline SVG only, so nothing is fetched.
+  // ---------------------------------------------------------------------------
+  const NS = 'xmlns="http://www.w3.org/2000/svg"';
+  function svgURI(svg) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
+  function avatarURI(p) {
+    return svgURI('<svg ' + NS + ' width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="' + p.color + '"/>' +
+      '<text x="32" y="42" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="28" font-weight="700" fill="#ffffff">' + p.name[0] + '</text></svg>');
+  }
+  const AVATAR = {};
+  Object.keys(PEOPLE).forEach(function (k) { AVATAR[k] = avatarURI(PEOPLE[k]); });
+  const IMG = {
+    group: svgURI('<svg ' + NS + ' width="96" height="96" viewBox="0 0 96 96"><rect width="96" height="96" fill="#4c6ef5"/><path d="M6 80 36 38l14 18 14-22 26 46z" fill="#e7f5ff"/><path d="M36 38l7 10-7-3-6 4zM64 34l8 12-8-4-6 5z" fill="#ffffff"/></svg>'),
+    resort: svgURI('<svg ' + NS + ' width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#1864ab"/><text x="24" y="32" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff">B</text></svg>'),
+    reel: svgURI('<svg ' + NS + ' width="400" height="712" viewBox="0 0 400 712"><defs><linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3d6e"/><stop offset="1" stop-color="#8fb4e3"/></linearGradient></defs>' +
+      '<rect width="400" height="712" fill="url(#k)"/><circle cx="300" cy="120" r="34" fill="#fff3bf"/><path d="M0 380 130 200l80 100 90-150 100 130v432H0z" fill="#e9eef6"/>' +
+      '<path d="M130 200l30 40-30-10-26 18zM300 150l34 48-34-14-30 20z" fill="#ffffff"/><path d="M0 470 400 400v312H0z" fill="#f8f9fa"/>' +
+      '<path d="M40 640 360 470" stroke="#ced4da" stroke-width="5"/><g transform="translate(220 520) rotate(-24)"><circle cx="0" cy="-58" r="14" fill="#f03e3e"/>' +
+      '<path d="M-16 -42h32l8 48h-48z" fill="#f03e3e"/><path d="M-10 6l-8 28M10 6l12 28" stroke="#343a40" stroke-width="9" stroke-linecap="round"/>' +
+      '<path d="M-40 38h90" stroke="#212529" stroke-width="7" stroke-linecap="round"/></g></svg>'),
+    gif: svgURI('<svg ' + NS + ' width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#ffe066"/><circle cx="200" cy="205" r="70" fill="#ffffff"/>' +
+      '<circle cx="200" cy="108" r="45" fill="#ffffff"/><circle cx="185" cy="100" r="5" fill="#212529"/><circle cx="215" cy="100" r="5" fill="#212529"/>' +
+      '<path d="M200 110l28 8-28 6z" fill="#f76707"/><path d="M60 60l20 20M80 60l-20 20M330 50l16 16M346 50l-16 16" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/></svg>')
+  };
+
+  // Icons are svg[role=img][aria-label] with a <title>, like the real page.
+  function icon(label, inner, size, cls) {
+    return svgEl('<svg aria-label="' + label + '" class="' + (cls || B.svg) + '" fill="currentColor" height="' + size + '" role="img" viewBox="0 0 24 24" width="' + size + '"><title>' + label + '</title>' + inner + '</svg>');
+  }
+  const STROKE = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ICON = {
+    back: '<path d="M15 4.5 7.5 12 15 19.5" ' + STROKE + '/>',
+    info: '<circle cx="12" cy="12" r="10" ' + STROKE + '/><circle cx="12" cy="7.8" r="1.3"/><path d="M12 11v6.5" ' + STROKE + '/>',
+    pin: '<path d="M9 3h6l-1 6 3.5 3.5V15h-11v-2.5L10 9z" ' + STROKE + '/><path d="M12 15v6" ' + STROKE + '/>',
+    up: '<path d="M5 15.5 12 8.5l7 7" ' + STROKE + '/>',
+    down: '<path d="M5 8.5 12 15.5l7-7" ' + STROKE + '/>',
+    react: '<circle cx="12" cy="12" r="10" ' + STROKE + '/><circle cx="8.8" cy="9.8" r="1.3"/><circle cx="15.2" cy="9.8" r="1.3"/><path d="M7.8 14.2a5 5 0 0 0 8.4 0" ' + STROKE + '/>',
+    reply: '<path d="M10 6 4 12l6 6M4 12h10a6 6 0 0 1 6 6v1" ' + STROKE + '/>',
+    more: '<circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>',
+    once: '<circle cx="12" cy="12" r="9.5" ' + STROKE + '/><path d="M10.5 9 12.5 7.5V16.5" ' + STROKE + '/>',
+    clip: '<rect height="18" rx="5" width="18" x="3" y="3" ' + STROKE + '/><path d="M3 8.5h18M8.5 3l3 5.5M14.5 3l3 5.5" ' + STROKE + '/><path d="M10 12v5.5l4.8-2.75z"/>',
+    play: '<path d="M7 4.5v15l12.5-7.5z"/>',
+    mic: '<rect height="11" rx="3" width="6" x="9" y="2.5" ' + STROKE + '/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4" ' + STROKE + '/>',
+    photo: '<rect height="17" rx="3" width="19" x="2.5" y="3.5" ' + STROKE + '/><circle cx="8.5" cy="9" r="1.6"/><path d="m3.5 18 5-5 3.5 3.5 3-3 5.5 5" ' + STROKE + '/>',
+    sticker: '<path d="M14.5 21.5H7a4.5 4.5 0 0 1-4.5-4.5V7A4.5 4.5 0 0 1 7 2.5h10A4.5 4.5 0 0 1 21.5 7v7.5z" ' + STROKE + '/><path d="M14.5 21.5v-3a4 4 0 0 1 4-4h3" ' + STROKE + '/>',
+    spin: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="2.5"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5"/>'
+  };
+  function waveform() {
+    let bars = '';
+    for (let k = 0; k < 28; k++) {
+      const hgt = 4 + Math.round(16 * Math.abs(Math.sin(k * 1.7) * Math.cos(k * 0.45)));
+      bars += '<rect x="' + k * 4 + '" y="' + (24 - hgt) / 2 + '" width="2" height="' + hgt + '" rx="1"/>';
+    }
+    return '<svg aria-hidden="true" class="' + B.wave + '" fill="currentColor" height="24" viewBox="0 0 112 24" width="112">' + bars + '</svg>';
+  }
+
+  // ---------------------------------------------------------------------------
+  // DOM helpers
+  // ---------------------------------------------------------------------------
+  function add(parent, kids) {
+    if (kids === null || kids === undefined || kids === false) return;
+    if (Array.isArray(kids)) { kids.forEach(function (k) { add(parent, k); }); return; }
+    parent.appendChild(typeof kids === 'string' ? document.createTextNode(kids) : kids);
+  }
+  function el(tag, cls, attrs, kids) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      const v = attrs[k];
+      if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v === true ? '' : String(v));
+    });
+    add(e, kids);
+    return e;
+  }
+  function svgEl(markup) {
+    const t = document.createElement('template');
+    t.innerHTML = markup;
+    return t.content.firstChild;
+  }
+  function isMsg(it) { return !!it && MSG_KINDS[it.k] === 1; }
+  function sameSender(a, b) { return isMsg(a) && a.by === b.by; }
+
+  // ---------------------------------------------------------------------------
+  // Row content (built again every time a row comes back into range)
+  // ---------------------------------------------------------------------------
+  function avatarCol(key, show) {
+    const p = PEOPLE[key];
+    return el('div', B.avatarCol, null, show
+      ? el('a', B.avatarLink, { role: 'link', 'aria-label': 'Open the profile page of ' + p.user, tabindex: '0', href: '/' + p.user },
+        el('span', B.round28, null, el('img', B.cover, { alt: 'user-profile-picture', src: AVATAR[key], draggable: 'false' })))
+      : null);
+  }
+
+  // Plain text keeps its "\n" (the bubble text is white-space: pre-wrap); links are <a>.
+  function richText(t) {
+    return (Array.isArray(t) ? t : [t]).map(function (part) {
+      return typeof part === 'string' ? part
+        : el('a', B.link, { href: part.a, target: '_blank', rel: 'nofollow noopener noreferrer', role: 'link', tabindex: '0' }, part.t);
+    });
+  }
+
+  function textSpan(t, i) {
+    const kids = richText(t);
+    return el('span', B.text, { dir: 'auto' }, i % 3 === 1 ? el('span', B.inner, null, kids) : kids);
+  }
+
+  function bubble(it, mine, i) {
+    switch (it.k) {
+      case 'msg':
+      case 'reply':
+        return el('div', mine ? B.bubbleMine : B.bubbleTheirs, null, textSpan(it.t, i));
+      case 'jumbo':
+        return el('div', B.jumboBox, null, el('span', B.jumboText, { dir: 'auto' }, it.t));
+      case 'once': {
+        const words = 'This ' + it.what + ' can only be viewed once. Use the mobile app to view.';
+        return el('div', B.onceBox, { role: 'presentation' }, [
+          icon(words, ICON.once, 15, B.onceIcon),
+          el('span', B.onceText, { dir: 'auto' }, words)
+        ]);
+      }
+      case 'reel':
+        return el('div', B.reelBox, null, el('div', B.reelBtn, { role: 'button', tabindex: '0' }, [
+          el('img', B.reelAvatar, { alt: '', src: IMG.resort, draggable: 'false' }),
+          el('a', B.reelUserLink, { role: 'link', tabindex: '0', href: '/' + it.poster + '/' },
+            el('span', B.reelUserOuter, { dir: 'auto' }, el('span', B.reelUser, null, it.poster))),
+          el('img', B.reelThumb, { alt: '', src: IMG.reel, draggable: 'false' }),
+          icon('Clip', ICON.clip, 24, B.reelClip),
+          el('div', B.reelOverlay, { role: 'none' })
+        ]));
+      case 'gif':
+        return el('div', B.gifBox, null, el('img', B.gifImg, { alt: 'GIF', src: IMG.gif, draggable: 'false' }));
+      case 'voice':
+        return el('div', B.voice, null, [
+          el('div', B.playBtn, { role: 'button', tabindex: '0', 'aria-label': 'Play' }, icon('Play', ICON.play, 20)),
+          svgEl(waveform()),
+          el('div', B.voiceLen, null, it.dur)
+        ]);
+    }
+    throw new Error('unknown kind ' + it.k);
+  }
+
+  function article(it, mine, i) {
+    return el('div', B.article, { role: 'article', tabindex: '0' },
+      el('div', B.none, { role: 'none' },
+        el('div', B.bubbleBtn, { role: 'button', tabindex: '0' },
+          el('div', B.none, { role: 'none' }, bubble(it, mine, i)))));
+  }
+
+  function actions(user, mine) {
+    function btn(cls, what, inner) {
+      const label = what + ' message from ' + user;
+      return el('div', cls, { role: 'button', 'aria-label': label, tabindex: '0' }, icon(label, inner, 16));
+    }
+    return el('div', mine ? B.actionsMine : B.actions, { role: 'group', 'aria-label': 'Message actions' }, [
+      btn(B.actBtn, 'React to', ICON.react),
+      btn(B.actBtnHidden, 'Reply to', ICON.reply),
+      btn(B.actBtn, 'See more options for', ICON.more)
+    ]);
+  }
+
+  // "❤️ 2" is an emoji and a count; "❤️ @j" is an emoji and the avatar of who reacted.
+  function reactions(r, mine) {
+    const parts = r.split(' ');
+    const tail = parts.pop();
+    const kids = parts.map(function (e) { return el('span', B.pillEmoji, null, e); });
+    kids.push(tail.charAt(0) === '@'
+      ? el('div', B.pillAvatar, { role: 'none' }, el('span', B.round14, null,
+        el('img', B.cover, { alt: 'User avatar', src: AVATAR[tail.slice(1)], draggable: 'false' })))
+      : el('div', B.pillCount, { role: 'none' }, tail));
+    return el('div', mine ? B.reactsMine : B.reacts, { role: 'none' }, [
+      el('div', B.reactWrap, { role: 'none' },
+        el('div', B.reactBtn, { role: 'button', tabindex: '0' }, el('div', B.pill, { role: 'none' }, kids))),
+      el('div', B.reactSpacer, { role: 'none' })
+    ]);
+  }
+
+  function messageGroup(i) {
+    const it = THREAD[i];
+    const mine = it.by === 'me';
+    const first = !sameSender(THREAD[i - 1], it);
+    const last = !sameSender(THREAD[i + 1], it);
+    const kids = [];
+    if (it.k === 'reply') {
+      kids.push(el('span', B.replyHead, { dir: 'auto' }, PEOPLE[it.by].name + ' replied to ' + PEOPLE[it.to].name));
+      kids.push(el('div', B.quoteLine, null,
+        el('div', B.quote, { role: 'button', tabindex: '0' }, el('span', B.quoteText, { dir: 'auto' }, it.q))));
+    } else if (!mine && first) {
+      kids.push(el('span', B.label, { dir: 'auto' }, PEOPLE[it.by].name));
+    }
+    const art = article(it, mine, i);
+    if (mine) {
+      kids.push(el('div', B.lineMine, null, [actions(ME, true), el('div', B.colMine, null, art)]));
+    } else {
+      kids.push(el('div', B.line, null, [avatarCol(it.by, last), el('div', B.col, null, art), actions(PEOPLE[it.by].user, false)]));
+    }
+    if (it.ed) kids.push(el('span', B.edited, { dir: 'auto' }, 'Edited'));
+    if (it.r) kids.push(reactions(it.r, mine));
+    const cls = !first ? B.groupNext : mine ? B.groupMineFirst : B.groupFirst;
+    return el('div', cls, { role: 'group', tabindex: '-1' }, kids);
+  }
+
+  function itemContent(i) {
+    const it = THREAD[i];
+    if (it.k === 'sep') return el('div', B.sepWrap, null, el('span', B.sepText, { dir: 'auto' }, it.t));
+    if (it.k === 'notice') return el('div', B.noticeWrap, null, el('span', B.sepText, { dir: 'auto' }, it.t));
+    if (it.k === 'empty') return el('div', B.empty, null);
+    return messageGroup(i);
+  }
+
+  function receiptContent() {
+    return el('div', B.receiptWrap, null, el('span', B.receiptText, { dir: 'auto' }, RECEIPT));
+  }
+
+  function typingContent() {
+    return el('div', B.groupFirst, null, el('div', B.line, null, [
+      avatarCol(TYPING_BY, true),
+      el('div', B.typing, { 'aria-label': 'Typing' }, [el('div', B.dot1), el('div', B.dot2), el('div', B.dot3)])
+    ]));
+  }
+
+  function threadStartContent() {
+    return el('div', B.tsWrap, null, [
+      el('span', B.tsAvatar, null, el('img', B.cover, { alt: 'user-profile-picture', src: IMG.group, draggable: 'false' })),
+      el('span', B.tsTitle, { dir: 'auto' }, TITLE),
+      el('span', B.tsSub, { dir: 'auto' }, 'Instagram'),
+      el('div', B.tsBtn, { role: 'button', tabindex: '0' }, el('div', B.tsBtnText, null, 'View profile'))
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Page shell
+  // ---------------------------------------------------------------------------
+  const header = el('div', B.header, null, [
+    el('div', B.titleBtn, { role: 'button', 'aria-label': 'Open the details page of the chat', tabindex: '0' },
+      el('div', B.titleRow, null, [
+        el('div', B.icon40, { role: 'button', tabindex: '0' }, icon('Back', ICON.back, 24)),
+        el('span', B.headAvatar, null, el('img', B.cover, { alt: 'user-profile-picture', src: IMG.group, draggable: 'false' })),
+        el('div', B.headText, null, [
+          el('h2', B.h2, { dir: 'auto' }, el('span', null, null, TITLE)),
+          el('span', B.headSub, { dir: 'auto' })
+        ])
+      ])),
+    el('div', B.icon40, { role: 'button', tabindex: '0' }, icon('Conversation information', ICON.info, 24))
+  ]);
+
+  const pinned = el('div', B.pinned, null, [
+    el('div', B.pinBtn, { role: 'button', tabindex: '0' }, [
+      icon('Pinned message icon', ICON.pin, 16),
+      el('span', B.pinSpan, { dir: 'auto' }, el('div', B.pinText, null, PINNED))
+    ]),
+    el('div', B.pinNav, { role: 'button', 'aria-label': 'Previous pinned message', tabindex: '0' }, icon('Previous pinned message', ICON.up, 16)),
+    el('span', B.pinCount, { dir: 'auto' }, ['1', '/', '2']),   // three text nodes, the way React writes {i}/{n}
+    el('div', B.pinNav, { role: 'button', 'aria-label': 'Next pinned message', tabindex: '0' }, icon('Next pinned message', ICON.down, 16))
+  ]);
+
+  const list = el('div', B.list, null);
+  const scroller = el('div', B.scroller, null, list);
+
+  const composer = el('div', B.composer, null,
+    el('div', B.composerPill, null,
+      el('div', B.composerInner, null, [
+        el('div', B.fieldCol, null, [
+          el('div', B.field, { role: 'textbox', contenteditable: 'true', tabindex: '0', spellcheck: 'true' },
+            el('p', B.fieldP, { dir: 'auto' }, el('span', null, { 'data-lexical-text': 'true' }, DRAFT))),
+          el('div', B.placeholderWrap, { 'aria-hidden': 'true' }, el('div', B.placeholder, null, 'Message...'))
+        ]),
+        el('div', B.icon38, { role: 'button', tabindex: '0' }, icon('Voice Clip', ICON.mic, 24)),
+        el('div', B.icon40, { role: 'button', tabindex: '0' }, icon('Add Photo or Video', ICON.photo, 24)),
+        el('div', B.icon40, { role: 'button', tabindex: '0' }, icon('Choose a GIF or sticker', ICON.sticker, 24))
+      ])));
+
+  const style = document.createElement('style');
+  document.head.appendChild(style);
+  style.textContent = RULES.join('\n');
+  document.getElementById('mount_0_0_Vt').appendChild(el('div', B.app, null, [header, pinned, scroller, composer]));
+
+  // ---------------------------------------------------------------------------
+  // Virtualized rows. A row element is made once and kept; only its content
+  // comes and goes.
+  // ---------------------------------------------------------------------------
+  const rows = [];   // oldest first: { el, build, filled }
+
+  function makeRow(build) { return { el: el('div', B.row, null), build: build, filled: false }; }
+  function fill(row) { row.el.replaceChildren(row.build()); row.el.style.opacity = ''; row.filled = true; }
+  function empty(row) { row.el.replaceChildren(); row.el.style.opacity = '0'; row.filled = false; }
+  function itemRow(i) { return makeRow(function () { return itemContent(i); }); }
+
+  // New rows go in filled, so each can be measured; the height is then fixed on the row.
+  function addRows(batch, before) {
+    batch.forEach(function (row) { list.insertBefore(row.el, before); fill(row); });
+    batch.forEach(function (row) { row.el.style.height = row.el.getBoundingClientRect().height + 'px'; });
+  }
+
+  function update() {
+    const box = scroller.getBoundingClientRect();
+    const top = box.top - OVERSCAN;
+    const bottom = box.bottom + OVERSCAN;
+    for (const row of rows) {
+      const r = row.el.getBoundingClientRect();
+      const near = r.bottom >= top && r.top <= bottom;
+      if (near && !row.filled) fill(row);
+      else if (!near && row.filled) empty(row);
+    }
+    maybeLoadOlder();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Older messages, at the top
+  // ---------------------------------------------------------------------------
+  const progress = el('div', B.progress, { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' },
+    icon('Loading...', ICON.spin, 44, B.spinner));
+  let loadedFrom = OLDER;
+  let loading = false;
+  let done = false;
+
+  function maybeLoadOlder() {
+    if (loading || done) return;
+    if (scroller.scrollTop > -(scroller.scrollHeight - scroller.clientHeight) + NEAR_TOP) return;
+    loading = true;
+    setTimeout(function () {
+      const from = Math.max(0, loadedFrom - BATCH);
+      const batch = [];
+      for (let i = from; i < loadedFrom; i++) batch.push(itemRow(i));
+      loadedFrom = from;
+      if (from === 0) {
+        batch.unshift(makeRow(threadStartContent));
+        done = true;
+      }
+      // scrollTop counts from the bottom here, so keeping it keeps the view where it was. It is
+      // read before anything changes, and the progressbar goes only after the new rows are in,
+      // so the list never shrinks under a view that sits at the very top.
+      const keep = scroller.scrollTop;
+      addRows(batch, rows[0].el);
+      if (done) progress.remove();
+      if (!ANCHORING && scroller.scrollTop !== keep) scroller.scrollTop = keep;
+      rows.unshift.apply(rows, batch);
+      loading = false;
+      update();
+    }, LOAD_MS);
+  }
+
+  // The newest items, as rows, at the bottom of the list (scrollTop 0).
+  list.appendChild(progress);
+  const firstRows = [];
+  for (let i = OLDER; i < THREAD.length; i++) firstRows.push(itemRow(i));
+  firstRows.push(makeRow(receiptContent));
+  firstRows.push(makeRow(typingContent));
+  addRows(firstRows, null);
+  rows.push.apply(rows, firstRows);
+  update();
+
+  let pending = 0;
+  scroller.addEventListener('scroll', function () {
+    if (!pending) pending = setTimeout(function () { pending = 0; update(); }, MOUNT_MS);
+  }, { passive: true });
+  setInterval(update, POLL_MS);
+})();
+</script>
+</body>
+</html>
