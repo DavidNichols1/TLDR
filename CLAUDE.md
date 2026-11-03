@@ -154,7 +154,8 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
   `my_blocks()` are the only way in; a trigger drops the blocker's `ai_briefs` that could have
   read that person. `mark_read` is unchanged: the cursor is a time, and every count and
   catch-up window is read through the policy. In the app, `PeopleStore.block` also forgets
-  the phone's kept thread copies (`DeviceStore.keepThreads([])`) and the open chat calls
+  the phone's kept thread copies (`DeviceStore.keepThreads([])`) and the catch-ups saved on
+  the phone for every chat you share with them (`forgetAll(in:)`), and the open chat calls
   `ChatModel.blockChanged`. The RLS suite's "blocked:" checks cover it.
 - Timing the read path (rolled back, as a seed member, here Maya): `set local role
   authenticated`, her jwt claims, then `explain (analyze, format json)` of
@@ -189,8 +190,8 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
   `chat-profile` and `chat-report` (the sheets opened from the thread), `people`,
   `people-empty`, `profile-contact`, `new-chat-people`, `invite`. The account email in
   previews is `david@example.com`.
-- Still marked `SLOT`: Saved catch-ups and Clear cache under "On this iPhone" in
-  `SettingsView.swift` (Speed). A section whose rows are all empty doesn't show.
+- Settings' other rows: `profilePhotoSlot` (Photos) and `savedCatchUpsSlot` under "On this
+  iPhone" (Speed). A section whose rows are all empty doesn't show.
 
 ## Photos (profile photos and photos in chats)
 Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with

@@ -42,6 +42,12 @@ final class PeopleStore {
             // The phone's copies of chats may hold their messages; let them
             // go, so none shows them again before the server's page lands.
             DeviceStore.shared.keepThreads([])
+            // Catch-ups kept on the phone (Saved/) for chats you share read
+            // them too, and keep their messages word for word: they go, like
+            // the saved ones on the server (apply_block_change).
+            if let chats = try? await KetchupAPI.sharedChats(with: person.id) {
+                for chat in chats { DeviceStore.shared.forgetAll(in: .chat(chat)) }
+            }
         }
         if !isBlocked(person.id) {
             blocked.insert(BlockedPerson(id: person.id, displayName: person.name,

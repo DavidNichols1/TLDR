@@ -8,9 +8,9 @@
 //  deleting your account, and about. Its pages are in AccountPages.swift,
 //  PeopleView.swift, InviteView.swift and BlockedPeopleView.swift.
 //
-//  Rows other sessions add at merge have a marked SLOT below: an empty view
-//  in the right section, so the merge fills in a body and nothing else. A
-//  section whose rows are all empty doesn't show.
+//  Two sections hold other features' rows: profilePhotoSlot (Photos/) and
+//  savedCatchUpsSlot under "On this iPhone" (Saved/). A section whose rows
+//  are all empty doesn't show.
 //
 
 import SwiftUI
