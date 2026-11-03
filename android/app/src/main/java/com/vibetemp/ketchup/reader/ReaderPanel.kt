@@ -141,6 +141,7 @@ fun ReaderPanel(
                         )
                     }
                 }
+                if (source == TextSource.SNAPCHAT) Note(stringResource(R.string.reader_panel_pick_scroll))
                 Note(stringResource(R.string.reader_panel_pick_note))
             }
             is PanelState.Reading -> {
@@ -152,7 +153,12 @@ fun ReaderPanel(
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 ProgressLine(if (p.wanted == 0) 0f else p.found.toFloat() / p.wanted)
-                Note(stringResource(if (p.restoring) R.string.reader_panel_restoring else R.string.reader_panel_scrolling))
+                when {
+                    p.restoring -> Note(stringResource(R.string.reader_panel_restoring))
+                    // Snapchat's list mostly ignores the reader's scroll: the person scrolls, and it reads as they go.
+                    source == TextSource.SNAPCHAT -> Body(stringResource(R.string.reader_panel_scroll_yourself))
+                    else -> Note(stringResource(R.string.reader_panel_scrolling))
+                }
                 CapsuleButton(stringResource(R.string.reader_panel_stop), onClick = onStop, fill = ButtonFill.Outline, compact = true)
             }
             PanelState.SignIn -> {

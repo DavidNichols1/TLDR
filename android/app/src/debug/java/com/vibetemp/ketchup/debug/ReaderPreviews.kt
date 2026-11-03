@@ -48,6 +48,7 @@ import com.vibetemp.ketchup.ui.theme.person
 //   reader-snap-name        "Your name on Snapchat", asked once before the first Snapchat read
 //   reader-snapchat-page-named  the Snapchat page with that name saved, and Change
 //   reader-panel            the bubble and each state of its panel, over an Instagram-white page
+//   reader-panel-snapchat   the same panel over Snapchat, where it asks you to scroll
 //   reader-fixture          opens the synthetic Instagram thread the service reads on an emulator
 //   reader-instagram        the synthetic thread as catch-up-text will see it
 
@@ -72,13 +73,14 @@ val ReaderPreviews: Map<String, @Composable () -> Unit> = mapOf(
         )
     },
     "reader-panel" to { PanelStates() },
+    "reader-panel-snapchat" to { PanelStates(TextSource.SNAPCHAT) },
     "reader-fixture" to { FixtureLauncher() },
     "reader-instagram" to { InstagramThreadSample() },
 )
 
 /** The bubble and each panel state as they float over another app. */
 @Composable
-private fun PanelStates() {
+private fun PanelStates(source: TextSource = TextSource.INSTAGRAM) {
     val states = listOf(
         "Tap the bubble" to PanelState.Pick,
         "Reading" to PanelState.Reading(ReadProgress(found = 18, wanted = 30)),
@@ -97,12 +99,12 @@ private fun PanelStates() {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ReaderBubble()
-            Text("The bubble, over an Instagram thread", style = KetchupTheme.type.footnote, color = Color(0xFF737373))
+            Text("The bubble, over a ${source.appName} thread", style = KetchupTheme.type.footnote, color = Color(0xFF737373))
         }
         states.forEach { (label, state) ->
             Text(label, style = KetchupTheme.type.monoCaption, color = Color(0xFF737373))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                ReaderPanel(state, TextSource.INSTAGRAM, onPick = {}, onStop = {}, onClose = {}, onOpenApp = {})
+                ReaderPanel(state, source, onPick = {}, onStop = {}, onClose = {}, onOpenApp = {})
             }
         }
     }

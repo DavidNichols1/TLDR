@@ -15,6 +15,9 @@
     <string name="reader_panel_reading_title">Reading the chat</string>
     <string name="reader_panel_progress">%1$d of %2$d messages</string>
     <string name="reader_panel_scrolling">Scrolling back for older messages</string>
+    <!-- Snapchat's list mostly ignores the reader's scroll, so the person scrolls and it reads as they go. -->
+    <string name="reader_panel_pick_scroll">On Snapchat, you scroll: after you pick, scroll up slowly through the chat.</string>
+    <string name="reader_panel_scroll_yourself">Scroll up slowly through the chat. Ketchup reads as you go.</string>
     <string name="reader_panel_restoring">Putting the chat back where it was</string>
     <string name="reader_panel_stop">Stop</string>
     <string name="reader_panel_signin_title">Sign in to Ketchup first</string>
