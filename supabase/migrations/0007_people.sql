@@ -9,6 +9,7 @@
 --   0007_people_blocks_reports   blocks, reports, the messages policy, my_chats
 --   0007_people_reports_index    an index for reports.reported_user
 --   0007_people_delete_files     delete_account() returns the files to delete
+--   0007_people_contacts         contacts, and starting a chat with your people
 
 -- ---------------------------------------------------------------------------
 -- Part 1: delete account (App Store guideline 5.1.1(v)).
@@ -465,3 +466,129 @@ $$;
 
 revoke execute on function public.delete_account() from public, anon;
 grant execute on function public.delete_account() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Part 4: your people (contacts), and starting a chat with them.
+--
+-- A contact is someone you add from their profile, and only from a chat you
+-- share: there's no lookup by email or phone, so nobody can find out who
+-- uses Ketchup. Only you see your list. Starting a chat with your people
+-- adds them straight in, except anyone who has blocked you (or you them):
+-- they're left out quietly, so a block stays private. Blocking someone also
+-- takes them out of your people.
+
+create table public.contacts (
+  owner      uuid not null references public.profiles(id) on delete cascade,
+  contact    uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (owner, contact),
+  constraint contacts_not_self check (owner <> contact)
+);
+create index contacts_contact_idx on public.contacts (contact);
+
+alter table public.contacts enable row level security;
+revoke all on public.contacts from public, anon, authenticated;
+grant select on public.contacts to authenticated;
+
+-- Your own list only. Writes go through add_contact / remove_contact.
+create policy contacts_select_own on public.contacts
+  for select to authenticated
+  using (owner = (select auth.uid()));
+
+create or replace function public.add_contact(p_user uuid)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if p_user is null or p_user = me then raise exception 'That''s you'; end if;
+  if not public.shares_chat_with(p_user) then
+    raise exception 'You can add people from your chats';
+  end if;
+  if (select count(*) from public.contacts where owner = me) >= 500 then
+    raise exception 'That''s a lot of people already';
+  end if;
+  insert into public.contacts (owner, contact) values (me, p_user)
+  on conflict (owner, contact) do nothing;
+end;
+$$;
+
+create or replace function public.remove_contact(p_user uuid)
+returns void
+language sql security definer
+set search_path = public
+as $$
+  delete from public.contacts where owner = auth.uid() and contact = p_user;
+$$;
+
+-- Your people by name, with the name and photo they have now and how many
+-- chats you share.
+create or replace function public.my_contacts()
+returns table (id uuid, display_name text, avatar_path text, added_at timestamptz, shared_chats integer)
+language sql stable security definer
+set search_path = public
+as $$
+  select p.id, p.display_name, p.avatar_path, k.created_at,
+         (select count(*)::int
+            from public.chat_members a
+            join public.chat_members b on b.chat_id = a.chat_id
+           where a.user_id = auth.uid() and b.user_id = p.id)
+    from public.contacts k
+    join public.profiles p on p.id = k.contact
+   where k.owner = auth.uid()
+   order by lower(p.display_name), p.id;
+$$;
+
+-- A new chat with some of your people in it from the start. Only people in
+-- your list, never anyone who has blocked you or whom you've blocked (left
+-- out without a word), at most 63 others. Like create_chat otherwise.
+create or replace function public.create_chat_with(p_name text, p_people uuid[])
+returns public.chats
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  me uuid := auth.uid();
+  c public.chats;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if coalesce(array_length(p_people, 1), 0) > 63 then
+    raise exception 'A chat holds up to 64 people';
+  end if;
+  select * into c from public.create_chat(p_name);
+  insert into public.chat_members (chat_id, user_id, last_read_at)
+  select c.id, k.contact, c.created_at - interval '1 millisecond'
+    from public.contacts k
+   where k.owner = me
+     and k.contact = any (coalesce(p_people, '{}'))
+     and not exists (select 1 from public.blocks b
+                      where (b.blocker = k.contact and b.blocked = me)
+                         or (b.blocker = me and b.blocked = k.contact))
+  on conflict (chat_id, user_id) do nothing;
+  select * into c from public.chats where id = c.id;
+  return c;
+end;
+$$;
+
+-- Blocking someone also takes them out of your people.
+create or replace function public.block_person(p_user uuid)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+  if p_user is null or p_user = me then raise exception 'You can''t block yourself'; end if;
+  insert into public.blocks (blocker, blocked) values (me, p_user)
+  on conflict (blocker, blocked) do nothing;
+  delete from public.contacts where owner = me and contact = p_user;
+end;
+$$;
+
+revoke execute on function public.add_contact(uuid), public.remove_contact(uuid), public.my_contacts(),
+  public.create_chat_with(text, uuid[]) from public, anon;
+grant execute on function public.add_contact(uuid), public.remove_contact(uuid), public.my_contacts(),
+  public.create_chat_with(text, uuid[]) to authenticated;

@@ -327,5 +327,51 @@ do $$ begin
 exception when others then insert into results values ('outsider cannot upload into a chat', true); end $$;
 reset role;
 
+-- Your people (0007): Bob adds Alice from the chat they share and only he
+-- sees it; Eve can't add Alice (no chat together). A chat with your people
+-- adds them, but never someone who has blocked you or isn't yours, and
+-- blocking someone takes them out of your people.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+select public.add_contact('00000000-0000-0000-0000-0000000000a1');
+insert into results select 'contact added from a shared chat',
+  (select count(*) from public.my_contacts() where id = '00000000-0000-0000-0000-0000000000a1') = 1;
+do $$ begin
+  perform public.add_contact(auth.uid());
+  insert into results values ('cannot add yourself', false);
+exception when others then insert into results values ('cannot add yourself', true); end $$;
+do $$ begin
+  insert into public.contacts (owner, contact) values (auth.uid(), '00000000-0000-0000-0000-0000000000c3');
+  insert into results values ('contacts written only through the RPCs', false);
+exception when insufficient_privilege then insert into results values ('contacts written only through the RPCs', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
+do $$ begin
+  perform public.add_contact('00000000-0000-0000-0000-0000000000a1');
+  insert into results values ('cannot add a stranger', false);
+exception when others then insert into results values ('cannot add a stranger', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'contacts private to their owner', (select count(*) from public.contacts) = 0;
+select public.add_contact('00000000-0000-0000-0000-0000000000b2');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+select public.block_person('00000000-0000-0000-0000-0000000000a1');
+insert into results select 'blocking takes them out of your people',
+  not exists (select 1 from public.my_contacts() where id = '00000000-0000-0000-0000-0000000000a1');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+create temp table with_people as
+  select * from public.create_chat_with('Plans', array['00000000-0000-0000-0000-0000000000b2',
+                                                       '00000000-0000-0000-0000-0000000000c3']::uuid[]);
+insert into results select 'chat with people skips who blocked you, and strangers',
+  (select member_count from with_people) = 1;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+select public.unblock_person('00000000-0000-0000-0000-0000000000a1');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+create temp table with_people2 as
+  select * from public.create_chat_with('Plans again', array['00000000-0000-0000-0000-0000000000b2']::uuid[]);
+insert into results select 'chat with people adds your people', (select member_count from with_people2) = 2;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'added person has the chat',
+  (select count(*) from public.my_chats() where id = (select id from with_people2)) = 1;
+reset role;
+
 select * from results;
 rollback;
