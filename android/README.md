@@ -156,6 +156,13 @@ The fixture is offline (no account needed, nothing sent); `--ez live true` keeps
 - **The brief**: Catch me up opens `BriefActivity.intent(context, BriefSource.Chat(id, name))` and Ask opens `BriefActivity.askIntent(...)` (Ask first, no catch-up); on the way back the chat re-reads your cursor (a catch-up moves it) and jumps to `EXTRA_JUMP_TO_MESSAGE` if there is one.
 - **Not ported yet**: photos, the copy kept on the phone, saved catch-ups, profiles, block and report, your people, invite friends.
 
+## Plans (migration 0010)
+
+Android has no purchases (it's sideloaded, so Play Billing doesn't apply); plans are bought on the iPhone and the server's limits apply to both. Two things here:
+
+- **The one-time Muse Spark question.** `data/ConsentGate.kt` (shared data layer) runs before `catch-up` and `catch-up-text` through `SupabaseClient.function()` (one marked line). Once per account it checks `ai_consents`; with no row, `ui/plans/ConsentDialog.kt` asks, in iOS's words, what goes to Meta's Muse Spark (friends' messages included), that Meta doesn't train on it, and an explicit "I'm 18 or older" before Allow works. Yes saves the row, then the brief goes; Not now sends nothing ("Nothing was sent to Muse Spark."). `BriefActivity`, where every brief starts (a chat's Catch me up or Ask, and the reader bubble's hand-off), turns the gate on and hosts the dialog (two marked lines); elsewhere, and in JVM tests, the gate is off and the server decides. No `ai_consents` table (the server before 0010) means nothing to ask.
+- **Refusals read as the server says them.** A 402 ("You've used today's 150 free messages.") or a 403 (no consent yet) arrives as `ApiException` with the server's sentence, and the brief shows it as is (`BriefErrors`). Tests: `data/ConsentGateTest`, `ui/plans/PlanRefusalsTest`.
+
 ## Rules
 
 - **The repo is public.** The app ships only the publishable key (`data/Config.kt`). The service-role key never goes in the app. Never commit a keystore, `keystore.properties` or `local.properties` (all gitignored).

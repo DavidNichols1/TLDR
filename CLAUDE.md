@@ -29,7 +29,9 @@ the technical recipe. README.md is the judge-facing overview.
   (verify_jwt stays on). Check with `list_edge_functions` → `verify_jwt: true`, and an
   unauthenticated POST must return 401.
 - Muse Spark: `supabase/functions/_shared/muse.ts`, `POST https://api.meta.ai/v1/chat/completions`,
-  model `muse-spark-1.3` (override with `META_MODEL`), docs at https://dev.meta.ai/docs.
+  model `muse-spark-1.3` (override with `META_MODEL`), docs at https://dev.meta.ai/docs. Every
+  plan uses it (Standard mode). Never `muse-spark-1.3-contributor` for chats: Meta's terms, section
+  6.2, ban personal information in Contributor mode. See "Plans, consent and purchases".
 - Logs for a catch-up call: Supabase MCP `query_logs`, source `function_logs`; each Muse call
   logs `{mode, attempt, messages, prompt, completion, reasoning}` token counts. Latency is in
   `ai_briefs.latency_ms`. Keep `META_REASONING=low` (minimal invented a plan time on Nov 2).
@@ -194,6 +196,88 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 it out of the inbox line and its counts, and moves one stranded mid-chat by `--retime` to
 the chat's start). `--rearm` resets David to all-unread between video takes. `--photos` (opt-in,
 safe to re-run) adds two made-up photos on the last day, so a catch-up can cite one: 304 unread.
+
+## Plans, consent and purchases (migration 0010, written Nov 3, 2026, not applied yet)
+Free 150, Plus 400 ($4.99/month) and Pro 1,000 ($9.99/month) messages Muse Spark reads for you a
+day. Every plan is Standard mode `muse-spark-1.3`, which Meta doesn't train on; Pro adds Listen (the
+phone's own voice; Meta has no text to speech). Plus and Pro are Apple auto-renewable subscriptions
+in one group (StoreKit 2). Code: `supabase/functions/_shared/` (`consent.ts`, `plan.ts`, `apple.ts`,
+`purchase.ts`), `supabase/functions/verify-purchase/`, `ios/Ketchup/Plans/`, Android
+`data/ConsentGate.kt` and `ui/plans/ConsentDialog.kt`.
+- **Consent** (`ai_consents`, one row per person): your yes to Ketchup sending the messages a
+  catch-up or question covers, friends' included, to Meta's Muse Spark, and that you're 18 or older
+  (Meta's terms 10.1; Apple 5.1.2(i)). RLS: your own row only; insert names only `user_id` and
+  `confirmed_adult`, so `consented_at` is always the server's; delete withdraws. `my_plan()` reports it.
+- **Allowance** (`plan_usage`, no client access): a call is charged the messages it sends Muse Spark
+  (catch-up: the unread ones; Ask: every message it searches, up to 800; catch-up-text: the thread),
+  at least 10 (`CALL_FLOOR` in `plan.ts`: each call has a fixed cost). The day is Denver's
+  (`plan_day()`), so a phone's time zone can't reset it. `take_plan_usage` checks and spends in one
+  step under a per-person advisory lock; over the limit it's a 402 `{error, kind: "plan_limit", plan,
+  used, limit, needed, resets_at}` and nothing is counted. Limits live in `plan_limit()`; the app's
+  cards repeat them (`Plans/PlanModels.swift`). Note: Ask on the 302-message demo chat costs 302.
+- **Every place the checks sit** (the server decides; the apps only make it friendly):
+  - consent, 403 `kind: "consent_required"` until there's a row: `catch-up/index.ts` right after the
+    caller is known (before membership); `catch-up-text/index.ts` right after the caller is known.
+  - allowance: `catch-up/index.ts` after `once()`, so saved and shared briefs are free (a 402 releases
+    the claim); `catch-up-text/index.ts` before `take_text_brief` (given back on its 429 or 500). Both
+    give the messages back when Muse Spark fails.
+  - iOS: `Net/Supabase.swift` `function()` → `PlanGate.beforeMuse` for catch-up and catch-up-text (the
+    consent sheet over the sheet you're in; a prefetch never asks, and on Free it waits for your tap so
+    opening chats doesn't spend the 150); `throwIfError` → `PlanGate.serverRefused` (a 402 opens the
+    paywall over the catch-up you're reading; a 403 consent_required forgets a stale yes).
+  - Android: `SupabaseClient.function()` → `ConsentGate.call`, switched on in `BriefActivity` (every
+    brief, from a chat or the reader bubble), with `ConsentDialogHost()` there. No purchases on Android
+    (sideloaded); a 402 or 403 shows the server's sentence as is.
+- **verify-purchase** (verify_jwt on) takes `{jws}`, StoreKit's `jwsRepresentation`. `apple.ts` checks
+  the x5c chain to the pinned Apple Root CA - G3 (public; SHA-256 `63343abf…653e9179`), Apple's OIDs on
+  the intermediate (`1.2.840.113635.100.6.2.1`) and leaf (`1.2.840.113635.100.6.11.1`), dates at
+  `signedDate`, and the ES256 signature, with WebCrypto and no dependencies (no OCSP). `purchase.ts`
+  checks bundle `com.vibetemp.ketchup`, the two product IDs, the type, and `appAccountToken` (the app
+  buys with the user id; another account's is a 409). Production → `source 'app_store'`; Apple's
+  sandbox (TestFlight, App Review, sandbox testers) → `'sandbox'`. `apply_purchase` (service role):
+  newer replaces older, a refund ends it, one subscription unlocks one account. The app sends every
+  transaction it sees (a purchase, `Transaction.updates`, Restore, entitlements at sign-in) and
+  finishes it once the server has it. Not built: App Store Server Notifications (a renewal or refund
+  made while the app is closed shows up when it next opens).
+- **`STOREKIT_XCODE_TEST`** (function secret; off unless exactly `true`). Xcode's local StoreKit test
+  (`Plans/Ketchup.storekit`) signs with a certificate Xcode makes (`kid: Apple_Xcode_Key`, one cert), so
+  Apple's chain can't vouch for it. With the flag on, verify-purchase accepts a transaction whose
+  environment is `Xcode`, for this bundle and one of the two products (and this account, when it
+  carries a token), as `source 'xcode-test'`, for at most 24 hours (capped in `apply_purchase` and by
+  a check constraint). **While it's on, anyone signed in can make one up and get Plus or Pro for a
+  day.** David turns it on only while recording, then unsets it:
+  `supabase secrets set STOREKIT_XCODE_TEST=true --project-ref cfqlnthmqwkhjbhylvgu`, then
+  `supabase secrets unset STOREKIT_XCODE_TEST --project-ref cfqlnthmqwkhjbhylvgu`. A made-up Sandbox or
+  Production purchase fails either way (`apple_test.ts` shows both).
+- **`PLANS_ENFORCED=false`** (function secret): the emergency off switch. Nothing counted or refused;
+  consent is still required.
+- **Apply and deploy, in this order**: 1. migration as one part, `apply_migration` name `0010_plans`,
+  then `rls_check.sql` (117 of 117 on Nov 3, 2026, inside a rolled-back transaction). 2. Give the
+  recording account Pro and consent (the SQL in the migration's header, plus
+  `insert into public.ai_consents (user_id, confirmed_adult) values ('<id>', true);`): the demo
+  chat's 302 unread is over Free's 150. 3. Install the new iOS and Android builds (old builds can't
+  say yes, so after step 4 they get the 403's sentence). 4. Deploy `catch-up`, `catch-up-text` and
+  `verify-purchase` with `--use-api`; `list_edge_functions` → `verify_jwt: true` on all three, and an
+  unauthenticated POST to `verify-purchase` returns 401. Until step 1 the iOS app shows no plan rows
+  and asks nothing (`my_plan` missing), and Android asks nothing (no `ai_consents` table).
+- **Tests**: `deno test supabase/functions/_shared/` (36 on Nov 3, 2026: `plan_test.ts`,
+  `consent_test.ts`, `apple_test.ts` with Apple's real G6 intermediate checked against the pinned root
+  and a throwaway chain made at test time, nothing private in the repo). Android `ConsentGateTest`,
+  `PlanRefusalsTest`.
+- **StoreKit on the simulator.** From Xcode, Run uses `Plans/Ketchup.storekit` (the scheme's StoreKit
+  Configuration; set it to None to use Apple's sandbox instead). Without Xcode, in a DEBUG simulator
+  build: `SIMCTL_CHILD_DYLD_FRAMEWORK_PATH=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks xcrun simctl launch <udid> com.vibetemp.ketchup -storekitTest YES -screen paywall -buy plus`
+  (`Plans/StoreKitTesting.swift` starts an `SKTestSession` on the bundled file; the framework path
+  lets it find XCTest, or it prints why and does nothing). `-buy plus` presses Get Plus 1.5 s in and
+  StoreKit's sheet appears ("For testing purposes only"); add `-storekitDialogs NO` to skip it. The
+  transaction's JWS lands in the app container's `tmp/storekit-test-last.jws` for checking against
+  `checkPurchase` (Nov 3, 2026: Apple's chain refused it, flag off 403, flag on Plus `xcode-test`,
+  another account 409). Release builds leave `Ketchup.storekit` out (`EXCLUDED_SOURCE_FILE_NAMES`).
+- **Previews**: `paywall`, `plan-free-usage` (Settings' Plan section and bar), `plan-limit-hit` (Breck's
+  302 turned down on Free, paywall over it), `consent`, `plan-listen` (Pro's Listen). Screenshots:
+  `docs/screens/plans/`.
+- **App Store Connect (David)**: see README, "Plans". The product IDs are
+  `com.vibetemp.ketchup.plus.monthly` (level 2) and `com.vibetemp.ketchup.pro.monthly` (level 1).
 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,

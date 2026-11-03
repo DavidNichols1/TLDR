@@ -36,6 +36,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 30) {
                         AccountHeader(kicker: "Settings")
                         you
+                        PlanSection().id("plan")  // Plans: your plan and today's usage (Plans/PlanSettings.swift)
                         people.id("people")
                         PrivacySection().id("privacy")
                         WebChatSignOutSection().id("web")

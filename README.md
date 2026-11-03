@@ -96,7 +96,8 @@ checks that every claim is backed by a real message.
    never instructions, and the model sees each message as its own tagged line.
 7. **Caching and rate limits.** Every result is saved to `ai_briefs`, and only you can
    read yours. Tapping Catch me up again on the same unread messages returns the saved
-   brief straight away with no new model call. Each person gets 60 briefs per hour.
+   brief straight away with no new model call. Each person gets 60 briefs per hour, and a
+   daily number of messages Muse Spark reads for them, set by their plan (see Plans).
    **Identical requests pay once**, even when they arrive together (a double tap, the
    prefetch racing your tap): the first claims the brief with a row whose id is a hash of
    what it covers, so only one can win, and the rest wait for its answer
@@ -289,10 +290,12 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 95-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 132-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
-  Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
+  Instagram and Snapchat catch-up's usage cap, plans and consent (nobody raises their
+  own plan, spends, resets or lowers the allowance, records a purchase, or says yes for
+  someone else), blocking (hidden reads, unread counts,
   inbox lines, dropped catch-ups, one way), reports (unreadable, never your own, never
   from outside a chat), your people (private, only from a shared chat, new chats skip
   whoever blocked you), profile photos (own folder only, no listing, the hourly cap),
@@ -300,6 +303,76 @@ flowchart LR
   deleting an account, and "joined" lines (server-written only, never unread or the
   inbox line, outside the send limit, one per person). It runs in one transaction and
   rolls back.
+
+## Plans
+
+Muse Spark costs money every time it reads, so a plan is a daily number of messages it
+reads for you. **Every plan uses Meta's Standard mode, which Meta doesn't train on.**
+
+| Plan | Messages a day | Price |
+|---|---|---|
+| Free | 150 | free |
+| Plus | 400 | $4.99 a month |
+| Pro | 1,000, and Listen: the catch-up read aloud | $9.99 a month |
+
+<table>
+  <tr>
+    <td><img src="docs/screens/plans/consent-light.png" width="200" alt="Before your first catch-up: what goes to Muse Spark, and I'm 18 or older"></td>
+    <td><img src="docs/screens/plans/plan-limit-hit-light.png" width="200" alt="This catch-up reads 302 messages. Free covers 150 a day, with the plans under it"></td>
+    <td><img src="docs/screens/plans/paywall-light.png" width="200" alt="Free, Plus and Pro as three cards, prices on the right"></td>
+    <td><img src="docs/screens/plans/plan-free-usage-light.png" width="200" alt="Settings: Your plan, Free, and 112 of 150 messages today"></td>
+  </tr>
+</table>
+
+- **You say yes once, first.** Before your first catch-up or question, a sheet says
+  plainly what happens: Ketchup sends the messages it covers, your friends' included, to
+  Meta's Muse Spark to write it, Meta doesn't train on them, and Muse Spark is for people
+  18 and older. You check "I'm 18 or older" and allow it. The yes is kept with your
+  account, and the server refuses a catch-up without it. Android asks the same before its
+  first brief, in the app or from the reader bubble.
+- **The server counts; the app only shows it.** A catch-up counts the unread messages it
+  reads, a question the messages it searches, and every call at least 10. The day runs
+  midnight to midnight Mountain time, so changing the phone's time zone doesn't reset it.
+  Over the limit, the catch-up you're reading says so ("You've used today's 150 free
+  messages") and the plans open over it. Settings shows "112 of 150 messages today". A
+  catch-up that was already made, or two taps at once, costs nothing; a call that fails
+  gives its messages back. Opening a chat on Free doesn't spend anything until you tap.
+- **Apple In-App Purchase, checked on the server.** Plus and Pro are auto-renewable
+  subscriptions in one group (StoreKit 2). A purchase carries your Ketchup account's id;
+  the app sends Apple's signed transaction to the
+  [`verify-purchase`](supabase/functions/verify-purchase/index.ts) edge function, which
+  checks Apple's certificate chain up to Apple's root
+  ([`apple.ts`](supabase/functions/_shared/apple.ts), no third-party code), then the app,
+  the product and the account, before it sets your plan. The app can't set its own plan,
+  and one subscription unlocks one Ketchup account.
+- **Listen (Pro)** reads the catch-up aloud with the phone's own voice. Meta has no text
+  to speech, so nothing more leaves the phone.
+- **Testing a purchase.** Xcode's local StoreKit test (`ios/Ketchup/Plans/Ketchup.storekit`,
+  in the scheme) buys for free, but Xcode signs those purchases, not Apple, so the server
+  can't check them. It takes them only while the `STOREKIT_XCODE_TEST` secret is `true`,
+  for a day at most, and **while it's on anyone signed in could fake a plan**, so it's on
+  only while recording. Purchases in Apple's sandbox (TestFlight, sandbox testers) are
+  signed by Apple and need no switch.
+
+**Setting it up in App Store Connect** (David, about 35 minutes, then up to an hour before
+the sandbox sees the products):
+
+1. **Agreements, Tax, and Banking**: the Paid Applications Agreement is active (it is
+   until January 13, 2027), with tax and banking filled in.
+2. **Apps → + → New App**: iOS, bundle ID `com.vibetemp.ketchup` (pick it from your
+   identifiers), a name (if "Ketchup" is taken, something like "Ketchup: Catch Up").
+3. **The app → Monetization → Subscriptions → Create** a subscription group, "Ketchup".
+4. In the group, **Create** "Ketchup Plus Monthly": product ID
+   `com.vibetemp.ketchup.plus.monthly`, 1 month, $4.99, level 2, display name "Ketchup Plus".
+5. **Create** "Ketchup Pro Monthly": `com.vibetemp.ketchup.pro.monthly`, 1 month, $9.99,
+   level 1 (the higher level, so Plus to Pro is an upgrade), display name "Ketchup Pro".
+6. Give each a description, a review screenshot (the paywall) and the group a display name;
+   the first subscription goes to review with an app version.
+7. **Users and Access → Sandbox → Test Accounts → +**: a sandbox Apple Account. On the
+   iPhone, sign into it under Settings → Developer → Sandbox Apple Account, and run from
+   Xcode with the scheme's StoreKit Configuration set to None.
+8. A privacy policy URL on the app (subscriptions need one; the paywall already links
+   Apple's standard Terms of Use).
 
 ## Run it yourself
 
@@ -310,6 +383,8 @@ supabase link --project-ref <ref>
 supabase db push                                   # applies supabase/migrations
 supabase secrets set META_API_KEY=... --project-ref <ref>
 supabase functions deploy catch-up --project-ref <ref>   # verify_jwt stays on (the default)
+supabase functions deploy catch-up-text --project-ref <ref>
+supabase functions deploy verify-purchase --project-ref <ref>
 ```
 
 Optional: paste `supabase/tests/rls_check.sql` into the SQL editor. Every row should say

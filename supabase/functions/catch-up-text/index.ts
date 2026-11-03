@@ -20,6 +20,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildTextTranscript, type TextMessage } from "../_shared/transcript.ts";
 import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
 import { museChat, MuseError, MuseNotConfigured } from "../_shared/muse.ts";
+import { consentRefusal } from "../_shared/consent.ts"; // Plans: Muse Spark consent
+import { takeUsage } from "../_shared/plan.ts"; // Plans: the daily allowance
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -152,6 +154,10 @@ Deno.serve(async (req) => {
   if (userErr || !userData.user) return json(401, { error: "Sign in first" });
   const me = userData.user.id;
 
+  // Plans: nothing goes to Muse Spark until you've said yes, once (_shared/consent.ts).
+  const noConsent = await consentRefusal(asUser, me);
+  if (noConsent) return noConsent;
+
   if (messages.length === 0) {
     return mode === "ask"
       ? json(200, { kind: "ask", source, result: { answer: "There are no messages in this chat yet.", found: false, refs: [] } })
@@ -160,14 +166,21 @@ Deno.serve(async (req) => {
 
   // Checks the cap and records this use in one step (no content is stored).
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+  // Plans: today's allowance covers this read, or a 402 (_shared/plan.ts).
+  const usage = await takeUsage(admin, me, messages.length, mode);
+  if (!usage.ok) return usage.response;
   const { data: allowed, error: quotaErr } = await admin.rpc("take_text_brief", {
     p_user: me, p_source: source, p_mode: mode, p_messages: messages.length, p_limit: HOURLY_LIMIT,
   });
   if (quotaErr) {
     console.error(JSON.stringify({ fn: "catch-up-text", quota_error: quotaErr.code ?? "unknown" }));
+    await usage.giveBack(); // Plans
     return json(500, { error: "Couldn't check your catch-up limit. Try again." });
   }
-  if (allowed !== true) return json(429, { error: "That's a lot of catching up. Try again in a bit." });
+  if (allowed !== true) {
+    await usage.giveBack(); // Plans: refused by the hourly cap, so nothing was read
+    return json(429, { error: "That's a lot of catching up. Try again in a bit." });
+  }
 
   const transcript = buildTextTranscript(messages, timeZone, first);
   const now = new Date();
@@ -212,6 +225,7 @@ Deno.serve(async (req) => {
     if (result === undefined) throw lastError ?? new Error("No result");
   } catch (e) {
     console.error(JSON.stringify({ fn: "catch-up-text", source, mode, failed: failureKind(e) }));
+    await usage.giveBack(); // Plans: a failed call costs nothing
     if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }

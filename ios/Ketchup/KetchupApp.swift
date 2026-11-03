@@ -18,6 +18,7 @@ struct KetchupApp: App {
             RootView()
                 .environment(app)
                 .tint(Theme.ketchupText)
+                .task { Purchases.shared.start() }  // Plans: StoreKit's transactions, from launch (Plans/Purchases.swift)
         }
     }
 }

@@ -30,6 +30,7 @@ struct PreviewRouter: View {
     static var names: [String] {
         [DesignGallery.name] + CorePreviewScreen.names + AIPreviewScreen.names + WebChatPreviewScreen.names
             + PeoplePreviewScreen.names + PhotosPreviewScreen.names + SavedPreviewScreen.names
+            + PlansPreviewScreen.names  // Plans
             + [StoreCheckScreen.name]
     }
 
@@ -47,6 +48,8 @@ struct PreviewRouter: View {
                 WebChatPreviewScreen(name: name)
             } else if name.hasPrefix("photo-"), PhotosPreviewScreen.names.contains(name) {
                 PhotosPreviewScreen(name: name)
+            } else if PlansPreviewScreen.names.contains(name) {  // Plans
+                PlansPreviewScreen(name: name)
             } else if PeoplePreviewScreen.names.contains(name) {
                 PeoplePreviewScreen(name: name)
             } else if CorePreviewScreen.names.contains(name) {

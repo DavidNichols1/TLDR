@@ -107,6 +107,174 @@ do $$ begin
   insert into results values ('unknown text source refused', false);
 exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
+-- Muse Spark consent (0010): a row once you've said yes and that you're 18
+-- or older. You give, read and withdraw only your own, and its time is the
+-- server's. catch-up and catch-up-text refuse until it's there.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'consent: none at first',
+  (select count(*) = 0 from public.ai_consents) and (select p->>'consented_at' is null from public.my_plan() p);
+insert into public.ai_consents (confirmed_adult) values (true);
+insert into results select 'consent: you can give yours',
+  (select count(*) = 1 and bool_and(user_id = auth.uid() and consented_at = now()) from public.ai_consents)
+  and (select p->>'consented_at' is not null from public.my_plan() p);
+do $$ begin
+  insert into public.ai_consents (user_id, confirmed_adult) values ('00000000-0000-0000-0000-0000000000b2', true);
+  insert into results values ('consent: never for someone else', false);
+exception when insufficient_privilege then insert into results values ('consent: never for someone else', true); end $$;
+do $$ begin
+  update public.ai_consents set consented_at = now() - interval '1 year';
+  insert into results values ('consent: its time can''t be changed', false);
+exception when insufficient_privilege then insert into results values ('consent: its time can''t be changed', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'consent: private to its owner', (select count(*) = 0 from public.ai_consents);
+do $$ begin
+  insert into public.ai_consents (confirmed_adult) values (false);
+  insert into results values ('consent: needs 18 or older', false);
+exception when check_violation then insert into results values ('consent: needs 18 or older', true); end $$;
+do $$ begin
+  insert into public.ai_consents (user_id, confirmed_adult, consented_at)
+  values (auth.uid(), true, now() - interval '1 year');
+  insert into results values ('consent: can''t be backdated', false);
+exception when insufficient_privilege then insert into results values ('consent: can''t be backdated', true); end $$;
+with d as (delete from public.ai_consents returning 1)
+insert into results select 'consent: nobody withdraws someone else''s', (select count(*) = 0 from d);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+with d as (delete from public.ai_consents returning 1)
+insert into results select 'consent: you can withdraw yours', (select count(*) = 1 from d);
+insert into public.ai_consents (confirmed_adult) values (true);
+reset role;
+grant all on results to anon;
+set local role anon;
+do $$ begin
+  perform * from public.ai_consents;
+  insert into results values ('consent: closed to anon', false);
+exception when insufficient_privilege then insert into results values ('consent: closed to anon', true); end $$;
+reset role;
+
+-- Plans (0010): you read only your own plan, and nobody can give themselves
+-- a plan, record a purchase, or spend, reset or lower the daily allowance
+-- from the app. catch-up, catch-up-text and verify-purchase do all of that
+-- with the service role.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'plan: a new account is free, 0 of 150',
+  (select p->>'plan' = 'free' and (p->>'used')::int = 0 and (p->>'limit')::int = 150
+          and not (p->>'voice')::boolean and p->>'source' is null
+     from public.my_plan() p);
+do $$ begin
+  insert into public.plans (user_id, plan, source, expires_at) values (auth.uid(), 'pro', 'manual', null);
+  insert into results values ('plan: cannot give yourself a plan', false);
+exception when insufficient_privilege then insert into results values ('plan: cannot give yourself a plan', true); end $$;
+do $$ begin
+  perform public.apply_purchase(auth.uid(), 'pro', 'app_store', 'com.vibetemp.ketchup.pro.monthly',
+                                'made-up', 'made-up', now() + interval '30 days');
+  insert into results values ('plan: cannot record a purchase', false);
+exception when insufficient_privilege then insert into results values ('plan: cannot record a purchase', true); end $$;
+do $$ begin
+  perform public.take_plan_usage(auth.uid(), 1);
+  insert into results values ('usage: cannot spend it from the app', false);
+exception when insufficient_privilege then insert into results values ('usage: cannot spend it from the app', true); end $$;
+do $$ begin
+  perform public.give_back_plan_usage(auth.uid(), current_date, 1000);
+  insert into results values ('usage: cannot give it back from the app', false);
+exception when insufficient_privilege then insert into results values ('usage: cannot give it back from the app', true); end $$;
+do $$ begin
+  perform * from public.plan_usage;
+  insert into results values ('usage: closed to clients', false);
+exception when insufficient_privilege then insert into results values ('usage: closed to clients', true); end $$;
+reset role;
+
+-- As the edge functions: Alice reads 100, a 60-message read is then refused
+-- and not counted, 50 fits exactly, and a failed call gives its 50 back.
+-- Then she buys Plus, and verify-purchase records it.
+set local role service_role;
+insert into results select 'usage: 100 of 150 allowed',
+  (public.take_plan_usage('00000000-0000-0000-0000-0000000000a1', 100)->>'allowed')::boolean;
+insert into results select 'usage: over the free limit refused',
+  (select not (t->>'allowed')::boolean and (t->>'used')::int = 100 and (t->>'limit')::int = 150 and t->>'plan' = 'free'
+     from public.take_plan_usage('00000000-0000-0000-0000-0000000000a1', 60) t);
+insert into results select 'usage: exactly the limit allowed',
+  (public.take_plan_usage('00000000-0000-0000-0000-0000000000a1', 50)->>'allowed')::boolean;
+select public.give_back_plan_usage('00000000-0000-0000-0000-0000000000a1', public.plan_day(now()), 50);
+insert into results select 'purchase: plus applied',
+  public.apply_purchase('00000000-0000-0000-0000-0000000000a1', 'plus', 'app_store', 'com.vibetemp.ketchup.plus.monthly',
+                        'test-otx-1', 'test-tx-1', now() + interval '30 days') = 'applied';
+insert into results select 'purchase: one subscription unlocks one account',
+  public.apply_purchase('00000000-0000-0000-0000-0000000000b2', 'plus', 'app_store', 'com.vibetemp.ketchup.plus.monthly',
+                        'test-otx-1', 'test-tx-1', now() + interval '30 days') = 'taken';
+insert into results select 'purchase: an older renewal changes nothing',
+  public.apply_purchase('00000000-0000-0000-0000-0000000000a1', 'plus', 'app_store', 'com.vibetemp.ketchup.plus.monthly',
+                        'test-otx-1', 'test-tx-0', now() + interval '2 days') = 'stale';
+-- Bob tries a purchase in Xcode's local StoreKit test: a day at most.
+insert into results select 'purchase: xcode test applied',
+  public.apply_purchase('00000000-0000-0000-0000-0000000000b2', 'pro', 'xcode-test', 'com.vibetemp.ketchup.pro.monthly',
+                        '0', '0', now() + interval '30 days') = 'applied';
+reset role;
+insert into results select 'purchase: xcode test lasts a day at most',
+  (select plan = 'pro' and source = 'xcode-test' and expires_at <= now() + interval '24 hours'
+     from public.plans where user_id = '00000000-0000-0000-0000-0000000000b2');
+do $$ begin
+  insert into public.plans (user_id, plan, source, expires_at)
+  values ('00000000-0000-0000-0000-0000000000c3', 'pro', 'xcode-test', now() + interval '2 days');
+  insert into results values ('xcode test rows past a day refused', false);
+exception when check_violation then insert into results values ('xcode test rows past a day refused', true); end $$;
+insert into public.plan_usage (user_id, day, messages, calls)
+values ('00000000-0000-0000-0000-0000000000c3', public.plan_day(now()) - 1, 150, 3);
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'plan: plus has 400 a day, 100 used',
+  (select p->>'plan' = 'plus' and p->>'source' = 'app_store' and (p->>'limit')::int = 400 and (p->>'used')::int = 100
+          and not (p->>'voice')::boolean
+     from public.my_plan() p);
+insert into results select 'plan: own row readable', (select count(*) = 1 from public.plans);
+do $$ begin
+  update public.plans set plan = 'pro', expires_at = null;
+  insert into results values ('plan: cannot raise your own plan', false);
+exception when insufficient_privilege then insert into results values ('plan: cannot raise your own plan', true); end $$;
+do $$ begin
+  delete from public.plan_usage;
+  insert into results values ('usage: cannot reset your own usage', false);
+exception when insufficient_privilege then insert into results values ('usage: cannot reset your own usage', true); end $$;
+do $$ begin
+  update public.plan_usage set messages = 0;
+  insert into results values ('usage: cannot lower your own count', false);
+exception when insufficient_privilege then insert into results values ('usage: cannot lower your own count', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'plan: other people''s plans unreadable',
+  (select count(*) = 1 from public.plans where user_id = auth.uid())
+  and (select count(*) = 0 from public.plans where user_id <> auth.uid());
+insert into results select 'plan: pro has voice, 1,000 a day',
+  (select p->>'plan' = 'pro' and (p->>'voice')::boolean and (p->>'limit')::int = 1000 from public.my_plan() p);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
+insert into results select 'usage: yesterday doesn''t count today',
+  (select (p->>'used')::int = 0 and p->>'plan' = 'free' from public.my_plan() p);
+reset role;
+set local role anon;
+do $$ begin
+  perform public.my_plan();
+  insert into results values ('plan: closed to anon', false);
+exception when insufficient_privilege then insert into results values ('plan: closed to anon', true); end $$;
+reset role;
+
+-- Bob's test purchase runs out, and Apple refunds Alice: both are free again.
+update public.plans set expires_at = now() - interval '1 minute', updated_at = now() - interval '2 minutes'
+ where user_id = '00000000-0000-0000-0000-0000000000b2';
+set local role service_role;
+insert into results select 'purchase: a refund ends the plan',
+  public.apply_purchase('00000000-0000-0000-0000-0000000000a1', 'plus', 'app_store', 'com.vibetemp.ketchup.plus.monthly',
+                        'test-otx-1', 'test-tx-1', now() + interval '30 days', now()) = 'revoked';
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'plan: an expired plan is free again',
+  (select p->>'plan' = 'free' and p->>'source' is null and (p->>'limit')::int = 150 from public.my_plan() p);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'plan: a refunded plan is free again',
+  (select p->>'plan' = 'free' from public.my_plan() p);
+reset role;
+
 -- Block (0007): Bob blocks Alice. Her messages leave his reads, his unread
 -- count and his inbox line, and his saved catch-up that read her goes. Alice
 -- still sees Bob, and nobody can see who blocked them. Then he unblocks.

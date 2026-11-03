@@ -154,7 +154,7 @@ class SupabaseClient(
 
     /** Calls an edge function (`catch-up`, `catch-up-text`) with the user's token. */
     suspend fun function(name: String, body: String): String =
-        rest("POST", "/functions/v1/$name", body = body)
+        ConsentGate.call(this, name) { rest("POST", "/functions/v1/$name", body = body) } // Plans: Muse Spark consent (data/ConsentGate.kt)
 
     // MARK: Plumbing
 
