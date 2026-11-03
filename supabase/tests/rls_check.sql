@@ -143,6 +143,48 @@ do $$ declare uploaded int := 0; begin
   end loop;
   insert into results values ('avatar uploads capped at 10 an hour', uploaded = 10);
 end $$;
+
+-- Photos in chats (0006 part 2): members read and upload into their chat's
+-- folder, a photo message needs its photo uploaded first and in its own
+-- chat, and only the uploader deletes a file. Alice is still signed in.
+create temp table ctx2 as select * from public.create_chat('Other chat');
+insert into storage.objects (bucket_id, name, owner_id)
+select 'chat-media', id || '/33333333-3333-4333-8333-333333333333.jpg', '00000000-0000-0000-0000-0000000000a1' from ctx
+union all
+select 'chat-media', id || '/33333333-3333-4333-8333-333333333333_small.jpg', '00000000-0000-0000-0000-0000000000a1' from ctx
+union all
+select 'chat-media', id || '/44444444-4444-4444-8444-444444444444.jpg', '00000000-0000-0000-0000-0000000000a1' from ctx2;
+insert into public.messages (chat_id, body, image_path, image_width, image_height)
+select id, '', id || '/33333333-3333-4333-8333-333333333333.jpg', 2048, 1536 from ctx;
+insert into results select 'photo without words sends, inbox says Photo',
+  (select last_message_preview = '📷 Photo' from public.chats where id = (select id from ctx));
+do $$ begin
+  insert into public.messages (chat_id, body, image_path, image_width, image_height)
+  select id, '', id || '/55555555-5555-4555-8555-555555555555.jpg', 10, 10 from ctx;
+  insert into results values ('photo must be uploaded first', false);
+exception when others then insert into results values ('photo must be uploaded first', true); end $$;
+do $$ begin
+  insert into public.messages (chat_id, body, image_path, image_width, image_height)
+  select ctx.id, 'look', ctx2.id || '/44444444-4444-4444-8444-444444444444.jpg', 10, 10 from ctx, ctx2;
+  insert into results values ('photo from another chat refused', false);
+exception when check_violation then insert into results values ('photo from another chat refused', true); end $$;
+do $$ begin
+  insert into public.messages (chat_id, body, image_width, image_height) select id, 'hi', 10, 10 from ctx;
+  insert into results values ('photo size without a photo refused', false);
+exception when check_violation then insert into results values ('photo size without a photo refused', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'member reads chat photos',
+  (select count(*) = 2 from storage.objects where bucket_id = 'chat-media');
+with d as (delete from storage.objects where bucket_id = 'chat-media' returning 1)
+insert into results select 'member cannot delete others'' photos', (select count(*) = 0 from d);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
+insert into results select 'outsider cannot read chat photos',
+  (select count(*) = 0 from storage.objects where bucket_id = 'chat-media');
+do $$ begin
+  insert into storage.objects (bucket_id, name, owner_id)
+  select 'chat-media', id || '/66666666-6666-4666-8666-666666666666.jpg', '00000000-0000-0000-0000-0000000000c3' from ctx;
+  insert into results values ('outsider cannot upload into a chat', false);
+exception when others then insert into results values ('outsider cannot upload into a chat', true); end $$;
 reset role;
 
 select * from results;
