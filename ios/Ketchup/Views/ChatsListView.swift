@@ -101,10 +101,11 @@ struct ChatsListView: View {
                     }
                 }
             }
-            .alert("Something went wrong", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            .alert("Something went wrong", isPresented: Binding(get: { error != nil || app.problem != nil },
+                                                                set: { if !$0 { error = nil; app.problem = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(error ?? "")
+                Text(error ?? app.problem ?? "")
             }
         }
         #if DEBUG

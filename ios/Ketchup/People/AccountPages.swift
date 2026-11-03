@@ -85,16 +85,12 @@ struct EditNameView: View {
         }
     }
 
+    /// Your name changes everywhere at once and the page closes; if the
+    /// server says no, it changes back and Settings says so (AppModel.renameNow).
     private func save() async {
         guard !busy, !unchanged else { return }
-        busy = true
-        defer { busy = false }
-        do {
-            try await app.rename(to: name)
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
+        app.renameNow(to: name)
+        dismiss()
     }
 }
 

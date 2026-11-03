@@ -13,10 +13,9 @@ struct ChatInfoSheet: View {
     let onLeft: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var app
     @State private var confirmLeave = false
-    @State private var leaving = false
     @State private var copied = false
-    @State private var error: String?
 
     @ScaledMetric(relativeTo: .body) private var monogramSize: CGFloat = 36
 
@@ -51,7 +50,7 @@ struct ChatInfoSheet: View {
                 }
             }
             .confirmationDialog("Leave “\(model.chat.name)”?", isPresented: $confirmLeave, titleVisibility: .visible) {
-                Button("Leave chat", role: .destructive) { Task { await leave() } }
+                Button("Leave chat", role: .destructive) { leave() }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("You'll stop getting its messages. You can rejoin with the invite code.")
@@ -183,29 +182,20 @@ struct ChatInfoSheet: View {
                 HStack {
                     Label("Leave chat", systemImage: "rectangle.portrait.and.arrow.right")
                     Spacer(minLength: 0)
-                    if leaving { ProgressView().tint(Theme.ketchupText) }
                 }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.ketchupText)
                 .paperCard(padding: 16)
             }
             .buttonStyle(.pressable)
-            .disabled(leaving)
-
-            if let error {
-                FormError(text: error)
-            }
         }
     }
 
-    private func leave() async {
-        leaving = true
-        defer { leaving = false }
-        do {
-            try await KetchupAPI.leaveChat(model.chat.id)
-            onLeft()
-        } catch {
-            self.error = error.localizedDescription
-        }
+    /// Out of the chat and the inbox at once; AppModel.leave brings it back
+    /// with a note if the server says no.
+    private func leave() {
+        let chat = model.chat
+        Task { await app.leave(chat) }
+        onLeft()
     }
 }

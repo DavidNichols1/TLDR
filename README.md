@@ -154,6 +154,10 @@ refreshes from the server behind them.
   you do, the newest 100 per chat ([`SavedBriefs.swift`](ios/Ketchup/Store/SavedBriefs.swift)).
 - **Clear cache** in Settings drops the copy of your chats and the photo cache; both load
   again from the server, and saved catch-ups stay.
+- **Leaving a chat and changing your name happen at once.** The chat leaves your inbox and
+  the new name shows everywhere straight away, and the server follows. If it says no, they
+  come back with a note. Joining waits for the server (a wrong code is a real answer), and so
+  does a new chat, whose id comes from the server.
 
 ## Architecture
 
