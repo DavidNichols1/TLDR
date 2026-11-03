@@ -541,7 +541,8 @@ try {
     reversed = scroller.scrollTop < 0 || getComputedStyle(scroller).flexDirection === "column-reverse";
     const fromBottom = reversed ? -scroller.scrollTop : scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
     const step = Math.max(120, Math.round(scroller.clientHeight * 0.9));
-    while (messageCount(ctx) < MAX && Date.now() - started < BUDGET_MS && steps < 250) {
+    // A few extra, since a reply's quoted bubble counts here but isn't a message of its own.
+    while (messageCount(ctx) < MAX + 10 && Date.now() - started < BUDGET_MS && steps < 250) {
       const before = scroller.scrollTop;
       scroller.scrollTop = before - step;
       if (scroller.scrollTop < 0) reversed = true;

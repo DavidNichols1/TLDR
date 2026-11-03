@@ -51,6 +51,9 @@ struct InstagramCatchUpScreen: View {
 
     private enum Step: Equatable { case idle, reading, thinking(Int) }
 
+    /// Instagram's page doesn't say what's unread, so the reader asks how far back to go.
+    private static let windows = [30, 80, 120]
+
     private var readerName: String { app.me?.displayName ?? "Me" }
 
     var body: some View {
@@ -101,7 +104,13 @@ struct InstagramCatchUpScreen: View {
     // MARK: Catch up
 
     private func catchUpButton(_ browser: InstagramBrowser) -> some View {
-        Button { Task { await catchUp(browser) } } label: {
+        Menu {
+            Section("Catch me up on the") {
+                ForEach(Self.windows, id: \.self) { n in
+                    Button("Last \(n) messages") { Task { await catchUp(browser, last: n) } }
+                }
+            }
+        } label: {
             HStack(spacing: 8) {
                 if step == .idle { Image(systemName: "sparkles") } else { ProgressView().tint(.white) }
                 Text(buttonTitle)
@@ -114,6 +123,7 @@ struct InstagramCatchUpScreen: View {
                         in: Capsule())
             .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
         }
+        .menuOrder(.fixed)
         .buttonStyle(.plain)
         .disabled(step != .idle)
     }
@@ -126,12 +136,12 @@ struct InstagramCatchUpScreen: View {
         }
     }
 
-    private func catchUp(_ browser: InstagramBrowser) async {
+    private func catchUp(_ browser: InstagramBrowser, last: Int) async {
         guard step == .idle else { return }
         step = .reading
         defer { step = .idle }
         do {
-            let thread = try await browser.readThread(readerName: readerName)
+            let thread = try await browser.readThread(readerName: readerName, last: last)
             step = .thinking(thread.messages.count)
             let reply = try await InstagramAPI.catchUp(thread, readerName: readerName)
             if reply.empty == true { error = "There are no messages here to catch up on."; return }
@@ -186,7 +196,7 @@ struct InstagramCatchUpScreen: View {
                     .font(.title2.bold())
                 VStack(alignment: .leading, spacing: 12) {
                     point("person.badge.key", "Sign in on Instagram's own page. Ketchup never sees your password.")
-                    point("hand.tap", "Open a chat and tap Catch me up. Ketchup reads only that chat, only when you tap.")
+                    point("hand.tap", "Open a chat, tap Catch me up, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
                     point("sparkles", "The messages, your friends' too, go to Muse Spark to summarize. Nothing is saved.")
                     point("exclamationmark.triangle", "Not in the released app. Instagram's terms don't allow this, so it only ships if Meta is fine with it.")
                 }

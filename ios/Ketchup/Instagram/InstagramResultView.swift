@@ -190,7 +190,7 @@ struct InstagramResultView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(result.thread.reachedStart && !result.thread.truncated
                  ? "Covers the whole chat."
-                 : "Covers the newest \(result.thread.messages.count) messages Instagram had loaded.")
+                 : "Covers the last \(result.thread.messages.count) messages.")
             Text("Sent to Muse Spark to summarize. Nothing from this chat was saved.")
         }
         .font(.caption)

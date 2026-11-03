@@ -187,9 +187,10 @@ on a chat people already have: an Instagram DM thread.
 - **It reads only the thread you have open, in your own signed-in session.** Ketchup
   never sees your Instagram password or cookies. The reader
   ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js)) runs
-  only when you tap the button on a DM thread. It goes by page structure (roles, labels,
-  layout), not Instagram's class names. It scrolls up a few times to load older
-  messages, keeps at most 300, then puts the scroll back.
+  only when you tap the button on a DM thread, and you pick how far back: the last 30, 80
+  or 120 messages (the page doesn't say what's unread). It goes by page structure (roles,
+  labels, layout), not Instagram's class names. Instagram only fills in the messages near
+  the screen, so it steps up through the thread, then puts the scroll back.
 - **Nothing is stored.** No saved catch-up, and no message text in the logs (counts and
   token usage only). The server keeps one usage count per call, with no content, for an
   hourly cap of 20.

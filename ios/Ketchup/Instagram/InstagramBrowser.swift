@@ -67,16 +67,16 @@ final class InstagramBrowser {
     func reload() { webView.reload() }
     func goBack() { webView.goBack() }
 
-    /// Reads the DM thread on screen: one tap, one read. It may scroll the
-    /// thread up a few times so Instagram loads older messages, then puts
-    /// the scroll back.
-    func readThread(readerName: String) async throws -> IGThread {
+    /// Reads the newest `last` messages of the DM thread on screen: one tap,
+    /// one read. It steps up through the thread (Instagram may load older
+    /// messages on the way), then puts the scroll back.
+    func readThread(readerName: String, last: Int) async throws -> IGThread {
         guard isThread else { throw InstagramError.notAThread }
         guard let file = Bundle.main.url(forResource: "InstagramThreadReader", withExtension: "js"),
               let script = try? String(contentsOf: file, encoding: .utf8) else { throw InstagramError.readerMissing }
         let value = try await webView.callAsyncJavaScript(
             script,
-            arguments: ["maxMessages": 300, "maxScrolls": 6, "readerName": readerName, "debug": false],
+            arguments: ["maxMessages": last, "maxScrolls": 6, "readerName": readerName, "debug": false],
             in: nil,
             contentWorld: .defaultClient)
         guard let json = value as? String else { throw InstagramError.unreadable }
