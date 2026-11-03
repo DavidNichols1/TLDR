@@ -12,7 +12,8 @@
 //  Both step in only for a request you're watching, one asked from a sheet
 //  (Catch me up, Ask, a web chat's catch-up). One that started on its own
 //  (the prefetch when a chat opens) waits for your tap instead, so a sheet
-//  never appears out of nowhere.
+//  never appears out of nowhere. On Free the prefetch always waits for the
+//  tap, so opening chats doesn't spend the day's allowance.
 //
 //  The sheets are presented with UIKit from whatever is on top, so no
 //  screen has to know about them.
@@ -30,8 +31,14 @@ enum PlanGate {
         guard museFunctions.contains(function), !Previewing.isOn else { return }
         let store = PlanStore.shared
         await store.loadIfNeeded()
-        guard store.available, !store.consented else { return }
-        guard let top = PlanSheets.watching() else { throw ConsentError.waiting }
+        guard store.available else { return }
+        let top = PlanSheets.watching()
+        // A catch-up that started on its own (the prefetch when a chat opens)
+        // spends the allowance only on Plus and Pro. On Free it waits for
+        // your tap, so opening chats doesn't use up the day's 150.
+        if top == nil, store.plan == .free { throw ConsentError.waiting }
+        guard !store.consented else { return }
+        guard let top else { throw ConsentError.waiting }
         guard await PlanSheets.askConsent(over: top) else { throw ConsentError.declined }
         do {
             try await PlanAPI.giveConsent()
@@ -60,14 +67,14 @@ enum PlanGate {
 
 /// Why a Muse Spark request didn't go. The sheets show these as the error.
 enum ConsentError: LocalizedError {
-    /// It started on its own, before you'd said yes.
+    /// It started on its own: before you'd said yes, or on Free. Your tap runs it.
     case waiting
     case declined
     case notSaved
 
     var errorDescription: String? {
         switch self {
-        case .waiting: "Ketchup needs your OK first. Tap Try again."
+        case .waiting: "Tap Try again to start your catch-up."
         case .declined: "Nothing was sent to Muse Spark."
         case .notSaved: "Couldn't save your OK. Check your connection and try again."
         }
