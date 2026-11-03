@@ -194,7 +194,7 @@ flowchart LR
 - **Android app** ([`android/`](android)): Kotlin and Jetpack Compose on the same
   backend, with no networking libraries. The same kind of hand-written Supabase client
   (email-code auth, PostgREST, RPCs, edge functions) and its own small websocket client
-  for Realtime, over TLS with the system's trust store and a hostname check. 114 JVM
+  for Realtime, over TLS with the system's trust store and a hostname check. 116 JVM
   unit tests cover the Realtime protocol, paging, the brief and the reader's parser.
   See "Android, and the Instagram bubble" below.
 - **Database** ([`supabase/migrations/`](supabase/migrations)): profiles, chats, members,
@@ -391,8 +391,11 @@ no website inside Ketchup. You use the real Instagram app.
   where, not Instagram's internal view names, which change.
 - **Where it stands.** On an emulator, against a made-up thread laid out like Instagram's,
   Last 30 read 30 of 30 in 2.2 seconds and Last 120 read all 88 messages in 10.3 seconds.
-  It hasn't been tried on the real Instagram app yet. Snapchat may not share its chat
-  text with other apps at all, so it may stay Instagram only.
+  On November 3, 2026 it worked on a real phone on Android 16, in the real Instagram app:
+  the bubble read two short DM threads (2 messages, and 5 after scrolling back to the
+  start in 7.4 seconds) and Muse Spark caught up on both. A long thread hasn't been read
+  on the real app yet. Snapchat may not share its chat text with other apps at all, so it
+  may stay Instagram only.
 - **Same terms problem as the iPhone version, plus Google Play's.** Play only allows
   accessibility services for accessibility, so this is a sideloaded, experimental build.
   On Android 13 and later, a sideloaded app needs Allow restricted settings (App info,
