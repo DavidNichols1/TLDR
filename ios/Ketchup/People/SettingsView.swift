@@ -40,6 +40,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 30) {
                         header
                         you
+                        PlanSection().id("plan")  // Plans: your plan and today's usage (Plans/PlanSettings.swift)
                         people.id("people")
                         privacy.id("privacy")
                         WebChatSignOutSection().id("web")

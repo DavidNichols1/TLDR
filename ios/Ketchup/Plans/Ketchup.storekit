@@ -1,0 +1,90 @@
+{
+  "identifier" : "5E8B2C14-7A3D-4F61-9B0E-2C6D8A41F7E3",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "GBXTAWLQK5",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "C4A1E9D2-3B6F-4E8A-8D21-6F0B7C3E5A94",
+      "localizations" : [
+
+      ],
+      "name" : "Ketchup",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "9D3F6B21-4C8E-4A57-B1E0-7A2D5C9F3E68",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Muse Spark reads 400 messages a day for you.",
+              "displayName" : "Ketchup Plus",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.vibetemp.ketchup.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Ketchup Plus Monthly",
+          "subscriptionGroupID" : "C4A1E9D2-3B6F-4E8A-8D21-6F0B7C3E5A94",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "2B7E4A90-6D1C-4F38-9E5B-0C8A3F6D2B17",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Muse Spark reads 1,000 messages a day for you, and catch-ups read aloud.",
+              "displayName" : "Ketchup Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.vibetemp.ketchup.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Ketchup Pro Monthly",
+          "subscriptionGroupID" : "C4A1E9D2-3B6F-4E8A-8D21-6F0B7C3E5A94",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

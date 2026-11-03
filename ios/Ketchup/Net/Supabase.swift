@@ -195,7 +195,8 @@ final class Supabase {
     }
 
     func function(_ name: String, _ args: [String: Any]) async throws -> Data {
-        try await rest("POST", "/functions/v1/\(name)", body: JSONSerialization.data(withJSONObject: args))
+        try await PlanGate.beforeMuse(name)  // Plans: the one-time Muse Spark consent (Plans/PlanGate.swift)
+        return try await rest("POST", "/functions/v1/\(name)", body: JSONSerialization.data(withJSONObject: args))
     }
 
     // MARK: Plumbing
@@ -279,6 +280,8 @@ final class Supabase {
     private static func throwIfError(data: Data, response: URLResponse) throws {
         guard let http = response as? HTTPURLResponse else { throw APIError.badResponse }
         guard !(200...299).contains(http.statusCode) else { return }
+        // Plans: 402 is today's allowance (opens the paywall), 403 can be a missing consent (Plans/PlanGate.swift).
+        if http.statusCode == 402 || http.statusCode == 403 { PlanGate.serverRefused(status: http.statusCode, data: data) }
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             for key in ["message", "msg", "error_description", "error"] {
                 if let m = json[key] as? String, !m.isEmpty {

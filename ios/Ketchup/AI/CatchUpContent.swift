@@ -77,6 +77,7 @@ struct CatchUpContent: View {
                 .markRuns(sweep: true, delay: Self.handOver + 0.35)
                 .accessibilityAddTraits(.isHeader)
             MuseByline(verb: "Read by", details: byline)
+            ListenButton(brief: brief, readerName: readerName)  // Plans: Pro reads it aloud (Plans/ListenButton.swift)
         }
     }
 

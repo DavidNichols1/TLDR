@@ -35,5 +35,6 @@ struct RootView: View {
         .motion(Motion.settle, value: app.needsName)
         .background(Theme.cream)
         .task(id: app.myId) { await app.loadMe() }
+        .task(id: app.myId) { await PlanStore.shared.signedIn(app.myId) }  // Plans: your plan, at sign-in (Plans/PlanStore.swift)
     }
 }
