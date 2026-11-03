@@ -22,6 +22,8 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var confirmSignOut = false
+    @State private var choosingPhoto = false
+    @State private var photoProblem: String?
 
     @ScaledMetric(relativeTo: .largeTitle) private var monogramSize: CGFloat = 56
 
@@ -73,6 +75,13 @@ struct SettingsView: View {
                 }
             }
         }
+        .profilePhotoPicker(isPresented: $choosingPhoto)
+        .alert("Couldn't remove your photo", isPresented: Binding(get: { photoProblem != nil },
+                                                                  set: { if !$0 { photoProblem = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(photoProblem ?? "")
+        }
         .presentationBackground(Theme.cream)
     }
 
@@ -101,14 +110,13 @@ struct SettingsView: View {
                 }
             }
             Spacer(minLength: 0)
-            // SLOT (Photos session): your profile photo replaces the monogram here.
-            Monogram(name: app.me?.displayName ?? "?", size: monogramSize)
+            Avatar(name: app.me?.displayName ?? "?", path: app.me?.avatarPath, size: monogramSize)
         }
         .padding(.top, 6)
     }
 
     private var you: some View {
-        SettingsSection("You", footer: "Friends see your name in your chats, and \(Theme.modelName) uses it in catch-ups.") {
+        SettingsSection("You", footer: "Friends see your name and photo in your chats, and \(Theme.modelName) uses your name in catch-ups.") {
             NavigationLink {
                 EditNameView()
             } label: {
@@ -119,8 +127,28 @@ struct SettingsView: View {
         }
     }
 
-    /// SLOT (Photos session): the "Profile photo" row.
-    @ViewBuilder private var profilePhotoSlot: some View {}
+    /// Your profile photo: pick and frame a new one (Photos/ProfilePhotos.swift),
+    /// or go back to your monogram.
+    @ViewBuilder private var profilePhotoSlot: some View {
+        Button { choosingPhoto = true } label: {
+            SettingsRow(app.me?.avatarPath == nil ? "Add a photo" : "Change your photo", systemImage: "photo")
+        }
+        .buttonStyle(.pressable)
+        if app.me?.avatarPath != nil {
+            Button { Task { await removePhoto() } } label: {
+                SettingsRow("Remove your photo", systemImage: "person.crop.square")
+            }
+            .buttonStyle(.pressable)
+        }
+    }
+
+    private func removePhoto() async {
+        do {
+            try await ProfilePhotos.remove(app: app)
+        } catch {
+            photoProblem = error.localizedDescription
+        }
+    }
 
     // MARK: Privacy
 

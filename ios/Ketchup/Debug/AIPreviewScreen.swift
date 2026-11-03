@@ -3,8 +3,8 @@
 //  Ketchup
 //
 //  The Muse Spark screens on fixtures, one per `-screen ai-…` name: the
-//  finished catch-up (and with to-dos checked off), reading, a failure,
-//  nothing new, and Ask (empty, reading, failed, answered, and "the chat
+//  finished catch-up (and with to-dos checked off), reading (and reading
+//  before the thread's messages are here), a failure, nothing new, and Ask (empty, reading, failed, answered, and "the chat
 //  doesn't say"). Sheets are shown full screen. `-section plans` (or
 //  for-you, owes, questions, highlights) scrolls the catch-up to a section,
 //  `-delay 4` makes it land late, and `-reduceMotion YES` previews any
@@ -19,6 +19,7 @@ struct AIPreviewScreen: View {
         case catchUp = "ai-catchup"
         case checked = "ai-checked"
         case loading = "ai-loading"
+        case loadingBlank = "ai-loading-blank"
         case error = "ai-error"
         case empty = "ai-empty"
         case ask = "ai-ask"
@@ -53,6 +54,8 @@ struct AIPreviewScreen: View {
             PreviewData.chatModel(delay: delay)
         case .loading:
             PreviewData.chatModel(catchUp: .loading)
+        case .loadingBlank:
+            PreviewData.emptyChatModel(holds: false)
         case .error:
             PreviewData.chatModel(catchUp: .failed("Muse Spark is busy right now. Try again in a moment."),
                                   delay: .seconds(0.6))
@@ -81,7 +84,7 @@ struct AIPreviewScreen: View {
     var body: some View {
         Group {
             switch Screen(rawValue: name) {
-            case .catchUp, .loading, .error, .empty:
+            case .catchUp, .loading, .loadingBlank, .error, .empty:
                 CatchUpSheet(model: model, refs: refs)
             case .checked:
                 CatchUpSheet(model: model, refs: refs)

@@ -79,12 +79,16 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `Kicker("For you")` | Small mono caps over a headline or card. |
 | `SectionTitle("Plans", count: 6)` | Section heading, a VoiceOver header. |
 | `Monogram(name:color:size:)` | Initials on a soft tile of the person's color. Decorative. |
+| `Avatar(name:path:size:)` | A person's photo in the monogram's rounded square with a hairline, or their `Monogram` while it loads or when there's none. Use it wherever a person shows. Decorative. |
 | `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` and `dashed: true` for "Maybe". |
 | `.marked(_:color:sweep:delay:)` | Marker behind a short phrase on one line. |
 | `Text("…\(Text("$90").markedRun())…").markRuns(sweep:)` | Marker inside a sentence; follows the words as they wrap. |
 | `.paperCard(padding:radius:)` | The default container: card paper, hairline, no shadow. |
 | `Ticket { plan } stub: { stamp }` | A plan as an order ticket, parts placed either side of the tear line. Built on `TicketShape`, `PerforationLine` and `.ticketCard()`. |
 | `.receiptCard()` | Money, as a diner check with a torn zigzag edge (`ReceiptShape`). |
+| `Skeleton("Loading your chats") { … }` | A first load's blank paper: breathes (an opacity pulse), holds still with Reduce Motion, one "Loading" for VoiceOver. |
+| `Bone(width:share:height:line:)` | One blank line of type in hairline paper, sitting in a real line height. |
+| `InboxSkeleton()`, `ThreadSkeleton()`, `SkimSkeletonRows` | The inbox's rows, a thread's bubbles, the skim window's lines, before the first answer. |
 
 The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
 
@@ -105,6 +109,34 @@ After sign-in, the home is three pages side by side: **Chats** (the inbox, first
 - **Over a web page** a sideways swipe still pages, unless the page can scroll sideways itself (zoomed in, a wide carousel): then the page gets it, and the switcher still works. Vertical scrolling and taps are always the page's. From the left edge the pager wins even when the site could go back; the bar's back button does that.
 - **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
 - **`HomePage.all`** lists the pages, left to right, and `HomePage.content` says what each shows: another chat app is one more `.web(…)` in the list.
+
+## Photos
+
+A profile photo is a print pinned to the paper: the same rounded square as a monogram, edged with a hairline. A photo in a chat is a bubble of its own shape. Screenshots: `screens/photos/` (made-up photos, no real people).
+
+<p>
+<img src="screens/photos/crop-light.png" width="200" alt="Frame it: a mountain photo under a rounded-square window cut in the paper">
+<img src="screens/photos/chat-light.png" width="200" alt="Photos by the last bubble of each sender's run">
+<img src="screens/photos/info-dark.png" width="200" alt="Members with their photos, Sam with his monogram, dark">
+<img src="screens/photos/inbox-light.png" width="200" alt="David's photo on the account button">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `AvatarCropper` | "Frame it": the picked photo under paper with a rounded-square window cut out; drag and pinch, the photo always covers the window. "Use photo" is the one ketchup button and says "Saving" until the upload is done. VoiceOver can zoom with swipe up and down. |
+| In a chat | Other people's photos sit by the last bubble of each run, bottom-aligned, 28 pt. Mine get none. |
+| Account button | My photo inside the top bar's glass button. Its menu adds, changes or removes the photo (until Settings takes that over). |
+| `PhotoBubble` | A chat photo in the thread: its own shape (between 1:2 and 2.2:1), at most 240 pt wide, laid out from its stored size before it loads. The caption sits under it in the same bubble, on card paper (theirs) or ink (mine), with a text bubble's run corners. Tap to open. |
+| Upload ring | While my photo uploads: an ink ring filling a hairline track on a cream disc over the photo. "Not sent. Tap to retry" if it fails, like text. |
+| Composer | A photo button before the field (`ChatInputBar(onPhoto:)`). The picked photo waits above the field with an ink x to take it off; the field says "Add a caption", and the ketchup send works with or without words. |
+| `PhotoViewer` | Full screen on dark paper (17120F in both modes): pinch or double-tap to zoom, Share (and Save Image) in the top bar's glass buttons, who sent it and when in cream type under it. |
+
+<p>
+<img src="screens/photos/thread-light.png" width="200" alt="Photos in the Breck thread, with captions under them">
+<img src="screens/photos/sending-light.png" width="200" alt="David's photo uploading: the ink ring half full">
+<img src="screens/photos/attach-dark.png" width="200" alt="A photo waiting in the composer with a caption, dark">
+<img src="screens/photos/viewer-light.png" width="200" alt="Maya's cabin photo full screen">
+</p>
 
 ## Muse Spark screens
 
@@ -133,6 +165,21 @@ Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on th
 - **Everything traces back.** A chip, a line on the check, a bubble or a to-do's words closes the sheet onto that message.
 - **The reader is "You"**, in ink; everyone else is in `personColor(name:)`, as in the chat.
 - **Mustard only on what's the reader's**: the times and money in the gist and in answers, their name in questions, their total.
+
+## First loads
+
+Ketchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a first load only shows on a first launch or a chat's first open. It's blank paper in the shape of what's coming, never a spinner. Screenshots: `screens/speed/`.
+
+<p>
+<img src="screens/speed/inbox-loading-light.png" width="200" alt="The inbox's skeleton rows">
+<img src="screens/speed/chat-loading-dark.png" width="200" alt="A thread's skeleton bubbles, dark">
+<img src="screens/speed/ai-loading-blank-light.png" width="200" alt="The skim window, blank">
+<img src="screens/speed/chat-kept-light.png" width="200" alt="A chat opened on its kept copy, offline">
+</p>
+
+- **Bars are hairline paper** (`rule`). Their bubbles are card paper with a hairline, like the real ones; mine are plain hairline paper. Rows keep the real heights at every text size, so nothing jumps when they land, and the real rows fade in (`Motion.fade`).
+- **It breathes, it doesn't shimmer:** a slow opacity pulse, since a shimmer band would be a gradient. With Reduce Motion it holds still.
+- **Offline,** a chat opens on its kept copy and the toast says "Couldn't refresh. Showing saved messages."
 
 ## Web chats (Instagram and Snapchat)
 
@@ -196,10 +243,12 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
-| `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too |
+| `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
+| `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
 | `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
+| `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |
 
 Light and dark screenshots:
 

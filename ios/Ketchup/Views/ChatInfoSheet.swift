@@ -120,7 +120,7 @@ struct ChatInfoSheet: View {
             VStack(spacing: 0) {
                 ForEach(model.members) { member in
                     HStack(spacing: 12) {
-                        Monogram(name: member.name, size: monogramSize)
+                        Avatar(name: member.name, path: member.profile?.avatarPath, size: monogramSize)
                         Text(member.name)
                             .font(.body)
                             .foregroundStyle(Theme.ink)

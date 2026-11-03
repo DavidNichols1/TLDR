@@ -54,6 +54,30 @@ the technical recipe. README.md is the judge-facing overview.
   Data: `Debug/PreviewData.swift` over `Debug/Fixtures/`; screens: `Debug/CorePreviewScreen.swift`, `Debug/AIPreviewScreen.swift`.
 - Keep preview code inside `#if DEBUG`; a Release build (`-configuration Release CODE_SIGNING_ALLOWED=NO`) must still compile.
 
+## Kept on the phone, and skeletons (`ios/Ketchup/Store/`, `Design/Skeletons.swift`)
+- `DeviceStore` keeps the inbox (`inbox.json`: the my_chats rows and your profile) and each
+  chat's newest 400 messages and members (`threads/<chat>.json`) in
+  `Application Support/Ketchup/<user id>/`: complete-until-first-unlock, out of backups.
+  Sign-out deletes the whole folder, launch deletes any other user's, and each inbox refresh
+  forgets chats you're no longer in. Dates are stored as numbers, and `version` guards the shape.
+- AppModel and ChatModel restore it in their inits, and the server replaces it. ChatModel's
+  first page drops kept messages it didn't send back (`ThreadSnapshot.reconcile`), then takes
+  your read cursor from your member row and pages back to it, so a stale kept inbox can't hide
+  unread (the seed's `--rearm`). Only then is `synced` set: ChatView places the thread and starts
+  counting what's been seen (`sawBottom`), so backing out of a stale copy marks nothing read.
+  A current kept copy is scrolled into place earlier, without that. Until `synced`, the poll loop
+  retries the first page every 4 s, whether or not Realtime is live.
+- `Profile`, `ChatSummary`, `Member` and `Message` are `Codable` for this: new fields are kept
+  automatically and must be Codable too.
+- Offline check, no sign-in: `-screen store-check` must show "11 of 11 passed, 1 skipped" on a
+  simulator (data protection only exists on a phone, where it's 12 of 12); the console prints
+  `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
+- The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
+  then `Library/Application Support/Ketchup/`.
+- Previews: `inbox-loading`, `chat-loading`, `ai-loading-blank` (skeletons; `-reduceMotion YES`
+  holds them still), and `chat-kept` (a live ChatModel opening on a kept copy with no server, in
+  a scratch folder, never the real one). Screenshots: `docs/screens/speed/`.
+
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
 the viewer sets display name **David**, joins with the printed invite code, and has
@@ -62,7 +86,7 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`),
 `Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`. Settings opens from the inbox's top-left
-initial as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
+photo (your initial until you add one) as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
 `onDismiss` in `ChatsListView`), so it can't be left over sign-in.
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
   named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`).
@@ -73,8 +97,8 @@ initial as a sheet; signing out waits for the sheet to close (`SettingsExit`, th
   then recomputes `last_message_*` on the chats they wrote in, with `apply_message`'s photo
   rule ("📷 Photo"). Tested only by the RLS suite's "deleted account" checks (rolled back). A
   live test deletes a real account: use a throwaway account, never a seed one. SQL can't
-  delete Storage files, so `AppModel.deleteAccount()` (People/Account.swift) calls the Photos
-  session's `ChatPhotos.deleteMine()` first (marked MERGE until both branches are in).
+  delete Storage files, so `AppModel.deleteAccount()` (People/Account.swift) calls
+  `ChatPhotos.deleteMine()` first.
 - "Sign out of Instagram/Snapchat in Ketchup" removes the `WKWebsiteDataStore.default()`
   records whose name matches that source's `domains`, then posts `webChatForgotten` and the
   open page goes back to its start URL. The first check after a fresh install can take a few
@@ -82,9 +106,56 @@ initial as a sheet; signing out waits for the sheet to close (`SettingsExit`, th
 - Previews: `-screen settings` (add `-section web`, `account` or `about`), `settings-sheet`
   (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`.
   The account email in previews is `david@example.com`.
-- Slots for other sessions are marked `SLOT` in `SettingsView.swift`: Photos (the header's
-  monogram, a Profile photo row), Speed ("On this iPhone": Saved catch-ups, Clear cache).
-  A section whose rows are all empty doesn't show.
+- Rows still to come are marked `SLOT` in `SettingsView.swift`: Blocked people (People,
+  slice 2), and Saved catch-ups and Clear cache under "On this iPhone" (Speed). A section
+  whose rows are all empty doesn't show.
+
+## Photos (profile photos and photos in chats)
+Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
+`.profilePhotoPicker(isPresented:)`, `ChatPhotos` with `PhotoUploads` and
+`.chatPhotoPicker`, `PhotoBubble`, `PhotoViewer`, `RemoteImages`) and
+`ios/Ketchup/Net/Storage.swift`. Migration `0006_photos.sql`, applied live in parts
+(`0006_photos_1_avatars`, `0006_photos_2_chat_media`).
+- `avatars` bucket: public (the app loads a photo by its public URL, no token), JPEG up to
+  1 MB. On storage.objects you can insert, select and delete only in your own `<uid>/`
+  folder, names `<uuid>.jpg`, 10 uploads an hour (`storage_uploads_ok`). No broad select
+  policy, so nobody can list the bucket. `profiles.avatar_path` must be
+  `<own id>/<uuid>.jpg` (check constraint); the app lowercases both ids to match.
+- `chat-media` bucket: private, JPEG up to 5 MB. A photo message's files are
+  `<chat>/<message id>.jpg` (at most 2048 px, 400 KB to 1.3 MB) and `<message id>_small.jpg`
+  (768 px, 80 to 180 KB): the thread and Muse Spark use the small one, the viewer the
+  full one. Members of the chat read (signed URLs) and upload (200 files an hour); only
+  the uploader deletes. `messages.image_path`/`image_width`/`image_height`: the path must
+  be in the message's own chat and already uploaded (the hygiene trigger checks), and the
+  body may be empty with a photo. The inbox line says "📷 Photo" or "📷 " and the caption.
+- Sending a photo: both copies go into the image cache under their final names first (the
+  bubble shows at once), the small one uploads, then the full one, then the row goes in
+  with the message's own id. A retry carries on from the file that didn't make it.
+- Never delete storage files with SQL: it orphans the file (`storage.protect_delete`
+  refuses anyway). The app deletes a replaced photo through the Storage API.
+  `ChatPhotos.deleteMine(app:)` deletes someone's avatar and every chat photo they sent,
+  for Delete account (call it before `delete_account()`).
+- One image pipeline, `RemoteImages.shared`: decoded photos in memory at the drawn size,
+  original bytes on disk in `Caches/photos` (150 MB, least recently used goes first),
+  keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale,
+  and a private photo is signed only when it isn't on disk yet.
+- In the transcript Muse Spark reads, a photo is `[photo]` and its caption, with a line in
+  the prompt's header saying what that means (only when the chat has photos).
+  `_shared/transcript.ts` changed, so after merge redeploy both `catch-up` and
+  `catch-up-text`; `deno test supabase/functions/_shared/` must pass (4 tests).
+- Settings has Add a photo (Change your photo once there is one) and Remove your photo,
+  under You; `.profilePhotoPicker` is on `SettingsView`. The inbox's top-left button and
+  Settings' header show your photo.
+- Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`,
+  `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`. The photos are drawn on
+  the fly (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his monogram to show the
+  fallback. `photo-sending` sends Pickles the dog with a pretend 20 s upload.
+- Checks: the RLS suite covers both parts (49/49 with Settings' checks, Nov 3, 2026). As anon, with the
+  publishable key: `POST /storage/v1/object/list/avatars` returns `[]` and an upload
+  returns 403. After real use: `select id, avatar_path from profiles where avatar_path is
+  not null;`, `select bucket_id, count(*) from storage.objects group by 1;` and
+  `select id, image_path, image_width, image_height from messages where image_path is not
+  null order by created_at desc limit 5;`.
 
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,

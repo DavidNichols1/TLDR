@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
   if (mode === "catch_up") {
     const { data: unread, error } = await asUser
-      .from("messages").select("id, sender, body, created_at")
+      .from("messages").select("id, sender, body, created_at, image_path")
       .eq("chat_id", chatId).gt("created_at", lastRead)
       .order("created_at", { ascending: false }).limit(MAX_UNREAD);
     if (error) return json(500, { error: "Couldn't load messages" });
@@ -112,13 +112,13 @@ Deno.serve(async (req) => {
     if (cached) return json(200, { kind: "catch_up", cached: true, brief_id: cached.id, ...cached });
 
     const { data: before } = await asUser
-      .from("messages").select("id, sender, body, created_at")
+      .from("messages").select("id, sender, body, created_at, image_path")
       .eq("chat_id", chatId).lte("created_at", lastRead)
       .order("created_at", { ascending: false }).limit(CONTEXT);
     context = (before ?? []).reverse();
   } else {
     const { data: history, error } = await asUser
-      .from("messages").select("id, sender, body, created_at")
+      .from("messages").select("id, sender, body, created_at, image_path")
       .eq("chat_id", chatId)
       .order("created_at", { ascending: false }).limit(ASK_WINDOW);
     if (error) return json(500, { error: "Couldn't load messages" });
@@ -134,7 +134,11 @@ Deno.serve(async (req) => {
     timeZone, weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
     timeZoneName: "longOffset",
   });
-  const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\nMembers: ${[...names.values()].join(", ")}\n`;
+  // Photos show as "[photo]" lines; the model sees only their captions.
+  const photoNote = [...context, ...fresh].some((m) => m.image_path)
+    ? `Photos: "[photo]" marks a photo someone sent. You can't see it; any words after it are its caption.\n`
+    : "";
+  const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\nMembers: ${[...names.values()].join(", ")}\n${photoNote}`;
   const userPrompt = mode === "ask"
     ? `${header}\nTranscript:\n${transcript.text}\n\nQuestion from ${readerName}: ${question}`
     : `${header}Unread messages: ${fresh.length}\n\nTranscript:\n${transcript.text}`;

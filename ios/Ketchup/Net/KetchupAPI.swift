@@ -18,7 +18,7 @@ enum KetchupAPI {
         guard let me = client.userId else { throw APIError.notSignedIn }
         let data = try await client.rest("GET", "/rest/v1/profiles",
                                          query: [.init(name: "id", value: "eq.\(me.uuidString)"),
-                                                 .init(name: "select", value: "id,display_name")])
+                                                 .init(name: "select", value: "id,display_name,avatar_path")])
         return try JSON.decoder.decode([Profile].self, from: data).first
     }
 
@@ -62,14 +62,14 @@ enum KetchupAPI {
     static func members(of chat: UUID) async throws -> [Member] {
         let data = try await client.rest("GET", "/rest/v1/chat_members",
                                          query: [.init(name: "chat_id", value: "eq.\(chat.uuidString)"),
-                                                 .init(name: "select", value: "user_id,joined_at,last_read_at,profile:profiles(id,display_name)"),
+                                                 .init(name: "select", value: "user_id,joined_at,last_read_at,profile:profiles(id,display_name,avatar_path)"),
                                                  .init(name: "order", value: "joined_at.asc")])
         return try JSON.decoder.decode([Member].self, from: data)
     }
 
     // MARK: Messages
 
-    private static let messageColumns = "id,chat_id,sender,body,created_at"
+    private static let messageColumns = "id,chat_id,sender,body,created_at,image_path,image_width,image_height"
 
     /// The newest `limit` messages (oldest first), or the page before `before`.
     static func messages(in chat: UUID, before: Date? = nil, limit: Int = 200) async throws -> [Message] {
@@ -94,9 +94,16 @@ enum KetchupAPI {
     }
 
     /// Inserts with a client-chosen id, so the optimistic bubble and the
-    /// Realtime echo are the same message.
-    static func send(id: UUID, chat: UUID, body: String) async throws -> Message {
-        let payload: [String: Any] = ["id": id.uuidString, "chat_id": chat.uuidString, "body": body]
+    /// Realtime echo are the same message. A photo is uploaded first
+    /// (Photos/ChatPhotos.swift); the row only points at it.
+    static func send(id: UUID, chat: UUID, body: String,
+                     image: (path: String, width: Int, height: Int)? = nil) async throws -> Message {
+        var payload: [String: Any] = ["id": id.uuidString, "chat_id": chat.uuidString, "body": body]
+        if let image {
+            payload["image_path"] = image.path
+            payload["image_width"] = image.width
+            payload["image_height"] = image.height
+        }
         let data = try await client.rest("POST", "/rest/v1/messages",
                                          query: [.init(name: "select", value: messageColumns)],
                                          body: JSONSerialization.data(withJSONObject: payload),
