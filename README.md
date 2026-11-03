@@ -193,7 +193,9 @@ flowchart LR
   times the hot paths on today's data and on a busy account built inside a rolled-back
   transaction (20,000 messages, 5,000 unread, 3,000 saved briefs). Migration 0008 added
   only what moved a number: every send's rate check went from 0.80 ms to 0.015 ms, and
-  catch-up's hourly cap from 0.11 ms to 0.016 ms.
+  catch-up's hourly cap from 0.11 ms to 0.016 ms. The inbox (`my_chats()`) went from 65 ms
+  to 2.2 ms on that busy account once it worked out who you are and who you blocked once
+  per call, not once per unread message.
 - **Edge function** ([`supabase/functions/catch-up/`](supabase/functions/catch-up)): runs
   with JWT verification on. It reads messages *with the caller's token*, so Row Level
   Security decides what the model can see. It uses the service role only to write and
