@@ -88,6 +88,23 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 
 The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
 
+## Pager
+
+After sign-in, the home is three pages side by side: **Chats** (the inbox, first), **Instagram** and **Snapchat** (`ios/Ketchup/Views/HomePager.swift`). Swipe between them or tap a name. The app comes back to the page you were on last (`@AppStorage("home.page")`).
+
+<p>
+<img src="screens/redesign/inbox-light.png" width="200" alt="Chats, with the switcher in its top bar">
+<img src="screens/redesign/home-swipe-light.png" width="200" alt="Mid-swipe: the mustard mark slides from Chats toward Instagram">
+<img src="screens/redesign/home-snapchat-dark.png" width="200" alt="Snapchat's page for now, dark">
+</p>
+
+- **The switcher** sits in the middle of the Chats page's top bar, between its glass buttons: the names in New York, ink for the page you're on, `inkSoft` for the rest, and a mustard `MarkerStroke` under the current one that slides along as the pages scroll. Like a bar title it keeps its size past the default text size (long-press shows it big at accessibility sizes). The other pages leave that row free above their own bar.
+- **Paging is the system's** (a paging `ScrollView`). A tap on a name scrolls there with `Motion.settle`, or jumps with Reduce Motion on.
+- **In a chat the pages stay put** and the switcher fades out (`Motion.fade`), so the chat's back swipe works and its title takes the middle of the bar. The Chats page says so through `HomePagerState.locked`.
+- **Over a web page** a sideways swipe still pages, unless the page can scroll sideways itself (zoomed in, a wide carousel): then the page gets it, and the switcher still works. Vertical scrolling and taps are always the page's.
+- **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
+- **`HomePage.content`** is the one place that says what each page shows.
+
 ## Muse Spark screens
 
 Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on the counter. Screenshots: `screens/redesign/ai-*`.
@@ -135,7 +152,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `signin-code`, `name`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` and `home-snapchat` on the other pages; the Instagram page shows the synthetic test thread, offline. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 
 Light and dark screenshots:
