@@ -50,6 +50,11 @@ final class ChatModel {
     /// Your read cursor when the chat opened: the inbox row's, then the
     /// server's (your member row) once open() has it.
     private var cursorAtOpen: Date
+    /// What you've read through on this phone since (a send, a catch-up,
+    /// scrolling to the bottom), ahead of the server's cursor catching up.
+    /// Unread counts from whichever is later, so a first page or member row
+    /// that answers after you sent can't bring the unread count back.
+    private var readThrough: Date?
     /// True once the bottom of the thread has been on screen.
     var sawBottom = false
 
@@ -206,7 +211,8 @@ final class ChatModel {
     /// `exact`: everything after the server's cursor is loaded, so the count
     /// is what's here, not at least the inbox row's.
     private func computeUnread(exact: Bool = false) {
-        let unread = messages.filter { $0.createdAt > cursorAtOpen && $0.sender != myId && !$0.pending }
+        let cursor = max(cursorAtOpen, readThrough ?? .distantPast)
+        let unread = messages.filter { $0.createdAt > cursor && $0.sender != myId && !$0.pending }
         firstUnreadId = unread.first?.id
         unreadCount = exact ? unread.count : max(unreadCount, unread.count)
         if unreadCount == 0 { firstUnreadId = nil }
@@ -339,14 +345,15 @@ final class ChatModel {
     }
 
     private func markRead(at date: Date? = nil) {
-        caughtUp()
+        caughtUp(through: date ?? .now)
         guard !isPreview else { return }
         let id = chat.id
         Task { try? await KetchupAPI.markRead(id, at: date) }
     }
 
-    private func caughtUp() {
+    private func caughtUp(through date: Date = .now) {
         unreadCount = 0
+        readThrough = max(readThrough ?? .distantPast, date)
     }
 
     // MARK: - Muse Spark

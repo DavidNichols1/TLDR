@@ -66,7 +66,11 @@ the technical recipe. README.md is the judge-facing overview.
   unread (the seed's `--rearm`). Only then is `synced` set: ChatView places the thread and starts
   counting what's been seen (`sawBottom`), so backing out of a stale copy marks nothing read.
   A current kept copy is scrolled into place earlier, without that. Until `synced`, the poll loop
-  retries the first page every 4 s, whether or not Realtime is live.
+  retries the first page every 4 s, whether or not Realtime is live. A send, a catch-up or
+  reaching the bottom records `readThrough`, and unread counts from the later of it and the
+  server's cursor, so a page or member row that answers after you sent can't bring the count
+  back. Check it offline: `-screen chat-kept -send "on my way"` must drop "302 new" for good
+  (the bubble shows, not sent), and `-screen chat-kept` alone must keep "302 new".
 - `Profile`, `ChatSummary`, `Member` and `Message` are `Codable` for this: new fields are kept
   automatically and must be Codable too.
 - Saved catch-ups (`Store/SavedBriefs.swift`, `saved/<chat>.json` or `saved/web-<source>.json`):

@@ -95,6 +95,13 @@ struct CorePreviewScreen: View {
                 NavigationStack {
                     ChatView(model: chatModel)
                 }
+                // `-send "on my way"`: sends it 1.2 s in, as if typed (what the
+                // unread count does after a send, before or after the first page).
+                .task {
+                    guard let text = UserDefaults.standard.string(forKey: "send") else { return }
+                    try? await Task.sleep(for: .seconds(1.2))
+                    chatModel.send(text)
+                }
             case .chatJump:
                 NavigationStack {
                     ChatView(model: chatModel, jumpingTo: Self.jumpTarget)

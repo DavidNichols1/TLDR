@@ -86,7 +86,9 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             thread
                 .onChange(of: model.messages.last?.id) { _, _ in
-                    guard positioned, let last = model.messages.last else { return }
+                    guard let last = model.messages.last else { return }
+                    // A bubble you just sent comes into view even before the first page is in.
+                    guard positioned || (last.sender == model.myId && (last.pending || last.failed)) else { return }
                     if last.sender == model.myId || atBottom {
                         withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
                     }
