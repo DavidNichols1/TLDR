@@ -1,11 +1,18 @@
--- Ketchup schema, part 10: plans, and how much Muse Spark reads for you a day.
+-- Ketchup schema, part 10: plans, how much Muse Spark reads for you a day, and
+-- your OK before it reads anything.
 --
 -- Every Muse Spark call costs money, so each person gets a daily allowance of
--- messages Muse Spark reads for them: Free 150, Plus 400, Pro 1,000. Free
--- catch-ups go to Meta's contributor model, which Meta may train on; Plus and
--- Pro go to the regular, private Muse Spark. Pro also gets voice summaries.
--- Plus and Pro are Apple auto-renewable subscriptions (StoreKit 2).
+-- messages Muse Spark reads for them: Free 150, Plus 400, Pro 1,000. Every
+-- plan uses Meta's Standard mode (muse-spark-1.3), which Meta doesn't train
+-- on; the plans differ only in the allowance, and Pro reads catch-ups aloud
+-- (on the phone). Plus and Pro are Apple auto-renewable subscriptions
+-- (StoreKit 2).
 --
+-- ai_consents: one row once you've said yes to Ketchup sending the messages
+--   you catch up on (your friends' included) to Meta's Muse Spark, and that
+--   you're 18 or older (Meta's terms, section 10.1; Apple's guideline
+--   5.1.2(i)). catch-up and catch-up-text refuse until it's there. You read,
+--   give and withdraw only your own; the time is the server's.
 -- plans: one row per person who has bought (or been given) a plan. No row,
 --   or a row past its expires_at, means Free. Only the verify-purchase edge
 --   function writes it (service role, through apply_purchase), after it has
@@ -24,6 +31,32 @@
 --   values ('<user id>', 'pro', 'manual', now() + interval '30 days')
 --   on conflict (user_id) do update set plan = excluded.plan, source = excluded.source,
 --     expires_at = excluded.expires_at, updated_at = now();
+-- And a fresh allowance for today (between video takes):
+--   delete from public.plan_usage where user_id = '<user id>' and day = public.plan_day(now());
+
+create table public.ai_consents (
+  user_id         uuid primary key default auth.uid() references public.profiles(id) on delete cascade,
+  confirmed_adult boolean not null constraint ai_consents_adult_check check (confirmed_adult),
+  consented_at    timestamptz not null default now()
+);
+
+alter table public.ai_consents enable row level security;
+revoke all on public.ai_consents from public, anon, authenticated;
+-- Insert names only these two columns, so consented_at is always the server's now().
+grant select, delete on public.ai_consents to authenticated;
+grant insert (user_id, confirmed_adult) on public.ai_consents to authenticated;
+
+create policy ai_consents_select_own on public.ai_consents
+  for select to authenticated
+  using (user_id = (select auth.uid()));
+
+create policy ai_consents_insert_own on public.ai_consents
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+create policy ai_consents_delete_own on public.ai_consents
+  for delete to authenticated
+  using (user_id = (select auth.uid()));
 
 create table public.plans (
   user_id                 uuid primary key references public.profiles(id) on delete cascade,
@@ -241,9 +274,9 @@ revoke execute on function public.apply_purchase(uuid, text, text, text, text, t
 grant execute on function public.apply_purchase(uuid, text, text, text, text, text, timestamptz, timestamptz)
   to service_role;
 
--- What the app shows: your plan and today's usage, as
--- {plan, source, product_id, expires_at, used, limit, resets_at, private, voice}.
--- source, product_id and expires_at are null on Free.
+-- What the app shows: your plan, today's usage and your Muse Spark OK, as
+-- {plan, source, product_id, expires_at, used, limit, resets_at, voice, consented_at}.
+-- source, product_id and expires_at are null on Free; consented_at until you've said yes.
 create or replace function public.my_plan()
 returns jsonb
 language plpgsql stable security definer
@@ -271,8 +304,8 @@ begin
     'used', v_used,
     'limit', public.plan_limit(v_plan),
     'resets_at', public.plan_resets_at(v_day),
-    'private', v_plan <> 'free',
-    'voice', v_plan = 'pro');
+    'voice', v_plan = 'pro',
+    'consented_at', (select c.consented_at from public.ai_consents c where c.user_id = v_me));
 end;
 $$;
 

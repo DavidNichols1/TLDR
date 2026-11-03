@@ -107,6 +107,51 @@ do $$ begin
   insert into results values ('unknown text source refused', false);
 exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
+-- Muse Spark consent (0010): a row once you've said yes and that you're 18
+-- or older. You give, read and withdraw only your own, and its time is the
+-- server's. catch-up and catch-up-text refuse until it's there.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'consent: none at first',
+  (select count(*) = 0 from public.ai_consents) and (select p->>'consented_at' is null from public.my_plan() p);
+insert into public.ai_consents (confirmed_adult) values (true);
+insert into results select 'consent: you can give yours',
+  (select count(*) = 1 and bool_and(user_id = auth.uid() and consented_at = now()) from public.ai_consents)
+  and (select p->>'consented_at' is not null from public.my_plan() p);
+do $$ begin
+  insert into public.ai_consents (user_id, confirmed_adult) values ('00000000-0000-0000-0000-0000000000b2', true);
+  insert into results values ('consent: never for someone else', false);
+exception when insufficient_privilege then insert into results values ('consent: never for someone else', true); end $$;
+do $$ begin
+  update public.ai_consents set consented_at = now() - interval '1 year';
+  insert into results values ('consent: its time can''t be changed', false);
+exception when insufficient_privilege then insert into results values ('consent: its time can''t be changed', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'consent: private to its owner', (select count(*) = 0 from public.ai_consents);
+do $$ begin
+  insert into public.ai_consents (confirmed_adult) values (false);
+  insert into results values ('consent: needs 18 or older', false);
+exception when check_violation then insert into results values ('consent: needs 18 or older', true); end $$;
+do $$ begin
+  insert into public.ai_consents (user_id, confirmed_adult, consented_at)
+  values (auth.uid(), true, now() - interval '1 year');
+  insert into results values ('consent: can''t be backdated', false);
+exception when insufficient_privilege then insert into results values ('consent: can''t be backdated', true); end $$;
+with d as (delete from public.ai_consents returning 1)
+insert into results select 'consent: nobody withdraws someone else''s', (select count(*) = 0 from d);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+with d as (delete from public.ai_consents returning 1)
+insert into results select 'consent: you can withdraw yours', (select count(*) = 1 from d);
+insert into public.ai_consents (confirmed_adult) values (true);
+reset role;
+grant all on results to anon;
+set local role anon;
+do $$ begin
+  perform * from public.ai_consents;
+  insert into results values ('consent: closed to anon', false);
+exception when insufficient_privilege then insert into results values ('consent: closed to anon', true); end $$;
+reset role;
+
 -- Plans (0010): you read only your own plan, and nobody can give themselves
 -- a plan, record a purchase, or spend, reset or lower the daily allowance
 -- from the app. catch-up, catch-up-text and verify-purchase do all of that
@@ -115,7 +160,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 insert into results select 'plan: a new account is free, 0 of 150',
   (select p->>'plan' = 'free' and (p->>'used')::int = 0 and (p->>'limit')::int = 150
-          and not (p->>'private')::boolean and not (p->>'voice')::boolean and p->>'source' is null
+          and not (p->>'voice')::boolean and p->>'source' is null
      from public.my_plan() p);
 do $$ begin
   insert into public.plans (user_id, plan, source, expires_at) values (auth.uid(), 'pro', 'manual', null);
@@ -179,9 +224,9 @@ values ('00000000-0000-0000-0000-0000000000c3', public.plan_day(now()) - 1, 150,
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
-insert into results select 'plan: plus is private, 400 a day, 100 used',
+insert into results select 'plan: plus has 400 a day, 100 used',
   (select p->>'plan' = 'plus' and p->>'source' = 'app_store' and (p->>'limit')::int = 400 and (p->>'used')::int = 100
-          and (p->>'private')::boolean and not (p->>'voice')::boolean
+          and not (p->>'voice')::boolean
      from public.my_plan() p);
 insert into results select 'plan: own row readable', (select count(*) = 1 from public.plans);
 do $$ begin
@@ -206,7 +251,6 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 insert into results select 'usage: yesterday doesn''t count today',
   (select (p->>'used')::int = 0 and p->>'plan' = 'free' from public.my_plan() p);
 reset role;
-grant all on results to anon;
 set local role anon;
 do $$ begin
   perform public.my_plan();
