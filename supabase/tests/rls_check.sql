@@ -100,5 +100,50 @@ do $$ begin
   insert into results values ('unknown text source refused', false);
 exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
+-- Profile photos (0006): your own folder only, a path into your own folder
+-- only, nobody lists the bucket, 10 uploads an hour. storage.operation and
+-- storage.allow_delete_query stand in for what the Storage API sets.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into storage.objects (bucket_id, name, owner_id)
+values ('avatars', '00000000-0000-0000-0000-0000000000a1/11111111-1111-4111-8111-111111111111.jpg', '00000000-0000-0000-0000-0000000000a1');
+insert into results select 'avatar upload into own folder', (select count(*) = 1 from storage.objects where bucket_id = 'avatars');
+do $$ begin
+  insert into storage.objects (bucket_id, name, owner_id)
+  values ('avatars', '00000000-0000-0000-0000-0000000000b2/22222222-2222-4222-8222-222222222222.jpg', '00000000-0000-0000-0000-0000000000a1');
+  insert into results values ('avatar upload into another folder refused', false);
+exception when others then insert into results values ('avatar upload into another folder refused', true); end $$;
+update public.profiles set avatar_path = '00000000-0000-0000-0000-0000000000a1/11111111-1111-4111-8111-111111111111.jpg'
+ where id = auth.uid();
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'chat-mate sees avatar_path',
+  (select avatar_path is not null from public.profiles where id = '00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  update public.profiles set avatar_path = '00000000-0000-0000-0000-0000000000a1/11111111-1111-4111-8111-111111111111.jpg'
+   where id = auth.uid();
+  insert into results values ('avatar_path only into own folder', false);
+exception when check_violation then insert into results values ('avatar_path only into own folder', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c3","role":"authenticated"}', true);
+select set_config('storage.operation', 'object.list', true);
+insert into results select 'avatars bucket not listable', (select count(*) = 0 from storage.objects where bucket_id = 'avatars');
+select set_config('storage.allow_delete_query', 'true', true);
+with d as (delete from storage.objects where bucket_id = 'avatars' returning 1)
+insert into results select 'cannot delete someone else''s avatar', (select count(*) = 0 from d);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+with d as (delete from storage.objects where bucket_id = 'avatars' returning 1)
+insert into results select 'owner deletes own avatar', (select count(*) = 1 from d);
+do $$ declare uploaded int := 0; begin
+  for i in 1..11 loop
+    begin
+      insert into storage.objects (bucket_id, name, owner_id)
+      values ('avatars', '00000000-0000-0000-0000-0000000000a1/' || gen_random_uuid() || '.jpg', '00000000-0000-0000-0000-0000000000a1');
+      uploaded := uploaded + 1;
+    exception when others then exit;
+    end;
+  end loop;
+  insert into results values ('avatar uploads capped at 10 an hour', uploaded = 10);
+end $$;
+reset role;
+
 select * from results;
 rollback;
