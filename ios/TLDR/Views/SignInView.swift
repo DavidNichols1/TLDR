@@ -15,6 +15,9 @@ struct SignInView: View {
     @State private var code = ""
     @State private var busy = false
     @State private var error: String?
+    @State private var notice: String?
+    /// Supabase allows one code email per address every 60 s; show it instead of failing silently.
+    @State private var cooldown = 0
     @FocusState private var focused: Bool
 
     private var validEmail: Bool {
@@ -32,6 +35,11 @@ struct SignInView: View {
                     switch step {
                     case .email: emailStep
                     case .code:  codeStep
+                    }
+                    if let notice, error == nil {
+                        Text(notice)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                     if let error {
                         Text(error)
@@ -125,11 +133,13 @@ struct SignInView: View {
                     step = .email
                     code = ""
                     error = nil
+                    notice = nil
                 }
-                Button("Resend code") {
+                Button(cooldown > 0 ? "Resend in \(cooldown)s" : "Resend code") {
                     Task { await sendCode() }
                 }
-                .disabled(busy)
+                .monospacedDigit()
+                .disabled(busy || cooldown > 0)
             }
             .font(.footnote)
         }
@@ -148,18 +158,36 @@ struct SignInView: View {
     // MARK: Actions
 
     private func sendCode() async {
-        guard validEmail, !busy else { return }
+        guard validEmail, !busy, cooldown == 0 else { return }
         busy = true
         error = nil
         defer { busy = false }
         email = email.trimmingCharacters(in: .whitespaces).lowercased()
+        let resending = step == .code
         do {
             try await Supabase.shared.sendCode(to: email)
             step = .code
             code = ""
             focused = true
+            notice = resending ? "New code sent. Use the newest email." : nil
+            startCooldown(60)
         } catch {
             self.error = error.localizedDescription
+            // "…you can only request this after 22 seconds." → count that down.
+            if let match = error.localizedDescription.firstMatch(of: /after (\d+) seconds/),
+               let seconds = Int(match.1) {
+                startCooldown(seconds)
+            }
+        }
+    }
+
+    private func startCooldown(_ seconds: Int) {
+        cooldown = seconds
+        Task {
+            while cooldown > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                cooldown -= 1
+            }
         }
     }
 
