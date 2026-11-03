@@ -44,13 +44,48 @@ nonisolated enum PreviewPhotos {
         scene(name)?.jpegData(compressionQuality: 0.9).flatMap(PhotoPrep.prepared)
     }
 
-    /// The made-up chat photos: "cabin", "mountains" and "pickles" (the dog).
+    /// The made-up chat photos: "cabin", "mountains", "pickles" (the dog) and
+    /// "door" (the door code on a sticky note, as in the demo seed's photo).
     private static func scene(_ name: String) -> UIImage? {
         switch name {
         case "cabin": cabin()
         case "mountains": landscape()
         case "pickles": dog()
+        case "door": doorNote()
         default: nil
+        }
+    }
+
+    /// A sticky note on the cabin door, next to the keypad, 1536 x 1152.
+    private static func doorNote() -> UIImage {
+        let size = CGSize(width: 1536, height: 1152)
+        return render(size) { ctx in
+            let cg = ctx.cgContext
+            UIColor(hex: 0x74452A).setFill()
+            cg.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: 0x613A22).setFill()
+            for x in stride(from: 0.0, to: 1536, by: 192) { cg.fill(CGRect(x: x, y: 0, width: 12, height: 1152)) }
+            UIColor(hex: 0x2E2E33).setFill()
+            UIBezierPath(roundedRect: CGRect(x: 1080, y: 392, width: 300, height: 460), cornerRadius: 28).fill()
+            UIColor(hex: 0xD9D9D1).setFill()
+            for row in 0..<4 {
+                for col in 0..<3 {
+                    cg.fillEllipse(in: CGRect(x: 1120 + col * 84, y: 442 + row * 96, width: 60, height: 60))
+                }
+            }
+            UIColor(hex: 0xF3B33D).setFill()
+            let note = CGRect(x: 220, y: 292, width: 640, height: 520)
+            cg.fill(note)
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            func write(_ text: String, y: CGFloat, size: CGFloat, weight: UIFont.Weight) {
+                text.draw(in: CGRect(x: note.minX, y: y, width: note.width, height: size * 1.3),
+                          withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: weight),
+                                           .foregroundColor: UIColor(hex: 0x2A1E19), .paragraphStyle: style])
+            }
+            write("cabin door code", y: 340, size: 60, weight: .medium)
+            write("4471", y: 420, size: 176, weight: .bold)
+            write("hit # after", y: 690, size: 52, weight: .regular)
         }
     }
 

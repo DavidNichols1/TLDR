@@ -406,7 +406,8 @@ struct ChatView: View {
                    jump: { id in
                        pendingJump = id
                        sheet = nil
-                   })
+                   },
+                   photo: { id in model.messages.first { $0.id == id }?.smallPhoto })
     }
 
     private func sheetDismissed() {
