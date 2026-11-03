@@ -115,6 +115,7 @@ struct CorePreviewScreen: View {
             }
         }
         .environment(app)
+        .modifier(PreviewActions(app: app))
         // `-reduceMotion YES`, as in the Muse Spark previews.
         .transformEnvironment(\._accessibilityReduceMotion) {
             if UserDefaults.standard.bool(forKey: "reduceMotion") { $0 = true }

@@ -79,6 +79,13 @@ struct SettingsView: View {
                     Text("Ketchup also forgets your Instagram and Snapchat sign-ins on this iPhone. To get back in, you'll sign in with a code sent to \(email).")
                 }
             }
+            // A new name that didn't go through (AppModel.renameNow).
+            .alert("Didn't go through", isPresented: Binding(get: { app.problem != nil },
+                                                           set: { if !$0 { app.problem = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(app.problem ?? "")
+            }
         }
         .interactiveDismissDisabled(deleting)
         .profilePhotoPicker(isPresented: $choosingPhoto)

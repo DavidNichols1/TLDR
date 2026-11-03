@@ -100,6 +100,12 @@ the technical recipe. README.md is the judge-facing overview.
   `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
 - The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
   then `Library/Application Support/Ketchup/`.
+- At once, the server following (slice 5): `AppModel.leave(_:)` takes the chat out of the inbox
+  and off the phone before `leave_chat` answers (a refresh meanwhile can't bring it back), and
+  `renameNow(to:)` (Settings) shows the new name before the server has it; a refusal puts it
+  back and sets `app.problem`, which the inbox and Settings show. The first-run name step still
+  waits (`rename(to:)`). Check offline: `-screen home -leave YES` and `-screen settings -renameTo
+  Dave`, each with and without `-serverRefuses YES` (Debug/PreviewActions.swift).
 - Previews: `inbox-loading`, `chat-loading`, `ai-loading-blank` (skeletons; `-reduceMotion YES`
   holds them still), `chat-kept` (a live ChatModel opening on a kept copy with no server, in
   a scratch folder, never the real one), and `saved`, `saved-brief`, `saved-empty`,

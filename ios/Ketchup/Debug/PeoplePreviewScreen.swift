@@ -117,6 +117,7 @@ struct PeoplePreviewScreen: View {
             }
         }
         .environment(app)
+        .modifier(PreviewActions(app: app))
     }
 
     // MARK: Fixtures
