@@ -1,8 +1,8 @@
-# TL;DR
+# Ketchup
 
 **Come back to 300 unread group-chat messages and know what matters in 10 seconds.**
 
-TL;DR is a native iOS group chat with Meta's **Muse Spark** built in. Tap **Catch me up**
+**Ketchup**, as in *catch up*, is a native iOS group chat with Meta's **Muse Spark** built in. Tap **Catch me up**
 and Muse Spark reads everything you missed. It gives you the plans, the money, the
 questions still waiting on an answer, and what people asked *you*. Every item links back
 to the message it came from.
@@ -25,12 +25,12 @@ time are we leaving?" and get groaned at.
 ## What it does
 
 - **Catch me up.** One tap covers everything since you last read the chat. You get a
-  short TL;DR, then **For you**, **Plans**, **Open questions**, **Who owes what** and
+  short summary, then **For you**, **Plans**, **Open questions**, **Who owes what** and
   **Highlights**.
 - **Plans become calendar events.** Each plan is a card with a real date and time (for
   example, "Saturday 6am" becomes `2026-11-07T06:00:00-07:00`), a place, who's going,
   and whether it's confirmed or only proposed. **Add to Calendar** opens the iOS event
-  editor already filled in. TL;DR never writes to your calendar itself.
+  editor already filled in. Ketchup never writes to your calendar itself.
 - **Cited messages.** Every bullet has chips for the messages behind it. Tap one and the
   chat jumps to that exact message and highlights it.
 - **Ask the chat.** Ask a question like "what time are we leaving?" or "how much do I
@@ -41,7 +41,7 @@ time are we leaving?" and get groaned at.
 
 ## How it uses Muse Spark
 
-TL;DR doesn't just summarize, and it isn't basic RAG either. One Muse Spark call turns
+Ketchup doesn't just summarize, and it isn't basic RAG either. One Muse Spark call turns
 a messy group chat into structured state that the app can act on. Then the server
 checks that every claim is backed by a real message.
 
@@ -96,7 +96,7 @@ Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 ```mermaid
 flowchart LR
   subgraph iPhone
-    A["TL;DR iOS app<br/>SwiftUI, zero dependencies<br/>hand-rolled Supabase Auth + REST client<br/>Realtime websocket, polling fallback"]
+    A["Ketchup iOS app<br/>SwiftUI, zero dependencies<br/>hand-rolled Supabase Auth + REST client<br/>Realtime websocket, polling fallback"]
   end
   subgraph Supabase
     DB[("Postgres<br/>RLS = security boundary<br/>RPCs: create/join/leave chat,<br/>mark_read, my_chats")]
@@ -157,10 +157,10 @@ Optional: paste `supabase/tests/rls_check.sql` into the SQL editor. Every row sh
 
 **iOS** (Xcode 26, iOS 26):
 
-1. Open `ios/TLDR.xcodeproj`.
+1. Open `ios/Ketchup.xcodeproj`.
 2. Pick your team under Signing & Capabilities.
 3. If you use your own Supabase project, put its URL and publishable key in
-   `ios/TLDR/Config.swift`.
+   `ios/Ketchup/Config.swift`.
 4. Run on a simulator or a device.
 
 **Demo data**: [`scripts/seed-demo/`](scripts/seed-demo) creates five test friends and a
@@ -182,7 +182,7 @@ then the iOS app.
 
 The networking and chat plumbing are adapted from **AurariaGO**, a live App Store app I
 built under VibetempLLC. That includes the Supabase client approach and the chat bubble
-and input bar components. Everything specific to TL;DR is new for this event: the
+and input bar components. Everything specific to Ketchup is new for this event: the
 schema, the `catch-up` edge function, the Muse Spark integration, the catch-up and
 ask-the-chat UI, plan cards, and the Realtime websocket (AurariaGO polls).
 

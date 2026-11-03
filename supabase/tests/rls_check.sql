@@ -7,9 +7,9 @@ create temp table results (name text, pass boolean) on commit drop;
 grant all on results to authenticated;
 
 insert into auth.users (id, email, aud, role, instance_id)
-values ('00000000-0000-0000-0000-0000000000a1', 'alice@test.tldr', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-       ('00000000-0000-0000-0000-0000000000b2', 'bob@test.tldr',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-       ('00000000-0000-0000-0000-0000000000c3', 'eve@test.tldr',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+values ('00000000-0000-0000-0000-0000000000a1', 'alice@test.ketchup', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+       ('00000000-0000-0000-0000-0000000000b2', 'bob@test.ketchup',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+       ('00000000-0000-0000-0000-0000000000c3', 'eve@test.ketchup',   'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
 
 insert into results select 'profiles created by trigger',
   (select count(*) from public.profiles where id in ('00000000-0000-0000-0000-0000000000a1',

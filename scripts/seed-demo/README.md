@@ -37,7 +37,7 @@ This key skips Row Level Security, so it only goes in this local, gitignored fil
 Never put it in the app or in a commit.
 
 ```sh
-cd /Users/david/Projects/TLDR
+cd /Users/david/Projects/Ketchup
 cp scripts/seed-demo/.env.example scripts/seed-demo/.env
 # paste the secret key into scripts/seed-demo/.env
 

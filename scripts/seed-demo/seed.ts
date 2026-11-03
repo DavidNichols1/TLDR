@@ -1,4 +1,4 @@
-// Seeds the TL;DR demo: five test friends, one group chat, ~300 messages
+// Seeds the Ketchup demo: five test friends, one group chat, ~300 messages
 // spread over three days, so a new member who joins with the invite code
 // opens the app to a wall of unread messages and taps Catch me up.
 //
@@ -241,7 +241,7 @@ function report(plan: Planned[], { lastDay, shiftMs }: Placement, now: number) {
   const first = plan[0].at;
   const last = plan[plan.length - 1].at;
   const firstDay = addDays(lastDay, -(DAYS.length - 1));
-  console.log(`\nConversation: "${CHAT_NAME}" — ${plan.length} messages`);
+  console.log(`\nConversation: "${CHAT_NAME}": ${plan.length} messages`);
   console.log(`  days:  ${[0, 1, 2].map((i) => dayLabel(addDays(firstDay, i))).join(", ")}  (${TZ})`);
   console.log(`  span:  ${stamp(first)} → ${stamp(last)}  (${((last - first) / 3600_000).toFixed(1)} h)`);
   console.log(
@@ -445,7 +445,7 @@ async function main() {
     const plan = timeline(place);
     validate(plan, now);
     const ids = new Set(await Promise.all(plan.map((p) => uuidv5(`dry-run/${p.index}/${p.sender}/${p.body}`))));
-    console.log(`DRY RUN — nothing is written. ${ids.size} distinct message ids for ${plan.length} lines.`);
+    console.log(`DRY RUN. Nothing is written. ${ids.size} distinct message ids for ${plan.length} lines.`);
     report(plan, place, now);
     console.log(`\nAccounts it would create/reuse:`);
     for (const s of Object.keys(PEOPLE) as Sender[]) console.log(`  ${PEOPLE[s].name.padEnd(7)} ${PEOPLE[s].email}`);

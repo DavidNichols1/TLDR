@@ -1,7 +1,7 @@
 // The demo conversation: five friends planning a ski weekend in Breckenridge
 // over three days while David (the demo viewer) is heads-down on a hackathon.
 //
-// Written to be dense with what TL;DR should pull out: plans that change
+// Written to be dense with what Ketchup should pull out: plans that change
 // (Friday 4pm → Saturday 6am; Hearthstone Friday → Saturday), money that
 // changes ($140 each → $90 after a refund, plus gas and an old side debt),
 // questions nobody answers, and several things aimed at David.

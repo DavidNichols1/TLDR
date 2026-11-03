@@ -1,4 +1,4 @@
-// catch-up — the Muse Spark endpoint behind "Catch me up" and "Ask the chat".
+// catch-up: the Muse Spark endpoint behind "Catch me up" and "Ask the chat".
 //
 // POST { chat_id, mode: "catch_up" | "ask", question?, time_zone? }
 // Authorization: Bearer <the member's Supabase access token>
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     if (result === undefined) throw lastError ?? new Error("No result");
   } catch (e) {
     console.error("muse error", e);
-    if (e instanceof MuseNotConfigured) return json(503, { error: "TL;DR's AI isn't switched on yet." });
+    if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }
   const latency = Date.now() - started;
