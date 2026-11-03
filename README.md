@@ -150,10 +150,18 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **A 28-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
-  plays two members and an outsider. It covers spoofing the sender, self-adding to a
-  chat, editing chats directly, outsider reads and posts, wrong-code counting, and the
-  Instagram and Snapchat catch-up's usage cap. It runs in one transaction and rolls back.
+- **Deleting your account deletes what you wrote.** Settings → Delete account calls
+  [`delete_account()`](supabase/migrations/0007_people.sql), one transaction. Your
+  profile, memberships and every message you sent go, and so does a chat you were the
+  last one in. Each chat you wrote in gets its inbox line recomputed, so no preview
+  quotes you, and catch-ups friends saved that read your messages are deleted too: your
+  words don't outlive you inside someone else's summary. Messages don't stay behind as
+  "Deleted account", because in a group of friends the words still say who wrote them.
+- **A 33-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+  plays members and an outsider. It covers spoofing the sender, self-adding to a
+  chat, editing chats directly, outsider reads and posts, wrong-code counting, the
+  Instagram and Snapchat catch-up's usage cap, and deleting an account. It runs in one
+  transaction and rolls back.
 
 ## Run it yourself
 
@@ -223,6 +231,18 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
 - **Built to take another app.** The browser, the page and the catch-up sheet are shared
   ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
   (name, start page, allowed sites, thread URL, reader script, user agent, desktop layout).
+
+## Settings and your account
+
+Settings opens from your initial at the top left of Chats
+([`ios/Ketchup/People/`](ios/Ketchup/People)).
+
+- **Change your name.** Friends see it in your chats, and Muse Spark uses it in catch-ups.
+- **Sign Instagram or Snapchat out of Ketchup.** Each row forgets that one site's sign-in
+  and saved data in Ketchup's web views on this iPhone (cookies, storage, caches, service
+  workers). Your accounts there aren't touched.
+- **Sign out, or delete your account for good** (see Security above). A page says what
+  goes and what stays, then asks once more.
 
 ## Built during the event
 

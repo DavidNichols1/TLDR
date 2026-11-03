@@ -59,6 +59,32 @@ the technical recipe. README.md is the judge-facing overview.
 the viewer sets display name **David**, joins with the printed invite code, and has
 302 unread. `--rearm` resets David to all-unread between video takes.
 
+## Settings and people (migration 0007)
+Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`),
+`Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`. Settings opens from the inbox's top-left
+initial as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
+`onDismiss` in `ChatsListView`), so it can't be left over sign-in.
+- `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
+  named `0007_people_<part>` (so far `0007_people_account`). Append, never rewrite: a fresh
+  project runs the whole file once.
+- `delete_account()` (security definer, `authenticated` only): deletes friends' saved
+  catch-ups that read the caller's messages, then the auth user (profile, memberships,
+  messages, own briefs cascade; a chat they were last in goes through `apply_member_change`),
+  then recomputes `last_message_*` on the chats they wrote in. Tested only by the RLS suite's
+  "deleted account" checks (rolled back). A live test deletes a real account: use a throwaway
+  account, never a seed one. SQL can't delete Storage files, so anything a user uploads
+  (Photos) has to be removed through the Storage API before the call.
+- "Sign out of Instagram/Snapchat in Ketchup" removes the `WKWebsiteDataStore.default()`
+  records whose name matches that source's `domains`, then posts `webChatForgotten` and the
+  open page goes back to its start URL. The first check after a fresh install can take a few
+  seconds (WebKit starting); the row works meanwhile.
+- Previews: `-screen settings` (add `-section web`, `account` or `about`), `settings-sheet`
+  (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`.
+  The account email in previews is `david@example.com`.
+- Slots for other sessions are marked `SLOT` in `SettingsView.swift`: Photos (the header's
+  monogram, a Profile photo row), Speed ("On this iPhone": Saved catch-ups, Clear cache).
+  A section whose rows are all empty doesn't show.
+
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
 `WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` and `ios/Ketchup/Snapchat/` hold each
