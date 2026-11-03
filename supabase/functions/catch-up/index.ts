@@ -19,6 +19,8 @@ import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, 
 import { museChat, MuseError, MuseNotConfigured } from "../_shared/muse.ts";
 import { loadPhotos, photoImages, photoNote, type Photos, withoutPhotos } from "../_shared/photos.ts";
 import { once } from "../_shared/once.ts";
+import { consentRefusal } from "../_shared/consent.ts"; // Plans: Muse Spark consent
+import { takeUsage } from "../_shared/plan.ts"; // Plans: the daily allowance
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -71,6 +73,10 @@ Deno.serve(async (req) => {
   const { data: userData, error: userErr } = await asUser.auth.getUser();
   if (userErr || !userData.user) return json(401, { error: "Sign in first" });
   const me = userData.user.id;
+
+  // Plans: nothing goes to Muse Spark until you've said yes, once (_shared/consent.ts).
+  const noConsent = await consentRefusal(asUser, me);
+  if (noConsent) return noConsent;
 
   const { data: membership } = await asUser
     .from("chat_members").select("last_read_at").eq("chat_id", chatId).eq("user_id", me).maybeSingle();
@@ -128,6 +134,14 @@ Deno.serve(async (req) => {
   const until = fresh[fresh.length - 1].created_at;
   const brief = await once(admin, { user: me, chat: chatId, kind: mode, since, until, question: mode === "ask" ? question : null });
   if ("cached" in brief) return json(200, { kind: mode, cached: true, brief_id: brief.cached.id, ...brief.cached });
+
+  // Plans: today's allowance covers this read, or a 402 (_shared/plan.ts).
+  // Saved and shared briefs above cost nothing.
+  const usage = await takeUsage(admin, me, fresh.length, mode);
+  if (!usage.ok) {
+    await brief.claim.release();
+    return usage.response;
+  }
 
   // The newest unread photos (newest in the window, for Ask) go along as
   // images, downloaded as the caller (_shared/photos.ts).
@@ -192,6 +206,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("muse error", e);
     await brief.claim.release();
+    await usage.giveBack(); // Plans: a failed call costs nothing
     if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }
