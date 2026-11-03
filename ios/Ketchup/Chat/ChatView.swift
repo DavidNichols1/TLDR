@@ -27,8 +27,10 @@ struct ChatView: View {
     /// The user has dragged the thread (programmatic scrolls don't count).
     @State private var userScrolled = false
     @State private var atBottom = true
-    /// The first scroll (to the unread divider or the bottom) is done.
+    /// The first scroll (to the unread divider or the bottom) is done, and
+    /// the divider it went to (nil: the bottom).
     @State private var positioned = false
+    @State private var placedAt: UUID?
     @State private var leftChat = false
     @State private var notice: String?
     #if DEBUG
@@ -89,6 +91,11 @@ struct ChatView: View {
                     if model.showsCurrentCopy { await position(proxy) }
                     await opened
                     if model.loaded, model.loadError != nil { show("Couldn't refresh. Showing saved messages.") }
+                    // The server's cursor found unread the kept copy didn't show: go to the divider.
+                    if positioned, !userScrolled, let divider = model.firstUnreadId, divider != placedAt {
+                        positioned = false
+                        model.sawBottom = false
+                    }
                     await position(proxy)
                     #if DEBUG
                     if let id = previewJump {
@@ -328,6 +335,7 @@ struct ChatView: View {
         try? await Task.sleep(for: .milliseconds(60))
         // Already scrolling the saved copy while the server answered: leave them be.
         if !userScrolled {
+            placedAt = model.firstUnreadId
             if model.firstUnreadId != nil {
                 proxy.scrollTo(Self.unreadId, anchor: .top)
             } else {
