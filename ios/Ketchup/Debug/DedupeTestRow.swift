@@ -2,12 +2,11 @@
 //  DedupeTestRow.swift
 //  Ketchup
 //
-//  DEBUG builds, Settings › On this iPhone: asks the catch-up-speed-test
-//  function the same question twice at once, in your first chat, to see the
-//  server answer both from one Muse Spark call (supabase/functions/_shared/
-//  once.ts). Only while that test function is deployed. The alert shows each
-//  answer's brief id, whether it came back saved, and how long it took; the
-//  function's log shows how many Muse Spark calls there were.
+//  DEBUG builds, Settings › On this iPhone: asks catch-up the same question
+//  twice at once, in your first chat, to see the server answer both from
+//  one Muse Spark call (supabase/functions/_shared/once.ts). The alert shows
+//  each answer's brief id, whether it came back saved, and how long it took;
+//  the function's log shows how many Muse Spark calls there were.
 //
 
 #if DEBUG
@@ -22,7 +21,7 @@ struct DedupeTestRow: View {
         if !PreviewData.isActive {
             Button { Task { await run() } } label: {
                 SettingsRow("Test: two identical asks at once", systemImage: "testtube.2",
-                            detail: running ? "Asking twice…" : "catch-up-speed-test, in your first chat")
+                            detail: running ? "Asking twice…" : "Asks Muse Spark twice together, in your first chat")
             }
             .buttonStyle(.pressable)
             .disabled(running || app.chats.isEmpty)
@@ -51,7 +50,7 @@ struct DedupeTestRow: View {
     /// "brief 5a0e12ab, made here, 3.1 s" or "…, saved, 3.2 s".
     private static func ask(_ question: String, in chat: UUID, since started: Date) async -> String {
         do {
-            let data = try await Supabase.shared.function("catch-up-speed-test", [
+            let data = try await Supabase.shared.function("catch-up", [
                 "chat_id": chat.uuidString, "mode": "ask", "question": question,
                 "time_zone": TimeZone.current.identifier,
             ])

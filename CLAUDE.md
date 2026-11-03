@@ -88,9 +88,9 @@ the technical recipe. README.md is the judge-facing overview.
   a failed call deletes its claim, a dead one goes stale after 120 s. `deno test
   supabase/functions/_shared/` covers it with a stand-in table. App: `Net/InFlight.swift` shares
   identical GETs and `my_chats` (`Supabase.rest(shares:)`); the prefetch only starts if no tap
-  has; create and join ignore a second tap while busy. Live test: deploy a copy as
-  `catch-up-speed-test`, then a signed-in DEBUG build's Settings › "Test: two identical asks at
-  once" asks it twice together (the log should show one Muse Spark call); delete the slug after.
+  has; create and join ignore a second tap while busy. Live test: a signed-in DEBUG build's
+  Settings › "Test: two identical asks at once" asks `catch-up` the same question twice together;
+  both answers should carry one brief id, and the function log one Muse Spark call.
 - Offline check, no sign-in: `-screen store-check` must show "15 of 15 passed, 1 skipped" on a
   simulator (data protection only exists on a phone, where it's 16 of 16); the console prints
   `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
