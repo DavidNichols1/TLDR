@@ -70,6 +70,10 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
   "Test thread (fixture)" → "Catch me up on this chat". Launching with
   `-KetchupInstagramFixture YES` opens the fixture instead of instagram.com. The Xcode console
   prints counts only: `[instagram] read N messages, …`.
+- On David's phone: `xcrun devicectl list devices` for the udid, build with
+  `-destination 'id=<udid>' -allowProvisioningUpdates`, then
+  `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`.
+  First real run (Nov 3, 2026): 32 messages, 200 in about 14 s, logs held counts only.
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
   `{source, mode, attempt, messages, prompt, completion, reasoning}` and nothing else. Usage:
   `select mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
