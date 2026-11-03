@@ -16,8 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.time.Instant
 import java.util.UUID
+import javax.net.ssl.SSLException
 import kotlin.math.max
 import kotlin.math.min
 
@@ -375,8 +378,29 @@ class ChatModel(
         /** A sentence a person can read, for any failure. */
         fun readable(e: Throwable): String = when (e) {
             is ApiException -> e.message ?: "Something went wrong. Try again."
-            is IOException -> "Couldn't reach Ketchup. Check your connection and try again."
+            is IOException -> unreachable(e)
             else -> "Something went wrong. Try again."
+        }
+
+        /**
+         * Why the phone couldn't reach Ketchup at all, in words a person can act
+         * on: no server found (offline, or a VPN, ad blocker or Private DNS in the
+         * way), a secure connection that failed (often the phone's clock), a
+         * timeout, or Android not letting the app use the network.
+         */
+        fun unreachable(e: IOException): String {
+            val detail = e.message.orEmpty()
+            return when {
+                e is UnknownHostException ->
+                    "Couldn't find Ketchup's server. Check that you're online, and turn off any VPN, ad blocker or Private DNS that might block it."
+                e is SSLException ->
+                    "Couldn't make a secure connection to Ketchup. Check that your phone's date and time are right, then try again."
+                e is SocketTimeoutException ->
+                    "Ketchup took too long to answer. Check your connection and try again."
+                "EPERM" in detail || "EACCES" in detail || detail.contains("permission denied", ignoreCase = true) ->
+                    "Android isn't letting Ketchup use the internet. In Ketchup's App info, allow Wi-Fi and mobile data."
+                else -> "Couldn't reach Ketchup. Check your connection and try again."
+            }
         }
     }
 }

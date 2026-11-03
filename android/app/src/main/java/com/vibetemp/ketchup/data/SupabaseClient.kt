@@ -1,6 +1,7 @@
 package com.vibetemp.ketchup.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -326,8 +327,17 @@ class HttpTransport : Transport {
             val status = conn.responseCode
             val stream = if (status in 200..299) conn.inputStream else conn.errorStream
             HttpResponse(status, stream?.bufferedReader()?.use { it.readText() }.orEmpty())
+        } catch (e: IOException) {
+            // The kind of failure and the host only (never the path, query or body),
+            // so a phone that can't reach Supabase says why in `adb logcat -s KetchupNet`.
+            Log.w(TAG, "${request.method} ${conn.url.host} failed: ${e.javaClass.simpleName}: ${e.message}")
+            throw e
         } finally {
             conn.disconnect()
         }
+    }
+
+    private companion object {
+        const val TAG = "KetchupNet"
     }
 }
