@@ -199,6 +199,12 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000d4","role":"authenticated"}', true);
 select public.join_chat(invite_code) from ctx;
 insert into public.messages (chat_id, body) select id, 'hi from dan' from ctx;
+-- His avatar and a chat photo he uploaded: delete_account() hands them back.
+insert into storage.objects (bucket_id, name, owner_id)
+values ('avatars', '00000000-0000-0000-0000-0000000000d4/77777777-7777-4777-8777-777777777777.jpg',
+        '00000000-0000-0000-0000-0000000000d4');
+insert into storage.objects (bucket_id, name, owner_id)
+select 'chat-media', id || '/88888888-8888-4888-8888-888888888888.jpg', '00000000-0000-0000-0000-0000000000d4' from ctx;
 reset role;
 -- Every message here shares now(): put Bob's last before Dan's. Bob's is a
 -- captioned photo (0006), so the line falls back to "📷 hi from bob".
@@ -215,8 +221,16 @@ do $$ begin
 exception when insufficient_privilege then insert into results values ('delete account closed to anon', true); end $$;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000d4","role":"authenticated"}', true);
-select public.delete_account();
+create temp table dan_files as select public.delete_account() as files;
 reset role;
+insert into results select 'deleted account: hands back his files',
+  (select files->'avatars' = '["00000000-0000-0000-0000-0000000000d4/77777777-7777-4777-8777-777777777777.jpg"]'::jsonb
+      and files->'chat-media' = jsonb_build_array((select id from ctx) || '/88888888-8888-4888-8888-888888888888.jpg')
+     from dan_files);
+-- The delete-account edge function then removes them with the service role.
+select set_config('storage.allow_delete_query', 'true', true);
+delete from storage.objects where owner_id = '00000000-0000-0000-0000-0000000000d4';
+select set_config('storage.allow_delete_query', 'false', true);
 insert into results select 'deleted account: profile gone',
   not exists (select 1 from public.profiles where id = '00000000-0000-0000-0000-0000000000d4');
 insert into results select 'deleted account: messages gone',

@@ -8,6 +8,7 @@
 --   0007_people_account_photos   delete_account() previews a photo like apply_message
 --   0007_people_blocks_reports   blocks, reports, the messages policy, my_chats
 --   0007_people_reports_index    an index for reports.reported_user
+--   0007_people_delete_files     delete_account() returns the files to delete
 
 -- ---------------------------------------------------------------------------
 -- Part 1: delete account (App Store guideline 5.1.1(v)).
@@ -394,3 +395,73 @@ revoke execute on function public.apply_block_change(), public.fill_report() fro
 -- sets it to null on reports about them) doesn't scan the whole table.
 
 create index reports_reported_user_idx on public.reports (reported_user);
+
+-- ---------------------------------------------------------------------------
+-- Part 3: delete_account() returns the files the person uploaded.
+--
+-- SQL can't delete Storage files, and once the rows are gone the person's
+-- own permissions can't either (reading a chat photo needs membership). So
+-- the delete-account edge function calls this as the person, then deletes
+-- the files it returns with the service role, through the Storage API: rows
+-- first, so a failed delete changes nothing; files after, server side. It
+-- returns {"avatars": [paths], "chat-media": [paths]}: their avatar folder
+-- and every chat photo (and thumbnail) they uploaded. Otherwise the same as
+-- part 1b. A new return type, so it's dropped and made again (grants too).
+
+drop function public.delete_account();
+
+create function public.delete_account()
+returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  me uuid := auth.uid();
+  touched uuid[];
+  files jsonb;
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+
+  select jsonb_build_object(
+           'avatars', coalesce(jsonb_agg(o.name) filter (where o.bucket_id = 'avatars'), '[]'::jsonb),
+           'chat-media', coalesce(jsonb_agg(o.name) filter (where o.bucket_id = 'chat-media'), '[]'::jsonb))
+    into files
+    from storage.objects o
+   where (o.bucket_id = 'avatars'
+          and (o.owner_id = me::text or (storage.foldername(o.name))[1] = me::text))
+      or (o.bucket_id = 'chat-media' and o.owner_id = me::text);
+
+  select coalesce(array_agg(distinct t.chat_id), '{}') into touched
+    from (select chat_id from public.messages where sender = me
+          union
+          select chat_id from public.chat_members where user_id = me) t;
+
+  delete from public.ai_briefs b
+   where b.user_id <> me
+     and b.chat_id = any (touched)
+     and exists (select 1 from public.messages m
+                  where m.chat_id = b.chat_id and m.sender = me and m.created_at <= b.until);
+
+  delete from auth.users where id = me;
+
+  update public.chats c
+     set (last_message_at, last_message_preview, last_message_sender) =
+         (select m.created_at,
+                 case
+                   when m.image_path is null then left(m.body, 140)
+                   when m.body = '' then '📷 Photo'
+                   else '📷 ' || left(m.body, 138)
+                 end,
+                 m.sender
+            from public.messages m
+           where m.chat_id = c.id
+           order by m.created_at desc
+           limit 1)
+   where c.id = any (touched);
+
+  return files;
+end;
+$$;
+
+revoke execute on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

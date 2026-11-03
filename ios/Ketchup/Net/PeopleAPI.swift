@@ -13,11 +13,13 @@ extension KetchupAPI {
 
     // MARK: Account
 
-    /// Deletes the signed-in account and everything it wrote, for good
-    /// (`delete_account()`): profile, memberships, messages, catch-ups, and
-    /// friends' saved catch-ups that read those messages.
+    /// Deletes the signed-in account and everything it wrote, for good, through
+    /// the delete-account edge function: the rows first (`delete_account()`:
+    /// profile, memberships, messages, catch-ups, and friends' saved catch-ups
+    /// that read those messages), then the photos they uploaded. If it fails,
+    /// nothing has changed.
     static func deleteAccount() async throws {
-        _ = try await Supabase.shared.rpc("delete_account")
+        _ = try await Supabase.shared.function("delete-account", [:])
     }
 
     // MARK: Block

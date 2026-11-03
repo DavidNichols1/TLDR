@@ -10,7 +10,8 @@ import Foundation
 
 /// How Settings closes when you leave the account. The sheet goes away
 /// first and this runs after (`AppModel.leave(_:)`), so nothing is left on
-/// screen when the signed-in home is replaced by sign-in.
+/// screen when the signed-in home is replaced by sign-in. Both forget the
+/// web-chat sign-ins.
 enum SettingsExit {
     case signOut
     /// The server already deleted it (`KetchupAPI.deleteAccount()`).
@@ -26,23 +27,22 @@ extension AppModel {
         return session?.email
     }
 
-    /// Deletes the account on the server, for good. Settings then closes and
-    /// `leave(.accountDeleted)` signs out. A no-op in offline previews.
+    /// Deletes the account on the server, for good: the rows, then the photos
+    /// they uploaded, both server side (the delete-account edge function), so
+    /// a delete that fails leaves everything as it was. Settings then closes
+    /// and `leave(.accountDeleted)` signs out. A no-op in offline previews.
     func deleteAccount() async throws {
         guard previewUser == nil else { return }
-        // SQL can't delete Storage files, so the avatar and the photos you
-        // sent go through the Storage API before the rows do.
-        await ChatPhotos.deleteMine(app: self)
         try await KetchupAPI.deleteAccount()
     }
 
-    /// Signs out on this iPhone. After a deleted account it also forgets the
-    /// Instagram and Snapchat sign-ins in Ketchup's web views: nothing of
-    /// that account stays behind for whoever signs in next.
+    /// Signs out on this iPhone, and forgets the Instagram and Snapchat
+    /// sign-ins in Ketchup's web views, so nothing of this account stays for
+    /// whoever signs in next. Offline previews touch nothing: their web views
+    /// share the phone's real website data.
     func leave(_ exit: SettingsExit) async {
-        if exit == .accountDeleted {
-            for source in WebChatSource.all { await source.forgetSavedData() }
-        }
+        guard previewUser == nil else { return }
+        for source in WebChatSource.all { await source.forgetSavedData() }
         await signOut()
     }
 }
