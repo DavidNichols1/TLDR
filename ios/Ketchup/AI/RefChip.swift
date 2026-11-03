@@ -3,8 +3,8 @@
 //  Ketchup
 //
 //  Every Muse Spark item cites the messages behind it. A chip shows who
-//  said it and how it starts; tapping it closes the sheet and jumps the
-//  chat to that exact message.
+//  said it, in their chat color, and how it starts; tapping it closes the
+//  sheet and jumps the chat to that exact message.
 //
 
 import SwiftUI
@@ -17,48 +17,94 @@ struct RefContext {
     let jump: (UUID) -> Void
 }
 
+/// One source: "● Maya · so the Airbnb is now…".
 struct RefChip: View {
     let id: UUID
     let context: RefContext
 
     var body: some View {
+        let preview = context.preview(id)
         Button {
             context.jump(id)
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.turn.down.right")
-                    .font(.caption2.weight(.bold))
-                if let p = context.preview(id) {
-                    Text(p.name).fontWeight(.semibold)
-                    Text(p.text).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(preview.map { Self.color(for: $0.name) } ?? Theme.inkFaint)
+                    .frame(width: 7, height: 7)
+                if let preview {
+                    Text("\(Text(verbatim: preview.name).fontWeight(.semibold).foregroundStyle(Theme.ink)) · \(Text(verbatim: preview.text))")
                 } else {
-                    Text("View message")
+                    Text("See the message")
                 }
             }
             .font(.caption)
+            .foregroundStyle(Theme.inkSoft)
             .lineLimit(1)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .frame(maxWidth: 230, alignment: .leading)
-            .background(Theme.violet.opacity(0.10), in: Capsule())
-            .overlay(Capsule().strokeBorder(Theme.violet.opacity(0.30), lineWidth: 0.8))
-            .foregroundStyle(Theme.indigo)
+            .padding(.leading, 9)
+            .padding(.trailing, 11)
+            .padding(.vertical, 6)
+            .background(Theme.cream, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.rule, lineWidth: 1))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Show the message in the chat")
+        .buttonStyle(.pressable)
+        .accessibilityLabel(preview.map { "\($0.name): \($0.text)" } ?? "A message")
+        .accessibilityHint("Shows it in the chat")
+    }
+
+    /// A person's chat color. "You" is the reader, who writes in ink.
+    static func color(for name: String) -> Color {
+        name == "You" ? Theme.ink : Theme.personColor(name: name)
     }
 }
 
-/// A row of ref chips that wraps.
+/// An item's sources. Past `limit` they fold into a "+2" that opens the
+/// rest in place. One chip and its "+2" share a line, the chip giving way;
+/// more than one wrap.
 struct RefChips: View {
     let refs: [UUID]
     let context: RefContext
+    var limit = 1
+
+    @State private var showAll = false
 
     var body: some View {
         if !refs.isEmpty {
-            FlowLayout(spacing: 6) {
-                ForEach(refs, id: \.self) { RefChip(id: $0, context: context) }
+            let shown = showAll ? refs : Array(refs.prefix(max(limit, 1)))
+            Group {
+                if shown.count == 1 {
+                    HStack(spacing: 6) {
+                        chips(shown)
+                    }
+                } else {
+                    FlowLayout(spacing: 6) {
+                        chips(shown)
+                    }
+                }
             }
+            .motion(value: showAll)
+        }
+    }
+
+    @ViewBuilder
+    private func chips(_ shown: [UUID]) -> some View {
+        ForEach(Array(shown.enumerated()), id: \.offset) { _, id in
+            RefChip(id: id, context: context)
+        }
+        let hidden = refs.count - shown.count
+        if hidden > 0 {
+            Button {
+                showAll = true
+            } label: {
+                Text(verbatim: "+\(hidden)")
+                    .font(.mono(.caption, weight: .semibold))
+                    .foregroundStyle(Theme.inkSoft)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .overlay(Capsule().strokeBorder(Theme.rule, lineWidth: 1))
+            }
+            .buttonStyle(.pressable)
+            .fixedSize()
+            .accessibilityLabel(hidden == 1 ? "1 more source" : "\(hidden) more sources")
         }
     }
 }

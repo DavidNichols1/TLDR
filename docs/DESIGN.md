@@ -79,7 +79,7 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `Kicker("For you")` | Small mono caps over a headline or card. |
 | `SectionTitle("Plans", count: 6)` | Section heading, a VoiceOver header. |
 | `Monogram(name:color:size:)` | Initials on a soft tile of the person's color. Decorative. |
-| `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` for "Maybe". |
+| `Stamp("Confirmed")` | Rubber stamp on a plan; pickle by default, `inkSoft` and `dashed: true` for "Maybe". |
 | `.marked(_:color:sweep:delay:)` | Marker behind a short phrase on one line. |
 | `Text("…\(Text("$90").markedRun())…").markRuns(sweep:)` | Marker inside a sentence; follows the words as they wrap. |
 | `.paperCard(padding:radius:)` | The default container: card paper, hairline, no shadow. |
@@ -87,6 +87,34 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 | `.receiptCard()` | Money, as a diner check with a torn zigzag edge (`ReceiptShape`). |
 
 The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
+
+## Muse Spark screens
+
+Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on the counter. Screenshots: `screens/redesign/ai-*`.
+
+<p>
+<img src="screens/redesign/ai-catchup-light.png" width="200" alt="The brief: the gist with its times and money marked">
+<img src="screens/redesign/ai-catchup-plans-light.png" width="200" alt="Plans as order tickets">
+<img src="screens/redesign/ai-catchup-owes-dark.png" width="200" alt="Who owes what as a diner check, dark">
+<img src="screens/redesign/ai-loading-light.png" width="200" alt="Reading 302 messages">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `SheetBar` | The pinned top of both sheets: the chat's name as a running head, and Done. |
+| `BriefMarks` | Marks money and times in Muse Spark's sentences ("$90", "Saturday 6am", "by Thursday"; not an old "from $140"), or the reader's name in a question. Show with `.markRuns()`. |
+| `MuseByline` | "Read by Muse Spark · 302 messages · 23 s", or "Saved" for a cached brief. |
+| `RefChips` | Sources: a dot in the sender's chat color and how the message starts. One chip and a "+2" to a line; a tap jumps to the message. |
+| `SkimmingView` | The wait: the real unread messages pass a window while the marker reads each line, an honest clock, "Usually about 20 seconds". A still list with Reduce Motion. |
+| `ForYouList` | The reader's to-dos. The circle checks one off with `.struck()`, a pen stroke through the words. |
+| `PlanCard` | A `Ticket`: what, where, who, sources and Add to calendar; the stub has day, date, time and the stamp. Soonest first. |
+| `OwesCheck` | A `receiptCard()`: your tab first with the total marked as it scrolls in, everyone else, then To bring. |
+| `QuestionBubble` | An open question as the asker's message, "No reply yet" under it. |
+| `AIErrorCard`, `CaughtUpCard` | A failed call with Try again; nothing new, with the drop. |
+
+- **Everything traces back.** A chip, a line on the check, a bubble or a to-do's words closes the sheet onto that message.
+- **The reader is "You"**, in ink; everyone else is in `personColor(name:)`, as in the chat.
+- **Mustard only on what's the reader's**: the times and money in the gist and in answers, their name in questions, their total.
 
 ## Voice
 
@@ -108,7 +136,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
 | `signin`, `inbox`, `inbox-empty`, `name`, `chat`, `info` | The chat screens (`Debug/CorePreviewScreen.swift`) |
-| `ai-catchup`, `ai-loading`, `ai-error`, `ai-ask`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`) |
+| `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 
 Light and dark screenshots:
 
@@ -118,4 +146,4 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 xcrun simctl io <udid> screenshot ai-catchup-dark.png
 ```
 
-The foundation set is in `docs/screens/foundation/`. To add a screen, add a case to the `Screen` enum in one of the two preview files (`ai-` names go in the Muse Spark one) and `list` picks it up. Build its data with `PreviewData.app()` and `PreviewData.chatModel(catchUp:answer:delay:asked:)`.
+The foundation set is in `docs/screens/foundation/`; the restyled Muse Spark screens are in `docs/screens/redesign/` (`ai-*`, light and dark, plus Extra Extra Large text). To add a screen, add a case to the `Screen` enum in one of the two preview files (`ai-` names go in the Muse Spark one) and `list` picks it up. Build its data with `PreviewData.app()` and `PreviewData.chatModel(catchUp:answer:delay:asked:)`.

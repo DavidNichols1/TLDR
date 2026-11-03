@@ -83,16 +83,19 @@ struct Monogram: View {
 }
 
 /// A rubber stamp, tilted a few degrees: "CONFIRMED" in pickle green on a
-/// plan ticket, or another word in another color ("MAYBE" in inkSoft).
+/// plan ticket, or another word in another color ("MAYBE" in inkSoft,
+/// `dashed` for something not settled yet).
 struct Stamp: View {
     let text: String
     var color: Color
     var tilt: Double
+    var dashed: Bool
 
-    init(_ text: String, color: Color = Theme.pickle, tilt: Double = -4) {
+    init(_ text: String, color: Color = Theme.pickle, tilt: Double = -4, dashed: Bool = false) {
         self.text = text
         self.color = color
         self.tilt = tilt
+        self.dashed = dashed
     }
 
     var body: some View {
@@ -107,7 +110,7 @@ struct Stamp: View {
             .padding(.vertical, 3)
             .overlay {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .strokeBorder(color, lineWidth: 1.5)
+                    .strokeBorder(color, style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [4, 2.5] : []))
             }
             .rotationEffect(.degrees(tilt))
     }

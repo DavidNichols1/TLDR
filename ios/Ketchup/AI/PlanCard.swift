@@ -2,8 +2,10 @@
 //  PlanCard.swift
 //  Ketchup
 //
-//  A plan Muse Spark found in the chat, with the system event editor one
-//  tap away (prefilled; the user reviews and saves it themselves).
+//  A plan Muse Spark found, as a diner order ticket: what, where, who and
+//  the sources left of the tear line; when, and a CONFIRMED or MAYBE stamp,
+//  on the stub. "Add to calendar" opens the system event editor, prefilled;
+//  the user reviews it and saves it themselves.
 //
 
 import SwiftUI
@@ -12,83 +14,183 @@ import EventKit
 struct PlanCard: View {
     let plan: CatchUp.Plan
     let chatName: String
+    /// The reader as the chat names them, to put "You" first in who's going.
+    var readerName: String = ""
     let refs: RefContext
 
     @State private var editing = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                Text(plan.title)
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                statusBadge
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                detail(symbol: "clock", text: whenText)
-                if let location = plan.location {
-                    detail(symbol: "mappin.and.ellipse", text: location)
+        Ticket(notchAt: 0.66) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(plan.title)
+                        .font(.serif(.title3))
+                        .foregroundStyle(Theme.ink)
+                    if let place {
+                        Text(place)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.inkSoft)
+                    }
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 if !plan.who.isEmpty {
-                    detail(symbol: "person.2", text: plan.who.joined(separator: ", "))
+                    Going(names: plan.who, readerName: readerName)
+                }
+                RefChips(refs: plan.refs, context: refs)
+                addButton
+            }
+        } stub: {
+            VStack(spacing: 14) {
+                when
+                if plan.confirmed {
+                    Stamp("Confirmed")
+                } else {
+                    Stamp("Maybe", color: Theme.inkSoft, tilt: 3, dashed: true)
                 }
             }
-
-            RefChips(refs: plan.refs, context: refs)
-
-            Button {
-                Task {
-                    // Write-only access is all adding an event needs. The
-                    // editor runs out of process and works even if it's
-                    // declined, so open it either way.
-                    _ = await CalendarAccess.requestWriteOnly()
-                    editing = true
-                }
-            } label: {
-                Label("Add to Calendar", systemImage: "calendar.badge.plus")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.aiPillCompact)
-            .padding(.top, 2)
+            .frame(maxWidth: .infinity)
         }
-        .aiCard()
         .sheet(isPresented: $editing) {
             EventEditor(plan: plan, chatName: chatName) { editing = false }
                 .ignoresSafeArea()
         }
     }
 
-    private var statusBadge: some View {
-        Text(plan.confirmed ? "Confirmed" : "Proposed")
-            .font(.caption2.weight(.bold))
-            .textCase(.uppercase)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .foregroundStyle(plan.confirmed ? .green : .orange)
-            .background((plan.confirmed ? Color.green : Color.orange).opacity(0.15), in: Capsule())
+    // MARK: The stub
+
+    /// "SAT / NOV 7 / 6:00 AM", "ALL DAY" or "TIME TBD".
+    private var when: some View {
+        VStack(spacing: 2) {
+            if let start = plan.start {
+                Text(start.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                    .font(.mono(.subheadline, weight: .bold))
+                    .foregroundStyle(Theme.ink)
+                Text(start.formatted(.dateTime.month(.abbreviated).day()).uppercased())
+                    .font(.mono(.caption))
+                    .foregroundStyle(Theme.inkSoft)
+                Text(timeText(start))
+                    .font(.mono(.subheadline, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .padding(.top, 4)
+                if let until = untilText(start) {
+                    Text(until)
+                        .font(.mono(.caption2))
+                        .foregroundStyle(Theme.inkSoft)
+                }
+            } else {
+                Text("TIME TBD")
+                    .font(.mono(.caption, weight: .semibold))
+                    .foregroundStyle(Theme.inkSoft)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenWhen)
     }
 
-    private func detail(symbol: String, text: String) -> some View {
-        Label {
-            Text(text).fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: symbol).foregroundStyle(.secondary)
+    private var addButton: some View {
+        Button {
+            Task {
+                // Write-only access is all adding an event needs. The editor
+                // runs out of process and works even if it's declined, so
+                // open it either way.
+                _ = await CalendarAccess.requestWriteOnly()
+                editing = true
+            }
+        } label: {
+            Label("Add to calendar", systemImage: "calendar.badge.plus")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.ink)
+                .padding(.vertical, 6)
+                .contentShape(.rect)
         }
-        .font(.subheadline)
+        .buttonStyle(.pressable)
     }
 
-    private var whenText: String {
-        guard let start = plan.start else { return "Time not set yet" }
-        if plan.allDay {
-            return start.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()) + " · all day"
+    /// Where, unless the title already says ("Dinner at Hearthstone").
+    private var place: String? {
+        guard let location = plan.location?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !location.isEmpty, !plan.title.localizedCaseInsensitiveContains(location)
+        else { return nil }
+        return location
+    }
+
+    /// A bare date ("2026-11-07") means the chat never said what time.
+    private var hasTime: Bool {
+        (plan.startsAt?.count ?? 0) > 10
+    }
+
+    private func timeText(_ start: Date) -> String {
+        if plan.allDay { return "ALL DAY" }
+        guard hasTime else { return "TIME TBD" }
+        return start.formatted(date: .omitted, time: .shortened).uppercased()
+    }
+
+    /// When the plan has an end time: "TO 1:00 PM", or "TO SUN 4:00 PM" when
+    /// it ends on another day.
+    private func untilText(_ start: Date) -> String? {
+        guard let end = endTime(after: start) else { return nil }
+        return "TO \(end)".uppercased()
+    }
+
+    private var spokenWhen: String {
+        guard let start = plan.start else { return "Time to be decided" }
+        let day = start.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        if plan.allDay { return "\(day), all day" }
+        guard hasTime else { return "\(day), time to be decided" }
+        let from = "\(day) at \(start.formatted(date: .omitted, time: .shortened))"
+        return endTime(after: start, wide: true).map { "\(from) to \($0)" } ?? from
+    }
+
+    /// "1:00 PM" the same day, or "Sun 4:00 PM" ("Sunday 4:00 PM" for
+    /// VoiceOver) on another.
+    private func endTime(after start: Date, wide: Bool = false) -> String? {
+        guard !plan.allDay, hasTime, let end = plan.end, end > start else { return nil }
+        let time = end.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDate(end, inSameDayAs: start) { return time }
+        return "\(end.formatted(.dateTime.weekday(wide ? .wide : .abbreviated))) \(time)"
+    }
+}
+
+/// Who's going: a few monograms in their chat colors and a short count,
+/// with the reader first ("You and 5 more").
+private struct Going: View {
+    let names: [String]
+    let readerName: String
+
+    @ScaledMetric(relativeTo: .footnote) private var size: CGFloat = 24
+
+    var body: some View {
+        let readerIn = names.contains { Tab.isReader($0, reader: readerName) }
+        let others = names.filter { !Tab.isReader($0, reader: readerName) }
+        let faces = (readerIn ? [readerName.isEmpty ? "You" : readerName] : []) + others
+        HStack(spacing: 8) {
+            HStack(spacing: -size * 0.22) {
+                ForEach(Array(faces.prefix(4).enumerated()), id: \.offset) { _, name in
+                    Monogram(name: name, size: size)
+                        .background(Theme.card, in: tile)
+                        .overlay(tile.strokeBorder(Theme.card, lineWidth: 1.5))
+                }
+            }
+            Text(summary(readerIn: readerIn, others: others.count))
+                .font(.footnote)
+                .foregroundStyle(Theme.inkSoft)
+                .lineLimit(1)
         }
-        let day = start.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
-        let from = start.formatted(date: .omitted, time: .shortened)
-        if let end = plan.end, end > start {
-            return "\(day), \(from) – \(end.formatted(date: .omitted, time: .shortened))"
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Going: " + ((readerIn ? ["you"] : []) + others).formatted(.list(type: .and)))
+    }
+
+    private var tile: RoundedRectangle {
+        RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+    }
+
+    private func summary(readerIn: Bool, others: Int) -> String {
+        if readerIn {
+            return others == 0 ? "Just you" : "You and \(others) more"
         }
-        return "\(day), \(from)"
+        return "\(others) going"
     }
 }

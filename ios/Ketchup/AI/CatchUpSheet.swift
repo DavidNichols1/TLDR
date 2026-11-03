@@ -13,113 +13,113 @@ struct CatchUpSheet: View {
     let model: ChatModel
     let refs: RefContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppModel.self) private var app: AppModel?
+    @State private var scrolled = false
+    /// Briefs that landed while the sheet was open, for the success haptic.
+    @State private var arrivals = 0
 
     var body: some View {
-        NavigationStack {
+        ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
+                ZStack(alignment: .top) {
                     content
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 30)
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, 40)
             }
-            .background(alignment: .top) {
-                Theme.aiDiagonal.opacity(0.10)
-                    .frame(height: 260)
-                    .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                    .ignoresSafeArea()
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 1
+            } action: { _, isScrolled in
+                scrolled = isScrolled
             }
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            #if DEBUG
+            .task(id: stage) { await scrollToPreviewSection(proxy) }
+            #endif
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SheetBar(title: model.chat.name, scrolled: scrolled) { dismiss() }
+        }
+        .background(Theme.cream)
+        .presentationBackground(Theme.cream)
         .presentationDragIndicator(.visible)
+        .animation(Motion.choose(Motion.settle, reduceMotion: reduceMotion), value: stage)
+        .sensoryFeedback(.success, trigger: arrivals)
+        .onChange(of: stage) { old, new in
+            if old == .reading && new == .brief { arrivals += 1 }
+        }
         // Unstructured on purpose: swiping the sheet away mid-request
         // shouldn't cancel it; the brief is waiting when it reopens.
         .onAppear { Task { await model.catchUpIfNeeded() } }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            AILabel()
-            Text("Catch me up")
-                .font(.largeTitle.bold())
-            Text(model.chat.name)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
     }
 
     @ViewBuilder
     private var content: some View {
         switch model.catchUp {
         case .idle, .loading:
-            SparkleLoading(title: model.unreadAtOpen > 0
-                           ? "Reading \(model.unreadAtOpen) messages…"
-                           : "Reading the chat…")
+            SkimmingView(title: readingTitle,
+                         subtitle: "\(Theme.modelName) is skimming so you don't have to.",
+                         usually: "Usually about 20 seconds",
+                         lines: SkimLine.lines(from: model, startingAt: model.firstUnreadId))
+                // Gone quickly, before the brief rises into its place.
+                .transition(.opacity.animation(Motion.fade))
         case .failed(let message):
-            AIErrorCard(message: message) {
+            AIErrorCard(message: message, note: "Nothing was marked as read.") {
                 Task { await model.runCatchUp() }
             }
+            .transition(.rise(reduceMotion: reduceMotion))
         case .done(let response):
             if let brief = response.result {
-                CatchUpContent(brief: brief, chatName: model.chat.name, refs: refs)
-                meta(response)
+                CatchUpContent(brief: brief,
+                               byline: MuseByline.details(response),
+                               chatName: model.chat.name,
+                               readerName: readerName,
+                               refs: refs)
             } else {
-                allCaughtUp
+                CaughtUpCard()
+                    .transition(.rise(reduceMotion: reduceMotion))
             }
         }
     }
 
-    private var allCaughtUp: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(Theme.aiGradient)
-            Text("You're all caught up")
-                .font(.title3.bold())
-            Text("Nothing new since you last read this chat. Try Ask the chat to look something up.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    // MARK: State
+
+    private enum Stage: Hashable { case reading, failed, empty, brief }
+
+    private var stage: Stage {
+        switch model.catchUp {
+        case .idle, .loading: .reading
+        case .failed: .failed
+        case .done(let response): response.result == nil ? .empty : .brief
         }
-        .aiCard(padding: 24)
     }
 
-    /// Small print: how many messages, how long, which model, cached or not.
-    private func meta(_ r: BriefResponse<CatchUp>) -> some View {
-        var parts: [String] = []
-        if let n = r.messageCount { parts.append(n == 1 ? "1 message" : "\(n) messages") }
-        if r.cached == true { parts.append("cached") }
-        else if let ms = r.latencyMs { parts.append(String(format: "%.1f s", Double(ms) / 1000)) }
-        if let m = r.model, !m.isEmpty { parts.append(m) }
-        return Text(parts.joined(separator: " · "))
-            .font(.caption2.monospaced())
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity)
-    }
-}
-
-/// A failed Muse Spark call: what happened, and a retry.
-struct AIErrorCard: View {
-    let message: String
-    let retry: () -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.bubble")
-                .font(.system(size: 36))
-                .foregroundStyle(Theme.aiGradient)
-            Text(message)
-                .font(.subheadline)
-                .multilineTextAlignment(.center)
-            Button("Try again", action: retry)
-                .buttonStyle(.aiPillCompact)
+    /// "Reading 302 messages".
+    private var readingTitle: String {
+        switch model.unreadAtOpen {
+        case 0: "Reading the chat"
+        case 1: "Reading 1 message"
+        case let count: "Reading \(count.formatted()) messages"
         }
-        .frame(maxWidth: .infinity)
-        .aiCard(padding: 22)
     }
+
+    /// The reader as the chat names them ("David"), which is how Muse Spark
+    /// writes them in owes and questions. Members without a profile come
+    /// through as "Someone", which isn't a name to greet.
+    private var readerName: String {
+        [app?.me?.displayName, model.names[model.myId]]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty && $0 != "Someone" } ?? ""
+    }
+
+    #if DEBUG
+    /// `-section plans` (or for-you, owes, questions, highlights) scrolls a
+    /// preview of the brief to that section.
+    private func scrollToPreviewSection(_ proxy: ScrollViewProxy) async {
+        guard stage == .brief, let section = PreviewData.section else { return }
+        try? await Task.sleep(for: .milliseconds(450))
+        proxy.scrollTo(section, anchor: .top)
+    }
+    #endif
 }
