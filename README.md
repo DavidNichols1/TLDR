@@ -399,12 +399,9 @@ no website inside Ketchup. You use the real Instagram app.
 - **Snapchat needed its own mode.** A layout dump from the phone (view names, positions and
   text lengths, never text) showed that every Snapchat message sits on the left under a
   name row, so the reader takes each message's sender from the row above it instead of
-  from its side, and finds the chat by Snapchat's own view names. Your own messages are the
-  ones under "ME" or your Ketchup name; in a one-to-one chat, whoever isn't the chat's title
-  is you; and in a group it can't work out, the bubble asks once "Which one is you?" and
-  remembers the answer on the phone until you sign out. Still unchecked on a real phone: a
-  long Instagram thread, and your own Snapchat messages coming out as yours (none were
-  counted as yours in the first test, before this was added).
+  from its side, and finds the chat by Snapchat's own view names. Still unchecked on a real
+  phone: a long Instagram thread, and whether Snapchat marks your own messages as yours
+  (none were counted as yours in that test).
 - **Same terms problem as the iPhone version, plus Google Play's.** Play only allows
   accessibility services for accessibility, so this is a sideloaded, experimental build.
   On Android 13 and later, a sideloaded app needs Allow restricted settings (App info,
