@@ -8,7 +8,7 @@ The photos are made up, drawn by the app in preview mode (`ios/Ketchup/Debug/Pre
 <img src="crop-light.png" width="200" alt="Frame it">
 <img src="chat-light.png" width="200" alt="Profile photos in the thread">
 <img src="info-light.png" width="200" alt="Members with photos">
-<img src="inbox-light.png" width="200" alt="The account button">
+<img src="inbox-light.png" width="200" alt="The You tab">
 </p>
 <p>
 <img src="thread-light.png" width="200" alt="Photos sent in the thread">
@@ -26,7 +26,7 @@ The photos are made up, drawn by the app in preview mode (`ios/Ketchup/Debug/Pre
 | `crop` | "Frame it": the picked photo under a rounded-square window cut in the paper, "Use photo" and Cancel |
 | `chat` | The Breck thread: each sender's profile photo by the last bubble of their run (Theo's dog, Maya's skier) |
 | `info` | Chat info: members with their photos, Sam with his monogram (he has no photo) |
-| `inbox` | The Chats page: David's photo on the account button, top left |
+| `inbox` | The Chats tab: David's photo as the You tab's icon, bottom right |
 | `thread` | The end of Breck: Maya's cabin, Jordan's mountains without a caption, Maya's view from the deck, and her photo of the door code |
 | `sending` | David's photo of Pickles the dog on its way up: the ink ring about half full (a pretend upload) |
 | `attach` | A picked photo waiting above the field with its x, the caption typed, the ketchup send ready |

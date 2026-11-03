@@ -93,23 +93,28 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 
 The old purple names (`Theme.accent`, `aiGradient`, `aiDiagonal`, `aiWash`, `indigo`, `violet`, `pink`, `aiSymbol`, `aiName`) still compile but are deprecated and mapped flat onto this palette. Each warning is a spot still to restyle.
 
-## Pager
+## Tabs
 
-After sign-in, the home is three pages side by side: **Chats** (the inbox, first), **Instagram** and **Snapchat** (`ios/Ketchup/Views/HomePager.swift`). Swipe between them or tap a name. The app comes back to the page you were on last (`@AppStorage("home.page")`).
+After sign-in, the home is four tabs along the bottom: **Chats** (the inbox, first), **Instagram**, **Snapchat** and **You** (`ios/Ketchup/Views/HomeTabs.swift`). The app comes back to the tab you were on last (`@AppStorage("home.page")`).
 
 <p>
-<img src="screens/redesign/inbox-light.png" width="200" alt="Chats, with the switcher in its top bar">
-<img src="screens/redesign/home-swipe-light.png" width="200" alt="Mid-swipe: the mustard mark slides from Chats toward Instagram">
-<img src="screens/redesign/home-instagram-dark.png" width="200" alt="The Instagram page under the switcher, dark">
-<img src="screens/redesign/home-snapchat-light.png" width="200" alt="The Snapchat page under the switcher">
+<img src="screens/redesign/inbox-light.png" width="200" alt="Chats, with the tab bar along the bottom">
+<img src="screens/redesign/home-instagram-dark.png" width="200" alt="The Instagram tab with the Catch me up circle, dark">
+<img src="screens/redesign/home-snapchat-light.png" width="200" alt="The Snapchat tab's first-visit card">
+<img src="screens/photos/inbox-light.png" width="200" alt="David's photo as the You tab's icon">
 </p>
 
-- **The switcher** sits in the middle of the Chats page's top bar, between its glass buttons: the names in New York, ink for the page you're on, `inkSoft` for the rest, and a mustard `MarkerStroke` under the current one that slides along as the pages scroll. Like a bar title it keeps its size past the default text size (long-press shows it big at accessibility sizes). The other pages leave that row free above their own bar.
-- **Paging is the system's** (a paging `ScrollView`). A tap on a name scrolls there with `Motion.settle`, or jumps with Reduce Motion on.
-- **In a chat the pages stay put** and the switcher fades out (`Motion.fade`), so the chat's back swipe works and its title takes the middle of the bar. The Chats page says so through `HomePagerState.locked`.
-- **Over a web page** a sideways swipe still pages, unless the page can scroll sideways itself (zoomed in, a wide carousel): then the page gets it, and the switcher still works. Vertical scrolling and taps are always the page's. From the left edge the pager wins even when the site could go back; the bar's back button does that.
-- **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
-- **`HomePage.all`** lists the pages, left to right, and `HomePage.content` says what each shows: another chat app is one more `.web(…)` in the list.
+- **The bar is paper, not glass.** Cream under a 1 pt hairline. The tab you're on is ink, with a filled icon and a mustard `MarkerStroke` under its name that slides over as you switch (a fade with Reduce Motion); the others are inkSoft and outlined. No ketchup: that's for the page's one button.
+- **The icons:** two bubbles for Chats, a camera for Instagram, a ghost drawn in the app for Snapchat (SF Symbols has none), and your own photo for You (your initials until there is one, and an ink ring when it's the tab you're on). Chats carries the inbox's unread count in a mustard badge.
+- **Like a system bar** it stops growing at Extra Extra Large text, and a long press shows a tab big at accessibility sizes (Large Content Viewer). VoiceOver reads it as a tab bar, with the unread count on Chats.
+- **Every tab keeps its place.** A tab is built the first time you open it, then kept: a web page loads once, stays signed in and doesn't reload as you switch back and forth.
+- **In a chat the bar steps aside** (`Motion.fade`), so the chat's input bar has the bottom of the screen, and comes back with the inbox. The Chats tab says so through `HomeTabsState.locked`.
+- **The keyboard covers the bar.** Over a site, the page keeps its size and the site moves its own message box, as in Safari.
+- **`HomeTab.all`** lists the tabs, left to right: another chat app is one more `.web(…)` in the list.
+
+### The You tab
+
+Your profile, built from Settings' and People's pieces (`ios/Ketchup/People/YouView.swift`): how many chats you're in as a kicker over your name in New York, your email and your photo (`AccountHeader`, also Settings' header); **Your people**, each with their photo and a chevron to their profile (`PeopleList`, as on Your people); an outline **Invite friends**; **Privacy** with Blocked people; and **Account** with a Settings row that opens Settings as a sheet. Like Settings, it has no ketchup button.
 
 ## Photos
 
@@ -119,14 +124,14 @@ A profile photo is a print pinned to the paper: the same rounded square as a mon
 <img src="screens/photos/crop-light.png" width="200" alt="Frame it: a mountain photo under a rounded-square window cut in the paper">
 <img src="screens/photos/chat-light.png" width="200" alt="Photos by the last bubble of each sender's run">
 <img src="screens/photos/info-dark.png" width="200" alt="Members with their photos, Sam with his monogram, dark">
-<img src="screens/photos/inbox-light.png" width="200" alt="David's photo on the account button">
+<img src="screens/photos/inbox-light.png" width="200" alt="David's photo as the You tab's icon">
 </p>
 
 | Piece | What it does |
 |---|---|
 | `AvatarCropper` | "Frame it": the picked photo under paper with a rounded-square window cut out; drag and pinch, the photo always covers the window. "Use photo" is the one ketchup button and says "Saving" until the upload is done. VoiceOver can zoom with swipe up and down. |
 | In a chat | Other people's photos sit by the last bubble of each run, bottom-aligned, 28 pt. Mine get none. |
-| Account button | My photo inside the top bar's glass button. Its menu adds, changes or removes the photo (until Settings takes that over). |
+| You tab | My photo is the You tab's icon (an ink ring around it when it's the tab you're on), and sits big in the You tab's header and in Settings'. |
 | `PhotoBubble` | A chat photo in the thread: its own shape (between 1:2 and 2.2:1), at most 240 pt wide, laid out from its stored size before it loads. The caption sits under it in the same bubble, on card paper (theirs) or ink (mine), with a text bubble's run corners. Tap to open. |
 | Upload ring | While my photo uploads: an ink ring filling a hairline track on a cream disc over the photo. "Not sent. Tap to retry" if it fails, like text. |
 | Composer | A photo button before the field (`ChatInputBar(onPhoto:)`). The picked photo waits above the field with an ink x to take it off; the field says "Add a caption", and the ketchup send works with or without words. |
@@ -210,19 +215,19 @@ Each chat's last 3 catch-ups and last 3 Ask answers stay on the phone (`Store/Sa
 
 ## Web chats (Instagram and Snapchat)
 
-Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one page of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Snapchat only runs its computer version, so its page is laid out 1024 points wide and shrunk to fit; pinch to zoom. Screenshots: `screens/webchat/` (the synthetic test threads, made-up people).
+Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is one tab of the signed-in home per app: the site's own web page under a slim bar, and Catch me up for the thread that's open. Snapchat only runs its computer version, so its page is laid out 1024 points wide and shrunk to fit; pinch to zoom. Screenshots: `screens/webchat/` (the synthetic test threads, made-up people).
 
 <p>
-<img src="screens/webchat/web-instagram-light.png" width="200" alt="Instagram's page under the slim bar, with the Catch me up pill">
+<img src="screens/webchat/web-instagram-light.png" width="200" alt="Instagram's page under the slim bar, with the Catch me up circle">
 <img src="screens/webchat/web-reading-light.png" width="200" alt="Reading 88 messages: the skim of the thread's own messages">
 <img src="screens/webchat/web-brief-light.png" width="200" alt="The brief, credited Read by Muse Spark · 88 Instagram messages">
-<img src="screens/webchat/web-snapchat-light.png" width="200" alt="Snapchat's computer page, shrunk to fit under the slim bar, with the Catch me up pill">
+<img src="screens/webchat/web-snapchat-light.png" width="200" alt="Snapchat's computer page, shrunk to fit under the slim bar, with the Catch me up circle">
 </p>
 
 | Piece | What it does |
 |---|---|
 | `WebChatBar` | The site's name in New York, `Kicker("Experimental")` under it, back and a … menu on the right. A hairline under it. Done only when the page is shown full screen. |
-| The Catch me up pill | The page's one ketchup thing, floating over the site: the drop, "Catch me up", and "Last 30, 80 or 120 messages" in mono. It's a menu, since the site doesn't say what's unread. While it reads: "Reading the chat", "Scrolling back for older messages". |
+| The Catch me up circle | The page's one ketchup thing: a small ketchup circle with the drop, floating on the right edge just above the site's message box, so it covers little of the chat. VoiceOver calls it "Catch me up". It's a menu of the last 30, 80 or 120 messages, since the site doesn't say what's unread. While it reads, it opens into a pill with a spinner and "Reading the chat". |
 | `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, the catch-up stays on this phone and never on Ketchup's server, not released), plus the site's own note when it needs one (Snapchat: its computer page, shrunk to fit), with a ketchup "Got it". |
 | `WebChatSheet` | The same pieces as a chat's catch-up: `SheetBar`, `SkimmingView` on the thread's own messages, `CatchUpContent`, `AIErrorCard`, and Ask's `NotepadField` and `AnswerCard`. The byline names the source ("88 Instagram messages"); a quiet footer says what it covered and that it's experimental. |
 | `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Kept on this phone with the catch-up." |
@@ -232,7 +237,7 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 
 ## Settings
 
-Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of Chats. Screenshots: `screens/people/`.
+Settings (`ios/Ketchup/People/`) is a sheet from the You tab. Screenshots: `screens/people/`.
 
 <p>
 <img src="screens/people/settings-light.png" width="200" alt="Settings: your name and email, Change your name, the web chats' sign-outs, Account">
@@ -245,7 +250,7 @@ Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of
 |---|---|
 | `SettingsSection("You", kicker:footer:)` | A `SectionTitle` (and a kicker, under it when both don't fit) over rows on one `paperCard`, hairlines between them. Rows that draw nothing take no room, and a section with no rows doesn't show, so a slot can sit empty. |
 | `SettingsRow(_:systemImage:value:detail:destructive:chevron:)` | One row: an `inkSoft` icon, the label, a value on the right, or a `detail` line under a long label ("Nothing saved"). `destructive` is `ketchupText` (Delete account). At accessibility sizes the value goes under the label. Use it as a button's or link's label with `.pressable`. |
-| The header | A "Settings" kicker over your name in New York and your email, with your monogram on the right. |
+| The header | `AccountHeader`: a "Settings" kicker over your name in New York and your email, with your photo (or monogram) on the right. The You tab uses it with how many chats you're in as the kicker. |
 | About | A colophon on paper: the drop, the `Wordmark`, the version in a kicker, `MuseByline`, and the hackathon line. |
 
 - **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
@@ -310,13 +315,13 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `chat-joined`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `chat-joined` is the end of Breck, read through Maya's goodnight, then Rowan (made up) joins and says hi: "Rowan joined" under "1 new" (`Debug/JoinedPreview.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too, and `-send "on my way"` sends that 1.2 s in on the chat screens |
+| `signin`, `signin-code`, `name`, `home`, `home-instagram`, `home-snapchat`, `home-you`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `chat-joined`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `chat-joined` is the end of Breck, read through Maya's goodnight, then Rowan (made up) joins and says hi: "Rowan joined" under "1 new" (`Debug/JoinedPreview.swift`). `home` opens the tabs on Chats (the same screen as `inbox`); `home-instagram`, `home-snapchat` and `home-you` open on those tabs, the web ones on their synthetic test threads, offline (add `-KetchupInstagramFixture NO` for the real site, `-webchat.instagram.introSeen YES` to skip the first-visit card). `-openChat YES` opens Breck 1.2 s in, so the tab bar steps aside. `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too, and `-send "on my way"` sends that 1.2 s in on the chat screens |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `saved`, `saved-brief`, `saved-empty`, `saved-quote`, `saved-all` | Saved catch-ups (`Debug/SavedPreviewScreen.swift`) on a scratch store: Breck's Earlier catch-ups, opened on its catch-up, empty, a source shown as kept, and every chat's list in its Settings bar |
 | `brief-history`, `brief-nothing-new`, `brief-chat` | The catch-up sheet with Breck's last 3 catch-ups kept (`Debug/SavedPreviewScreen.swift`): Earlier catch-ups over a new catch-up; Catch me up with nothing new since the last one (add `-section earlier` for the row under it); and the thread, all read, with "Your catch-up" in its bar |
 | `store-check` | Not a screen: runs the on-device copy and saved catch-ups (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
-| `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report`, `people`, `people-empty`, `profile-contact`, `new-chat-people`, `invite` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread. `-renameTo Dave` here (and `-leave YES` on `home`) acts 1.2 s in; add `-serverRefuses YES` for the way back |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report`, `people`, `people-empty`, `profile-contact`, `new-chat-people`, `invite` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the You tab opens it; `chat-profile` and `chat-report` open over the Breck thread. `-renameTo Dave` here (and `-leave YES` on `home`) acts 1.2 s in; add `-serverRefuses YES` for the way back |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`, `photo-catchup`, `photo-answer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin; `photo-catchup` (add `-section highlights`) and `photo-answer` cite Maya's door-code photo with its thumbnail |
 
 Light and dark screenshots:

@@ -82,6 +82,32 @@ the technical recipe. README.md is the judge-facing overview.
   Data: `Debug/PreviewData.swift` over `Debug/Fixtures/`; screens: `Debug/CorePreviewScreen.swift`, `Debug/AIPreviewScreen.swift`.
 - Keep preview code inside `#if DEBUG`; a Release build (`-configuration Release CODE_SIGNING_ALLOWED=NO`) must still compile.
 
+## Home tabs (`ios/Ketchup/Views/HomeTabs.swift`, since Nov 3, 2026)
+- After sign-in the home is a tab bar along the bottom: Chats, Instagram, Snapchat, You
+  (`HomeTab.all`; another chat app is one more `.web(…)`). It replaced the top swipe pager.
+  The bar is ours, not the system's glass: cream, a hairline, ink, a mustard mark under the
+  current tab, the inbox's unread count on Chats, your photo as You's icon. It stops growing
+  at Extra Extra Large text (long press shows a tab big). The app reopens on the last tab
+  (`home.page`).
+- Every tab is built the first time it's opened, then kept (hidden by opacity, never torn
+  down), so the Instagram and Snapchat web views load once and keep their place and sign-in.
+  Chats and You are each their own hosting root (`HostedPage`), full screen, so a chat's
+  input bar meets the keyboard as on a whole screen; a hidden root takes no touches. The web
+  tabs stay plain views between the status bar and the bar, and the home ignores the
+  keyboard, so a site's page keeps its size under it as in Safari (WebKit moves it).
+- While a chat is open the bar steps aside (`HomeTabsState.locked`, set by ChatsListView)
+  and the chat gets the whole screen. The inbox keeps its last row clear of the bar with
+  `safeAreaPadding`; You's pages get the bar as safe area (`additionalSafeAreaInsets`).
+- Previews: `home` (Chats), `home-instagram`, `home-snapchat` and `home-you`; the web tabs
+  open their synthetic threads (add `-webchat.instagram.introSeen YES`, or snapchat, to skip
+  the first-visit card). `-openChat YES` opens Breck 1.2 s in, so the bar steps aside.
+- Checked Nov 3, 2026 on the iPhone 17 Pro Max sim (iOS 27) with a temporary DEBUG probe
+  (since removed) that switched tabs 8 times on a timer: each web view loaded once and stayed
+  the same instance, a touch at mid-screen always reached the visible tab, the chat's field
+  moved from y 883 to 570 with the keyboard at 609 (once, not twice), and You's safe area
+  bottom was 90.3 pt (34 + the 56.3 pt bar). Not checked: typing into a site's message box
+  (needs a real tap) and the real sites.
+
 ## Kept on the phone, and skeletons (`ios/Ketchup/Store/`, `Design/Skeletons.swift`)
 - `DeviceStore` keeps the inbox (`inbox.json`: the my_chats rows and your profile) and each
   chat's newest 400 messages and members (`threads/<chat>.json`) in
@@ -171,12 +197,14 @@ safe to re-run) adds two made-up photos on the last day, so a catch-up can cite 
 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,
-`ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleView` with `PeoplePicker`, `InviteView`,
-`PeopleStore`, `PeopleModels`),
+`ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleView` with `PeoplePicker` and `PeopleList`,
+`InviteView`, `YouView`, `PeopleStore`, `PeopleModels`),
 `Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`, edge functions `delete-account` and
-`report-alert`. Settings opens from the inbox's top-left
-photo (your initial until you add one) as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
-`onDismiss` in `ChatsListView`), so it can't be left over sign-in.
+`report-alert`. The You tab (`YouView`) is your photo, name and email
+(`AccountHeader`, shared with Settings), your people (`PeopleList`), Invite friends, Blocked
+people (`PrivacySection`) and a Settings row. Settings opens from it as a sheet; signing out waits
+for the sheet to close (`SettingsExit`, the sheet's `onDismiss` in `YouView`), so it can't be
+left over sign-in.
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
   named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`,
   `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`,
@@ -196,7 +224,7 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
   the RLS suite's "deleted account" checks (rolled back). A live test deletes a real account:
   use a throwaway account, never a seed one (their messages are the demo chat) or David's.
 - While a delete is on its way, its page hides Back and Settings holds Done and swipe-down;
-  if the sheet is gone anyway when it finishes, ChatsListView signs out at once. Leaving
+  if the sheet is gone anyway when it finishes, YouView signs out at once. Leaving
   (Sign out or a deleted account) forgets the Instagram and Snapchat sign-ins in Ketchup
   (`AppModel.leave`). Offline previews never touch the real website data: `leave` and the
   web-chat rows skip it while previewing.
@@ -244,7 +272,7 @@ photo (your initial until you add one) as a sheet; signing out waits for the she
   from the top view controller, then `MFMessageComposeViewController`; the simulator can't
   text, so it falls back to the share sheet. Tap-through needs a real phone.
 - Previews: `-screen settings` (add `-section web`, `account` or `about`), `settings-sheet`
-  (opened by the real inbox, `-KetchupOpenSettings`), `settings-name`, `settings-delete`,
+  (opened by the real You tab, `-KetchupOpenSettings`), `settings-name`, `settings-delete`,
   `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`,
   `chat-profile` and `chat-report` (the sheets opened from the thread), `people`,
   `people-empty`, `profile-contact`, `new-chat-people`, `invite`. The account email in
@@ -295,8 +323,8 @@ Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
 - Source chips: `RefContext.photo` returns a message's small copy, and `RefChip` draws it
   where the sender's dot goes (`ChatView.refContext` passes it).
 - Settings has Add a photo (Change your photo once there is one) and Remove your photo,
-  under You; `.profilePhotoPicker` is on `SettingsView`. The inbox's top-left button and
-  Settings' header show your photo.
+  under You; `.profilePhotoPicker` is on `SettingsView`. The You tab's icon and header, and
+  Settings' header, show your photo.
 - Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`,
   `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`, `photo-catchup` (add
   `-section highlights`), `photo-answer`. The photos are drawn on the fly
@@ -313,9 +341,11 @@ Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
 `WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` and `ios/Ketchup/Snapchat/` hold each
-site's reader and outline scripts and fixtures. The way in is the signed-in home's pager:
-`HomePage.all` in `Views/HomePager.swift` lists the pages (Chats, Instagram, Snapchat), and
-`.web(source)` hosts `WebChatTab(source:)`. Edge function `catch-up-text`, migrations
+site's reader and outline scripts and fixtures. The way in is the signed-in home's tab bar:
+`HomeTab.all` in `Views/HomeTabs.swift` lists the tabs (Chats, Instagram, Snapchat, You), and
+`.web(source)` hosts `WebChatTab(source:)`. Catch me up there is a small ketchup circle with the
+drop on the right edge, above the site's message box (VoiceOver: "Catch me up"); it opens into
+a "Reading the chat" pill while it reads. Edge function `catch-up-text`, migrations
 `0004_text_brief_usage` and `0005_text_brief_snapchat`. README has the summary.
 - The UI reuses `AI/` (CatchUpContent, SkimmingView, AIErrorCard, NotepadField, AnswerCard).
   `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
@@ -381,10 +411,10 @@ site's reader and outline scripts and fixtures. The way in is the signed-in home
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.
 - Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` and
   `-screen web-snapchat` (each page on its synthetic thread), `web-intro`, `web-reading`,
-  `web-brief`, `web-error`, `web-quote`; `home-instagram` and `home-snapchat` show the page in
-  the pager. `-KetchupSnapchatFixture NO` (or Instagram) keeps the real site in a preview.
-  Signed in: swipe to the Instagram or Snapchat page (or tap its name at the top) → `…` →
-  Testing → a test thread → Catch me up; `-KetchupInstagramFixture YES` (or Snapchat) opens the
+  `web-brief`, `web-error`, `web-quote`; `home-instagram` and `home-snapchat` show the page as
+  a tab. `-KetchupSnapchatFixture NO` (or Instagram) keeps the real site in a preview.
+  Signed in: tap the Instagram or Snapchat tab → `…` → Testing → a test thread → the ketchup
+  drop (Catch me up); `-KetchupInstagramFixture YES` (or Snapchat) opens the
   synthetic thread instead of the real site. The console prints counts only:
   `[snapchat] read N messages, …`, and each page as host and path with ids left out. Tap the
   menu once and wait: a second tap where the button was lands on "Last 120".

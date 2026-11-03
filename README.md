@@ -40,7 +40,7 @@ time are we leaving?" and get groaned at.
   invite friends with a 6-character code. Messages arrive in real time, and a small
   "Maya joined" line says when someone comes in.
 - **Profile photos.** Pick a photo, frame it in the square, and it shows by your
-  messages, in the member list and on your account button. No photo, no problem: your
+  messages, in the member list and on your You tab. No photo, no problem: your
   initials stand in.
 - **Photos in the chat.** Send a photo with a caption or without one. It shows in your
   bubble straight away with a ring filling as it uploads, keeps its shape in the thread,
@@ -352,10 +352,11 @@ Nobody moves their group chat to a new app. So this experiment tries the same ca
 on chats people already have: an Instagram DM thread or a Snapchat chat.
 
 - **How it works.** Instagram's or Snapchat's own website opens inside the app, on its own
-  page of the home screen. You sign in on their page and open a chat. Tap **Catch me up**,
-  pick the last 30, 80 or 120 messages (the page doesn't say what's unread), and Ketchup
-  reads that much of the conversation off the page. Then it runs the same Muse Spark
-  catch-up as its own chats through a second edge function,
+  tab along the bottom of the home screen, next to Chats. Switching tabs keeps the page
+  loaded and signed in. You sign in on their page and open a chat. Tap the ketchup drop on
+  the right (**Catch me up**), pick the last 30, 80 or 120 messages (the page doesn't say
+  what's unread), and Ketchup reads that much of the conversation off the page. Then it
+  runs the same Muse Spark catch-up as its own chats through a second edge function,
   [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
   transcript, prompts, JSON schemas and validation, laid out with the same brief, tickets,
   diner check and Ask the chat. Each source chip shows the whole message it quotes.
@@ -436,7 +437,8 @@ no website inside Ketchup. You use the real Instagram app.
 
 ## Settings and your account
 
-Settings opens from your initial at the top left of Chats
+The **You** tab, last along the bottom, is your photo, name and email, your people (tap one
+for their profile), Invite friends and Blocked people. Settings opens from it
 ([`ios/Ketchup/People/`](ios/Ketchup/People)).
 
 - **Change your name.** Friends see it in your chats, and Muse Spark uses it in catch-ups.
@@ -448,11 +450,12 @@ Settings opens from your initial at the top left of Chats
   goes and what stays, then asks once more.
 - **Profiles, Block and Report.** Tap a name or photo in a chat, or a member in Chat
   info, for their profile: the chats you share, Add to your people, Block and Report.
-  Long press someone's message to report it. Settings → Blocked people has Unblock.
-- **Your people and Invite friends.** Settings → Your people lists who you've added. New
-  chat lets you add them straight in, no code needed. Invite friends (Settings, or the
-  inbox's +) sends a chat's invite code: Text a friend opens a Messages draft to someone
-  you pick, or share it anywhere.
+  Long press someone's message to report it. Blocked people (on the You tab and in
+  Settings) has Unblock.
+- **Your people and Invite friends.** The You tab (and Settings → Your people) lists who
+  you've added. New chat lets you add them straight in, no code needed. Invite friends (the
+  You tab, Settings, or the inbox's +) sends a chat's invite code: Text a friend opens a
+  Messages draft to someone you pick, or share it anywhere.
 
 ## Built during the event
 
