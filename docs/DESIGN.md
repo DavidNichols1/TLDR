@@ -160,7 +160,8 @@ Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on th
 | `PlanCard` | A `Ticket`: what, where, who, sources and Add to calendar; the stub has day, date, time and the stamp. Soonest first. |
 | `OwesCheck` | A `receiptCard()`: your tab first with the total marked as it scrolls in, everyone else, then To bring. |
 | `QuestionBubble` | An open question as the asker's message, "No reply yet" under it. |
-| `AIErrorCard`, `CaughtUpCard` | A failed call with Try again; nothing new, with the drop. |
+| `AIErrorCard`, `CaughtUpCard` | A failed call with Try again; nothing new and no catch-up kept, with the drop. |
+| `NothingNewNote` | Nothing new since the last catch-up kept on the phone: a paper note with a small drop, "Nothing new since 2:14 PM. Here's your last catch-up.", over that catch-up as it was. If people wrote after it and you've read them, "Nothing unread." |
 
 - **Everything traces back.** A chip, a line on the check, a bubble or a to-do's words closes the sheet onto that message.
 - **The reader is "You"**, in ink; everyone else is in `personColor(name:)`, as in the chat.
@@ -183,7 +184,7 @@ Ketchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a
 
 ## Saved catch-ups
 
-Every catch-up you open and every Ask answer stays on the phone (`Store/SavedBriefs.swift`), so it can be read again with no network call. `Saved/SavedCatchUps.swift` lays them out. Screenshots: `screens/speed/saved-*`.
+Each chat's last 3 catch-ups and last 3 Ask answers stay on the phone (`Store/SavedBriefs.swift`), so they can be read again with no network call. `Saved/SavedCatchUps.swift` lays them out. Screenshots: `screens/speed/saved-*`.
 
 <p>
 <img src="screens/speed/saved-light.png" width="200" alt="Earlier catch-ups for Breck">
@@ -194,7 +195,8 @@ Every catch-up you open and every Ask answer stays on the phone (`Store/SavedBri
 
 | Piece | What it does |
 |---|---|
-| `SavedBriefsSheet` | A chat's (or a web page's) "Earlier catch-ups", from its … menu: paper rows newest first, then one opened in place with "‹ Earlier catch-ups" over it and "Delete from this phone" under it. Swipe or long-press a row to delete; Clear all asks first. |
+| `SavedBriefsSheet` | A chat's (or a web page's) "Earlier catch-ups", from its … menu or the row under a catch-up: paper rows newest first, then one opened in place with "‹ Earlier catch-ups" over it and "Delete from this phone" under it. Swipe or long-press a row to delete; Clear all asks first. |
+| `EarlierCatchUpsRow` | Under a chat's catch-up (new, kept, or a failed call): a paper row with the clock icon, "Earlier catch-ups" and what's kept in mono ("3 catch-ups and 1 answer"). Opens `SavedBriefsSheet` as a sheet over the brief; a source in it closes both and jumps. Only shows when something besides the catch-up on screen is kept. |
 | `SavedBriefRow` | Kicker "Catch-up · Yesterday 9:40 PM" or "Asked · …", the gist's first sentence or the question in New York, and "302 messages" in mono (a web row adds its thread's name). |
 | `SavedQuoteCard` | A source the chat doesn't have loaded (or a web thread's), shown as it was kept: monogram, name in their color, when, the text, "Kept on this phone with the catch-up." |
 | `SavedCatchUpsView` | Every chat's saved catch-ups, pushed from Settings: a kicker per chat, the same rows, then the room they take and Delete all. |
@@ -203,6 +205,7 @@ Every catch-up you open and every Ask answer stays on the phone (`Store/SavedBri
 - **The byline says when:** "Read by Muse Spark · 302 messages · Saved Nov 2 at 9:40 PM".
 - **Sources still trace back.** A chip jumps to the message when the chat has it loaded; otherwise it opens the message as kept.
 - **Deleting says what it means:** "They're only on this phone, so they can't come back."
+- **Nothing new isn't a blank page.** With nothing unread, the chat's bar offers "Your catch-up" when one is kept, and Catch me up opens it under `NothingNewNote` instead of asking Muse Spark again. "You're all caught up" is for a chat with nothing kept.
 
 ## Web chats (Instagram and Snapchat)
 
@@ -309,6 +312,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-loading`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-loading`, `chat-kept`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `inbox-loading` and `chat-loading` are the skeletons; `chat-kept` opens Breck on a copy kept on the phone with no server. `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon. `-reduceMotion YES` works here too, and `-send "on my way"` sends that 1.2 s in on the chat screens |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `saved`, `saved-brief`, `saved-empty`, `saved-quote`, `saved-all` | Saved catch-ups (`Debug/SavedPreviewScreen.swift`) on a scratch store: Breck's Earlier catch-ups, opened on its catch-up, empty, a source shown as kept, and every chat's list in its Settings bar |
+| `brief-history`, `brief-nothing-new`, `brief-chat` | The catch-up sheet with Breck's last 3 catch-ups kept (`Debug/SavedPreviewScreen.swift`): Earlier catch-ups over a new catch-up; Catch me up with nothing new since the last one (add `-section earlier` for the row under it); and the thread, all read, with "Your catch-up" in its bar |
 | `store-check` | Not a screen: runs the on-device copy and saved catch-ups (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
 | `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report`, `people`, `people-empty`, `profile-contact`, `new-chat-people`, `invite` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread. `-renameTo Dave` here (and `-leave YES` on `home`) acts 1.2 s in; add `-serverRefuses YES` for the way back |

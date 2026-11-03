@@ -80,12 +80,32 @@ the technical recipe. README.md is the judge-facing overview.
 - Saved catch-ups (`Store/SavedBriefs.swift`, `saved/<chat>.json` or `saved/web-<source>.json`):
   ChatModel keeps a catch-up once you've seen it (a prefetch only when you open it) and every
   answer; WebCatchUp keeps Instagram's and Snapchat's, on the phone only. The server's
-  `brief_id` keeps a reopened catch-up from being kept twice; 100 per chat, newest first. Each
-  keeps the messages it cites (`SavedQuote`). UI in `Saved/SavedCatchUps.swift`: "Earlier
-  catch-ups" in the chat's and the web pages' … menu, and Settings' "Saved catch-ups" and
-  "Clear cache" rows (`savedCatchUpsSlot`). Clear cache runs `DeviceStore.clearCopies()` and
-  `RemoteImages.clear()`; saved catch-ups stay. Deletes go through the store's queue with a
-  marker in memory, so a read in between can't bring a file back.
+  `brief_id` keeps a reopened catch-up from being kept twice. Each chat keeps its last 3
+  catch-ups and its last 3 answers, newest first, each kind on its own so asking never pushes a
+  catch-up out (`DeviceStore.savedPerChat`, `newest`); a web file holds every thread of its
+  source, so there it's 3 of each per thread. A list kept under the old cap of 100 shrinks the
+  first time it's read and is written back. Each keeps the messages it cites (`SavedQuote`) and,
+  for a catch-up, the newest message it read (`until`; older saves have none). UI in
+  `Saved/SavedCatchUps.swift`: "Earlier catch-ups" in the chat's and the web pages' … menu and
+  under a chat's catch-up (`EarlierCatchUpsRow`, a sheet over the brief; a source in it closes
+  both and jumps), and Settings' "Saved catch-ups" and "Clear cache" rows (`savedCatchUpsSlot`).
+  Clear cache runs `DeviceStore.clearCopies()` and `RemoteImages.clear()`; saved catch-ups stay.
+  Deletes go through the store's queue with a marker in memory, so a read in between can't bring
+  a file back. Blocking someone still drops every saved catch-up in the chats you share
+  (`PeopleStore.block`), sign-out still wipes them, and leaving a chat still leaves them.
+- Nothing new since the last catch-up: Catch me up shows the newest one kept for that chat
+  ("Nothing new since 2:14 PM. Here's your last catch-up.", `NothingNewNote` over it) and calls
+  nothing, not even the edge function. `ChatModel.catchUpIfNeeded` decides it when the first page
+  is in (`synced`), nothing is unread and nobody else has written after the kept one's `until`
+  (`keptCatchUpIfNothingNew`, `hasNewMessages(since:)`); it sets `catchUp` to `.nothingNew`, the
+  same envelope the server sends when nothing is unread. When the server says that itself (new
+  messages came in and you've read them), the sheet shows the kept one too, with "Nothing
+  unread." "You're all caught up" is only for a chat with no catch-up kept. With nothing unread,
+  the bar offers "Your catch-up" when one is kept (`CatchUpBar(hasKept:)`). The server's dedupe
+  and cache (`once.ts`) are untouched: anything new still goes through them. Check offline:
+  `-screen brief-nothing-new` must show the note over Breck's catch-up and print `[catch-up]
+  nothing new since the kept catch-up, showing it with no call`; its Muse Spark call is set to
+  fail, so a call that shouldn't happen shows as an error card.
 - No duplicate calls. Server: `_shared/once.ts` (in `catch-up`): a pending `ai_briefs` row
   (`model = 'pending'`) whose id hashes user, chat, kind, since, until and question claims the
   brief; the primary key lets one insert win, the others poll it (800 ms) and return it as saved;
@@ -95,8 +115,8 @@ the technical recipe. README.md is the judge-facing overview.
   has; create and join ignore a second tap while busy. Live test: a signed-in DEBUG build's
   Settings › "Test: two identical asks at once" asks `catch-up` the same question twice together;
   both answers should carry one brief id, and the function log one Muse Spark call.
-- Offline check, no sign-in: `-screen store-check` must show "15 of 15 passed, 1 skipped" on a
-  simulator (data protection only exists on a phone, where it's 16 of 16); the console prints
+- Offline check, no sign-in: `-screen store-check` must show "16 of 16 passed, 1 skipped" on a
+  simulator (data protection only exists on a phone, where it's 17 of 17); the console prints
   `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
 - The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
   then `Library/Application Support/Ketchup/`.
@@ -111,7 +131,11 @@ the technical recipe. README.md is the judge-facing overview.
   a scratch folder, never the real one), and `saved`, `saved-brief`, `saved-empty`,
   `saved-quote`, `saved-all` (a scratch store with Breck's catch-up, two answers and the
   Instagram test thread's catch-up). `settings -section phone` shows the two Settings rows.
-  Screenshots: `docs/screens/speed/`.
+  The `brief-` previews keep Breck's last 3 catch-ups (Muse Spark's real one and two written by
+  hand; a fourth falls off) and an answer, in DeviceStore.shared's preview folder as a made-up
+  user: `brief-history` (Earlier catch-ups over a new catch-up), `brief-nothing-new` (add
+  `-section earlier` for the row under it) and `brief-chat` (the thread, all read, with "Your
+  catch-up" in the bar, to tap through). Screenshots: `docs/screens/speed/`.
 
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
