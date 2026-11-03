@@ -3,10 +3,11 @@
 //  Ketchup
 //
 //  The chat side of the app on fixtures, one screen per `-screen` name:
-//  sign-in (email and code), the name step, the inbox (full and empty)
-//  with its New chat and Join sheets, the Breck chat (and a jump to a
-//  cited message), its info sheet, and the app icon. The info sheet is
-//  shown full screen.
+//  sign-in (email and code), the name step, the home pager on each page,
+//  the inbox (full and empty) with its New chat and Join sheets, the Breck
+//  chat (and a jump to a cited message), its info sheet, and the app icon.
+//  The info sheet is shown full screen. The inbox screens are the pager's
+//  Chats page, as in the app, so `home` and `inbox` are the same screen.
 //
 
 #if DEBUG
@@ -17,6 +18,9 @@ struct CorePreviewScreen: View {
         case signIn = "signin"
         case signInCode = "signin-code"
         case name
+        case home
+        case homeInstagram = "home-instagram"
+        case homeSnapchat = "home-snapchat"
         case inbox
         case inboxEmpty = "inbox-empty"
         case newChat = "new-chat"
@@ -46,6 +50,10 @@ struct CorePreviewScreen: View {
         case .name: _app = State(initialValue: PreviewData.app(name: "david"))
         default: _app = State(initialValue: PreviewData.app())
         }
+        // The Instagram and Snapchat pages open their synthetic test threads
+        // instead of the real sites, so previews stay offline. Registered, not
+        // saved: it lasts for this launch only.
+        UserDefaults.standard.register(defaults: ["KetchupInstagramFixture": true, "KetchupSnapchatFixture": true])
     }
 
     var body: some View {
@@ -57,15 +65,19 @@ struct CorePreviewScreen: View {
                 SignInView(previewCodeFor: "david@example.com", code: "4821", cooldown: 42)
             case .name:
                 NameView()
-            case .inbox, .inboxEmpty:
-                ChatsListView()
+            case .home, .inbox, .inboxEmpty:
+                HomePager(previewing: .chats)
+            case .homeInstagram:
+                HomePager(previewing: .web(.instagram))
+            case .homeSnapchat:
+                HomePager(previewing: .web(.snapchat))
             case .newChat:
-                ChatsListView()
+                HomePager(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
                         NewChatSheet(name: $draft) {}
                     }
             case .join:
-                ChatsListView()
+                HomePager(previewing: .chats)
                     .sheet(isPresented: .constant(true)) {
                         JoinChatSheet(code: $draft) {}
                     }

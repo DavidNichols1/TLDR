@@ -3,13 +3,15 @@
 //  Ketchup
 //
 //  The inbox (my_chats): newest activity first, unread badges, new chat,
-//  join with a code, pull to refresh, sign out.
+//  join with a code, pull to refresh, sign out. The first page of
+//  HomePager, whose switcher sits in the middle of this top bar.
 //
 
 import SwiftUI
 
 struct ChatsListView: View {
     @Environment(AppModel.self) private var app
+    @Environment(HomePagerState.self) private var pager: HomePagerState?
 
     @State private var path: [UUID] = []
     @State private var showNew = false
@@ -18,8 +20,6 @@ struct ChatsListView: View {
     @State private var joinCode = ""
     @State private var busy = false
     @State private var error: String?
-    /// The big serif title has scrolled under the bar, so the bar shows a small one.
-    @State private var titleTucked = false
 
     @ScaledMetric(relativeTo: .headline) private var monogramSize: CGFloat = 48
 
@@ -46,11 +46,6 @@ struct ChatsListView: View {
             .background(Theme.cream)
             .overlay { emptyState }
             .refreshable { await app.refreshChats() }
-            .onScrollGeometryChange(for: Bool.self) { geo in
-                geo.contentOffset.y + geo.contentInsets.top > 52
-            } action: { _, tucked in
-                titleTucked = tucked
-            }
             .navigationTitle("Chats")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
@@ -94,6 +89,10 @@ struct ChatsListView: View {
         .onChange(of: path) { _, new in
             if new.isEmpty { Task { await app.refreshChats() } }
         }
+        // In a chat, horizontal swipes are the chat's: the pager stays put.
+        .onChange(of: path.isEmpty, initial: true) { _, atInbox in
+            pager?.locked = !atInbox
+        }
     }
 
     /// "Chats" in New York, with how much is waiting over it.
@@ -119,13 +118,10 @@ struct ChatsListView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // The middle of the bar stays empty (no "Chats" title): HomePager's
+        // switcher sits there.
         ToolbarItem(placement: .principal) {
-            Text("Chats")
-                .font(.serif(.headline))
-                .foregroundStyle(Theme.ink)
-                .opacity(titleTucked ? 1 : 0)
-                .motion(Motion.fade, value: titleTucked)
-                .accessibilityHidden(!titleTucked)
+            Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
         }
         ToolbarItem(placement: .topBarLeading) {
             Menu {
@@ -141,7 +137,6 @@ struct ChatsListView: View {
                 profileLabel
             }
         }
-        InstagramToolbarItem()  // experimental, not released: ios/Ketchup/Instagram/
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { showNew = true } label: { Label("New chat", systemImage: "square.and.pencil") }

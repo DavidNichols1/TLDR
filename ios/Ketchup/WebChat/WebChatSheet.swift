@@ -29,9 +29,15 @@ final class WebCatchUp: Identifiable {
         let message: WebMessage
     }
 
+    convenience init(thread: WebThread, readerName: String) {
+        self.init(thread: thread, readerName: readerName, brief: .idle, answer: .idle, lastQuestion: "")
+    }
+
+    /// Any phase, for previews. No default values: a default is built
+    /// outside the main actor, where CatchUp's Decodable can't be used.
     init(thread: WebThread, readerName: String,
-         brief: AIPhase<BriefResponse<CatchUp>> = .idle,
-         answer: AIPhase<BriefResponse<ChatAnswer>> = .idle, lastQuestion: String = "") {
+         brief: AIPhase<BriefResponse<CatchUp>>,
+         answer: AIPhase<BriefResponse<ChatAnswer>>, lastQuestion: String) {
         self.thread = thread
         self.readerName = readerName
         self.brief = brief

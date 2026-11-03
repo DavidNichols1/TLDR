@@ -2,8 +2,9 @@
 //  KetchupApp.swift
 //  Ketchup
 //
-//  Entry point. Signed out → SignInView; signed in → the inbox (after a
-//  one-time "what should we call you" step).
+//  Entry point. Signed out → SignInView; signed in → the home pager, with
+//  the inbox as its first page (after a one-time "what should we call
+//  you" step).
 //
 
 import SwiftUI

@@ -84,7 +84,7 @@ struct WebReaderResult: Decodable {
 /// catch-up-text cites messages by their index in the request. The CatchUp
 /// model holds refs as UUIDs (for Ketchup's own messages), so each index
 /// travels as a fixed UUID whose last 12 hex digits are the index.
-enum WebRef {
+nonisolated enum WebRef {
     private static let prefix = "00000000-0000-0000-0000-"
 
     static func id(_ index: Int) -> UUID {

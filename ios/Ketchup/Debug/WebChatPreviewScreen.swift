@@ -48,12 +48,15 @@ struct WebChatPreviewScreen: View {
             case .instagram, .intro:
                 WebChatTab(source: .instagram)
             case .reading:
-                WebChatSheet(session: WebCatchUp(thread: Self.thread, readerName: Self.reader, brief: .loading))
+                WebChatSheet(session: WebCatchUp(thread: Self.thread, readerName: Self.reader, brief: .loading,
+                                                 answer: .idle, lastQuestion: ""))
             case .brief:
-                WebChatSheet(session: WebCatchUp(thread: Self.thread, readerName: Self.reader, brief: .done(Self.brief)))
+                WebChatSheet(session: WebCatchUp(thread: Self.thread, readerName: Self.reader, brief: .done(Self.brief),
+                                                 answer: .idle, lastQuestion: ""))
             case .error:
                 WebChatSheet(session: WebCatchUp(thread: Self.thread, readerName: Self.reader,
-                                                 brief: .failed("Muse Spark is busy right now. Try again in a moment.")))
+                                                 brief: .failed("Muse Spark is busy right now. Try again in a moment."),
+                                                 answer: .idle, lastQuestion: ""))
             case .quote:
                 WebQuoteCard(message: Self.thread.messages[84], source: .instagram)
             case .snapchat:

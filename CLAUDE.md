@@ -62,9 +62,9 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
 `WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` and `ios/Ketchup/Snapchat/` hold each
-site's reader and outline scripts and fixtures. `Instagram/InstagramEntry.swift` is the inbox's
-camera button (a menu of the sources, each `WebChatTab(source:)` full screen) until the home
-becomes a pager with a page per source. Edge function `catch-up-text`, migrations
+site's reader and outline scripts and fixtures. The way in is the signed-in home's pager:
+`HomePage.all` in `Views/HomePager.swift` lists the pages (Chats, Instagram, Snapchat), and
+`.web(source)` hosts `WebChatTab(source:)`. Edge function `catch-up-text`, migrations
 `0004_text_brief_usage` and `0005_text_brief_snapchat`. README has the summary.
 - The UI reuses `AI/` (CatchUpContent, SkimmingView, AIErrorCard, NotepadField, AnswerCard).
   `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
@@ -129,9 +129,11 @@ becomes a pager with a page per source. Edge function `catch-up-text`, migration
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.
 - Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` and
   `-screen web-snapchat` (each page on its synthetic thread), `web-intro`, `web-reading`,
-  `web-brief`, `web-error`, `web-quote`. `-KetchupSnapchatFixture NO` (or Instagram) keeps the
-  real site in a preview. Signed in: the inbox camera button (later the pager page) → a source →
-  `…` → Testing → a test thread → Catch me up. The console prints counts only:
+  `web-brief`, `web-error`, `web-quote`; `home-instagram` and `home-snapchat` show the page in
+  the pager. `-KetchupSnapchatFixture NO` (or Instagram) keeps the real site in a preview.
+  Signed in: swipe to the Instagram or Snapchat page (or tap its name at the top) → `…` →
+  Testing → a test thread → Catch me up; `-KetchupInstagramFixture YES` (or Snapchat) opens the
+  synthetic thread instead of the real site. The console prints counts only:
   `[snapchat] read N messages, …`, and each page as host and path with ids left out. Tap the
   menu once and wait: a second tap where the button was lands on "Last 120".
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
