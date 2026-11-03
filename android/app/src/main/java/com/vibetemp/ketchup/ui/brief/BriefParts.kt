@@ -305,7 +305,3 @@ fun HairlineCapsule(text: String, modifier: Modifier = Modifier, onClick: () -> 
 
 /** Faded, for a line that's done. */
 fun Modifier.dimmed(on: Boolean): Modifier = alpha(if (on) 0.55f else 1f)
-
-/** A spacer line of [height]. */
-@Composable
-fun Gap(height: Int) = Box(Modifier.height(height.dp))
