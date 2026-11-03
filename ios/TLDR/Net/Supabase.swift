@@ -48,7 +48,8 @@ enum JSON {
     /// ("2026-11-02T19:41:05.123456+00:00"); Foundation's ISO 8601 parser
     /// wants at most 3, so trim before parsing.
     nonisolated static func date(from raw: String) -> Date? {
-        var s = raw
+        // Postgres text form ("2026-11-02 19:41:05+00") as well as ISO.
+        var s = raw.replacingOccurrences(of: " ", with: "T")
         if let dot = s.firstIndex(of: ".") {
             let afterDot = s.index(after: dot)
             let zone = s[afterDot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" }) ?? s.endIndex

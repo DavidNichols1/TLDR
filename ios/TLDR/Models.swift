@@ -110,8 +110,23 @@ struct CatchUp: Decodable, Equatable {
 
         var id: String { title + (startsAt ?? "") }
         var confirmed: Bool { status == "confirmed" }
-        var start: Date? { startsAt.flatMap(JSON.date(from:)) }
-        var end: Date? { endsAt.flatMap(JSON.date(from:)) }
+        var start: Date? { startsAt.flatMap(Self.parse) }
+        var end: Date? { endsAt.flatMap(Self.parse) }
+
+        /// The model is asked for ISO 8601 with an offset, but the edge
+        /// function accepts anything JavaScript can parse, so also take a
+        /// bare date ("2026-11-06") or a local time without an offset.
+        nonisolated static func parse(_ raw: String) -> Date? {
+            if let d = JSON.date(from: raw) { return d }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.timeZone = .current
+            for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd"] {
+                f.dateFormat = format
+                if let d = f.date(from: raw) { return d }
+            }
+            return nil
+        }
 
         enum CodingKeys: String, CodingKey {
             case title, location, status, who, refs
@@ -165,10 +180,15 @@ struct BriefResponse<Result: Decodable>: Decodable {
     let model: String?
     let messageCount: Int?
     let latencyMs: Int?
+    /// Newest message the brief covers (raw timestamp; catch-up moves the
+    /// read cursor here, not to "now", so later messages stay unread).
+    let until: String?
     let error: String?
 
+    var untilDate: Date? { until.flatMap(JSON.date(from:)) }
+
     enum CodingKeys: String, CodingKey {
-        case kind, empty, cached, result, model, error
+        case kind, empty, cached, result, model, error, until
         case messageCount = "message_count"
         case latencyMs = "latency_ms"
     }
