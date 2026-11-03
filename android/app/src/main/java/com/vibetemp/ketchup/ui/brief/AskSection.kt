@@ -53,6 +53,7 @@ import com.vibetemp.ketchup.ui.design.SectionTitle
 import com.vibetemp.ketchup.ui.design.paperCard
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
 import com.vibetemp.ketchup.ui.theme.Motion
+import kotlin.math.roundToInt
 
 /**
  * "Ask the chat", under the brief: a question in, an answer out with the
@@ -166,12 +167,12 @@ private fun NotepadField(text: String, onChange: (String) -> Unit, canAsk: Boole
                 .onFocusChanged { focused = it.isFocused }
                 .semantics { contentDescription = fieldLabel }
                 .drawBehind {
-                    // Notepad rules: one line under each line of text, as far as the field goes.
-                    val line = style.lineHeight.toPx()
-                    var y = line
-                    while (y <= size.height + 2f) {
+                    // Notepad rules: one under each line the field shows (2 to 4), the last at its foot.
+                    val lines = (size.height / style.lineHeight.toPx()).roundToInt().coerceIn(2, 4)
+                    val step = size.height / lines
+                    for (i in 1..lines) {
+                        val y = step * i - 0.5.dp.toPx()
                         drawLine(colors.rule, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-                        y += line
                     }
                 },
             decorationBox = { inner ->

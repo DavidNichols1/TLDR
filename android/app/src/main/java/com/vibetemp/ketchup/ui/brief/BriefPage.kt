@@ -189,7 +189,7 @@ fun BriefPage(
         }
         val request = sheet
         if (request != null && session != null && app != null) {
-            CitedSheet(request, session.cited, app) { sheet = null }
+            CitedSheet(request, session.cited, app, session.source.displayTitle) { sheet = null }
         }
     }
 }

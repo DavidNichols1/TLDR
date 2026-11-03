@@ -34,8 +34,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -111,7 +113,17 @@ fun BriefTopBar(title: String, scrolled: Boolean, onDone: () -> Unit, onAsk: (()
             overflow = TextOverflow.Ellipsis,
         )
         if (onAsk != null) {
-            CapsuleButton(stringResource(R.string.brief_ask_short), onClick = onAsk, fill = ButtonFill.Outline, compact = true)
+            // A quiet pill: Done stays the bar's strong word, and Ask's own button is the page's ketchup.
+            Text(
+                stringResource(R.string.brief_ask_short),
+                style = KetchupTheme.type.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                color = colors.ink,
+                modifier = Modifier
+                    .pressable(onClick = onAsk)
+                    .semantics { role = Role.Button }
+                    .border(1.dp, colors.rule, RoundedCornerShape(50))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
         }
         Text(
             stringResource(R.string.brief_done),
@@ -137,7 +149,8 @@ fun MuseByline(verb: String, details: List<String>, modifier: Modifier = Modifie
         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = colors.ink)) { append(stringResource(R.string.brief_model)) }
         details.forEach {
             append(" · ")
-            append(it)
+            // Each part stays on one line ("Saved Nov 2 at 9:40 PM").
+            append(it.replace(' ', '\u00A0'))
         }
     }
     Text(text, modifier = modifier, style = KetchupTheme.type.monoCaption, color = colors.inkSoft)

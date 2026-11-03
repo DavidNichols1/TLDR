@@ -109,13 +109,21 @@ private fun CheckLine(line: Tab.Line, refs: RefContext) {
             }
             .pressable(enabled = first != null) { first?.let { refs.open(it, line.refs) } }
             .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(title, style = KetchupTheme.type.monoFootnote.copy(fontSize = KetchupTheme.type.subheadline.fontSize, lineHeight = KetchupTheme.type.subheadline.lineHeight), color = colors.ink, modifier = Modifier.weight(1f))
+        // First baselines line up, like iOS: the arrow comes from a fallback font with a taller line.
+        Text(
+            title,
+            style = KetchupTheme.type.monoFootnote.copy(fontSize = KetchupTheme.type.subheadline.fontSize, lineHeight = KetchupTheme.type.subheadline.lineHeight),
+            color = colors.ink,
+            modifier = Modifier
+                .weight(1f)
+                .alignByBaseline(),
+        )
         if (amount != null) {
             Text(
                 amount,
+                modifier = Modifier.alignByBaseline(),
                 style = KetchupTheme.type.monoFootnote.copy(
                     fontSize = KetchupTheme.type.subheadline.fontSize,
                     lineHeight = KetchupTheme.type.subheadline.lineHeight,

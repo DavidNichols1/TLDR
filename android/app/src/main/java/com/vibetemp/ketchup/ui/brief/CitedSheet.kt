@@ -54,7 +54,7 @@ data class CitedRequest(val tapped: String, val refs: List<String>)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CitedSheet(request: CitedRequest, cited: Map<String, Cited>, app: String, onDismiss: () -> Unit) {
+fun CitedSheet(request: CitedRequest, cited: Map<String, Cited>, app: String, title: String, onDismiss: () -> Unit) {
     val colors = KetchupTheme.colors
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
@@ -76,7 +76,7 @@ fun CitedSheet(request: CitedRequest, cited: Map<String, Cited>, app: String, on
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Kicker(stringResource(R.string.brief_from_app_chat, app), Modifier.weight(1f))
+                Kicker(title, Modifier.weight(1f))
                 Text(
                     stringResource(R.string.brief_done),
                     style = KetchupTheme.type.body.copy(fontWeight = FontWeight.SemiBold),

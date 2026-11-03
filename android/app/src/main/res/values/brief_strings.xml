@@ -119,7 +119,6 @@
     </plurals>
     <string name="brief_shows_in_chat">Shows it in the chat</string>
     <string name="brief_shows_message">Shows the whole message</string>
-    <string name="brief_from_app_chat">From your %1$s chat</string>
     <string name="brief_cited_footer">From your %1$s chat. Not saved.</string>
     <string name="brief_about_time">About %1$s</string>
     <string name="brief_replying_to">Replying to %1$s</string>
