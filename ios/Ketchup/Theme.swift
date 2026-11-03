@@ -87,29 +87,6 @@ enum Theme {
 
     /// Credited in a byline ("Read by Muse Spark"), never with sparkles.
     static let modelName = "Muse Spark"
-
-    // MARK: Old names
-    // The screens still in the old purple look use these until they're
-    // restyled. They map onto the new palette: gradients turn flat.
-
-    @available(*, deprecated, message: "Use Theme.ketchup for the main button, Theme.ink for chat UI, Theme.ketchupText for small red text.")
-    static let accent = ketchupText
-    @available(*, deprecated, message: "No gradients. Use Theme.ketchup.")
-    static let aiGradient = LinearGradient(colors: [ketchup, ketchup], startPoint: .leading, endPoint: .trailing)
-    @available(*, deprecated, message: "No gradients. Use Theme.ink.")
-    static let aiDiagonal = LinearGradient(colors: [ink, ink], startPoint: .topLeading, endPoint: .bottomTrailing)
-    @available(*, deprecated, message: "Use paperCard() or Theme.card.")
-    static let aiWash = LinearGradient(colors: [card, card], startPoint: .topLeading, endPoint: .bottomTrailing)
-    @available(*, deprecated, message: "Use Theme.ketchupText.")
-    static let indigo = ketchupText
-    @available(*, deprecated, message: "Use Theme.ketchup.")
-    static let violet = ketchup
-    @available(*, deprecated, message: "Use Theme.ketchup.")
-    static let pink = ketchup
-    @available(*, deprecated, message: "No sparkles. Credit Muse Spark in a byline instead.")
-    static let aiSymbol = "text.bubble"
-    @available(*, deprecated, renamed: "modelName")
-    static let aiName = modelName
 }
 
 // MARK: - Color

@@ -14,7 +14,7 @@ Code: `ios/Ketchup/Theme.swift` holds colors, type and motion; `ios/Ketchup/Desi
 
 - **One ketchup thing per screen.** Everything else is ink, outline or plain text.
 - **Mustard means "this matters to you."** Never decoration.
-- **No gradients, sparkles, glass, purple or drop shadows.** Paper sits on paper with a 1 pt hairline.
+- **No gradients, sparkles, glass, purple or drop shadows.** Paper sits on paper with a 1 pt hairline. One deliberate exception: the top-bar buttons keep iOS's system glass, so they behave like every other iPhone app (David's call, Nov 3, 2026). The rule is about cards, bubbles and bars we draw.
 - **Muse Spark gets a byline** ("Read by Muse Spark"), not a sparkle.
 
 ## Color
@@ -135,7 +135,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 |---|---|
 | `list` | Every name; tap one to open it |
 | `design` | This system, live. Add `-section brand`, `buttons`, `marker`, `type`, `people`, `paper` or `colors` to scroll there |
-| `signin`, `inbox`, `inbox-empty`, `name`, `chat`, `info` | The chat screens (`Debug/CorePreviewScreen.swift`) |
+| `signin`, `signin-code`, `name`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 
 Light and dark screenshots:
@@ -146,4 +146,4 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 xcrun simctl io <udid> screenshot ai-catchup-dark.png
 ```
 
-The foundation set is in `docs/screens/foundation/`; the restyled Muse Spark screens are in `docs/screens/redesign/` (`ai-*`, light and dark, plus Extra Extra Large text). To add a screen, add a case to the `Screen` enum in one of the two preview files (`ai-` names go in the Muse Spark one) and `list` picks it up. Build its data with `PreviewData.app()` and `PreviewData.chatModel(catchUp:answer:delay:asked:)`.
+The foundation set is in `docs/screens/foundation/` (the old purple screens, kept as the "before"); the redesigned screens are in `docs/screens/redesign/` (chat screens and `ai-*` Muse Spark screens, light and dark, plus Extra Extra Large text). To add a screen, add a case to the `Screen` enum in one of the two preview files (`ai-` names go in the Muse Spark one) and `list` picks it up. Build its data with `PreviewData.app()` and `PreviewData.chatModel(catchUp:answer:delay:asked:)`.
