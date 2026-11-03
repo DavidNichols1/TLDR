@@ -86,8 +86,14 @@ struct ChatsListView: View {
                 Task { await app.leave(exit) }
             }) {
                 SettingsView { exit in
-                    settingsExit = exit
-                    showSettings = false
+                    if showSettings {
+                        settingsExit = exit
+                        showSettings = false
+                    } else {
+                        // Already closed (a delete finished after the sheet
+                        // went): nothing will dismiss it again, so leave now.
+                        Task { await app.leave(exit) }
+                    }
                 }
             }
             .alert("Something went wrong", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
