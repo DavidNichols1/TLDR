@@ -195,7 +195,7 @@ fun BriefPage(
                     },
                     label = "stage",
                 ) { shown ->
-                    StageContent(shown, session, onOpenApp, initiallyDone, onSection = place, open = open)
+                    StageContent(shown, session, onOpenApp, initiallyDone, reduceMotion, onSection = place, open = open)
                 }
                 if (askShown) {
                     AskSection(
@@ -226,6 +226,7 @@ private fun StageContent(
     session: BriefSession?,
     onOpenApp: () -> Unit,
     initiallyDone: Set<Int>,
+    reduceMotion: Boolean,
     onSection: (BriefSection, Float) -> Unit,
     open: (String, List<String>) -> Unit,
 ) {
@@ -246,6 +247,7 @@ private fun StageContent(
                 else stringResource(R.string.brief_skimming),
                 usually = stringResource(if (thread != null) R.string.brief_usually_thread else R.string.brief_usually),
                 lines = session.skim?.catchUp,
+                reduceMotion = reduceMotion,
             )
         }
         BriefStage.Failed -> {
