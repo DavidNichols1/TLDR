@@ -83,7 +83,8 @@ struct PhotosPreviewScreen: View {
                     // Slow enough to catch the ring partway round.
                     PhotoUploads.shared.previewDuration = .seconds(20)
                     try? await Task.sleep(for: .seconds(1))
-                    if let photo = PreviewPhotos.prepared("pickles") {
+                    // Through the same prep as a picked photo.
+                    if let data = PreviewPhotos.picked("pickles"), let photo = await PhotoPrep.prepare(data) {
                         chatModel.send(photo, caption: "pickles approves of the snow")
                     }
                 }

@@ -132,7 +132,9 @@ enum ProfilePhotos {
 enum PhotoPrep {
     /// The picked file decoded upright, its long side capped at `maxPixels`,
     /// off the main thread, so a 48 MP original never sits in memory.
-    nonisolated static func upright(_ data: Data, maxPixels: Int) async -> UIImage? {
+    /// `@concurrent`: with approachable concurrency on, a plain nonisolated
+    /// async func runs on its caller's actor, here the main one.
+    @concurrent nonisolated static func upright(_ data: Data, maxPixels: Int) async -> UIImage? {
         RemoteImages.decode(data, maxPixels: maxPixels)
     }
 }

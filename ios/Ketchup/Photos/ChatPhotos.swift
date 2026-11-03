@@ -90,7 +90,7 @@ extension PhotoPrep {
 
     /// Both copies of a picked photo, upright and re-encoded off the main
     /// thread. Nil if the file isn't a photo ImageIO can read.
-    nonisolated static func prepare(_ data: Data) async -> PreparedPhoto? {
+    @concurrent nonisolated static func prepare(_ data: Data) async -> PreparedPhoto? {
         prepared(data)
     }
 

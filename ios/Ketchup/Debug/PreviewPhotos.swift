@@ -41,7 +41,12 @@ nonisolated enum PreviewPhotos {
 
     /// A made-up photo ready to send, as if just picked.
     static func prepared(_ name: String) -> PreparedPhoto? {
-        scene(name)?.jpegData(compressionQuality: 0.9).flatMap(PhotoPrep.prepared)
+        picked(name).flatMap(PhotoPrep.prepared)
+    }
+
+    /// A made-up photo's file, as the photo picker hands it over.
+    static func picked(_ name: String) -> Data? {
+        scene(name)?.jpegData(compressionQuality: 0.9)
     }
 
     /// The made-up chat photos: "cabin", "mountains", "pickles" (the dog) and
