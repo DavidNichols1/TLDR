@@ -126,12 +126,22 @@ final class DeviceStore {
 
     // MARK: Saved catch-ups (SavedBriefs.swift)
 
-    /// Catch-ups and answers kept per chat, so the list stays quick to read.
-    static let savedPerChat = 100
+    /// Catch-ups kept per chat, and answers, each on their own: the last 3
+    /// catch-ups and the last 3 answers, so asking never pushes a catch-up
+    /// out. A web source's file holds every thread, so it's 3 of each per
+    /// thread there.
+    static let savedPerChat = 3
 
-    /// A chat's saved catch-ups and answers, newest first.
+    /// A chat's saved catch-ups and answers, newest first. A list kept
+    /// before the cap was 3 shrinks to it here, on the phone too.
     func saved(_ place: SavedPlace) -> SavedChat? {
-        read(SavedChat.self, at: "saved/\(place.file)")
+        guard var chat = read(SavedChat.self, at: "saved/\(place.file)") else { return nil }
+        let newest = Self.newest(chat.briefs)
+        if newest.count < chat.briefs.count {
+            chat.briefs = newest
+            write(chat, at: "saved/\(place.file)")
+        }
+        return chat
     }
 
     /// Keeps a catch-up or an answer at the top of its chat's list. One that's
@@ -140,8 +150,24 @@ final class DeviceStore {
         var chat = saved(place) ?? SavedChat(name: name, briefs: [])
         guard !chat.briefs.contains(where: { $0.id == brief.id }) else { return }
         chat.name = name
-        chat.briefs = Array(([brief] + chat.briefs).prefix(Self.savedPerChat))
+        chat.briefs = Self.newest([brief] + chat.briefs)
         write(chat, at: "saved/\(place.file)")
+    }
+
+    /// A chat's newest saved catch-up (not an answer).
+    func lastCatchUp(in place: SavedPlace) -> SavedBrief? {
+        saved(place)?.briefs.first { $0.kind == .catchUp }
+    }
+
+    /// The first `savedPerChat` of each kind (per thread, for a web source),
+    /// in their order: newest first.
+    static func newest(_ briefs: [SavedBrief]) -> [SavedBrief] {
+        var counts: [String: Int] = [:]
+        return briefs.filter { brief in
+            let key = "\(brief.kind.rawValue) \(brief.title ?? "")"
+            counts[key, default: 0] += 1
+            return counts[key, default: 0] <= savedPerChat
+        }
     }
 
     func forget(_ brief: UUID, in place: SavedPlace) {

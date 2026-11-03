@@ -8,9 +8,11 @@
 //  never touched. It checks the round trips, the 400-message cap, one
 //  user's copy hidden from the next, sign-out and launch clean-up, pruning
 //  left chats, the server's page replacing a kept copy, old file shapes,
-//  saved catch-ups (kept once, 100 per chat, delete, Clear all, Clear
-//  cache), data protection, backup exclusion, and how long a big thread
-//  takes to read back.
+//  saved catch-ups (kept once with the newest message they read, the last
+//  3 catch-ups and last 3 answers per chat, a list kept under the old cap
+//  of 100 shrinking to that, delete, Clear all, Clear cache), data
+//  protection, backup exclusion, and how long a big thread takes to read
+//  back.
 //
 
 #if DEBUG
@@ -197,10 +199,13 @@ enum StoreCheck {
             check("Saved catch-ups round trip", back?.briefs == [asked, caught] && back?.briefs.last?.quotes.count == 3,
                   "\(back?.briefs.count ?? 0) kept, newest first, \(back?.briefs.last?.quotes.count ?? 0) sources with the catch-up")
 
-            // 11. A server brief (its brief_id) opened twice is kept once; a
-            // chat keeps its newest 100.
+            // 11. A server brief (its brief_id) opened twice is kept once,
+            // with the newest message it read (on disk too); a chat keeps
+            // its last 3 catch-ups and its last 3 answers, each on their
+            // own, so asking never pushes a catch-up out.
             let briefId = UUID(uuidString: "B1EF0000-0000-4000-8000-000000000001")!
-            let json = #"{"kind":"catch_up","cached":true,"brief_id":"\#(briefId)","message_count":12,"result":{"tldr":"Short.","highlights":[{"text":"x","refs":["\#(messages[0].id)","\#(messages[1].id)"]}],"plans":[],"open_questions":[],"owes":[],"for_you":[]}}"#
+            let until = "2026-11-03T04:08:44.123456+00:00"
+            let json = #"{"kind":"catch_up","cached":true,"brief_id":"\#(briefId)","message_count":12,"until":"\#(until)","result":{"tldr":"Short.","highlights":[{"text":"x","refs":["\#(messages[0].id)","\#(messages[1].id)"]}],"plans":[],"open_questions":[],"owes":[],"for_you":[]}}"#
             let fromServer = (try? JSON.decoder.decode(BriefResponse<CatchUp>.self, from: Data(json.utf8)))
                 .flatMap { SavedBrief(catchUp: $0, quote: { id in quotes.first { $0.id == id } }) }
             if let fromServer {
@@ -209,17 +214,57 @@ enum StoreCheck {
             }
             saver.keep(caught, in: place, name: "Breck")
             let once = saver.saved(place)?.briefs.count ?? 0
+            await saver.flush()
+            let untilBack = store().saved(place)?.briefs.first { $0.id == briefId }?.until
             let decoded = fromServer?.id == briefId && fromServer?.quotes.count == 2
-            for i in 0..<DeviceStore.savedPerChat {
+                && fromServer?.until != nil && fromServer?.until == JSON.date(from: until) && untilBack == fromServer?.until
+            let n = DeviceStore.savedPerChat
+            for i in 0..<(n + 2) {
+                saver.keep(SavedBrief(id: UUID(), kind: .catchUp, savedAt: .now, messageCount: 100 + i,
+                                      catchUp: brief, quotes: []), in: place, name: "Breck")
+            }
+            for i in 0..<(n + 2) {
                 saver.keep(SavedBrief(id: UUID(), kind: .ask, savedAt: .now, messageCount: i, question: "q\(i)",
                                       answer: answer, quotes: []), in: place, name: "Breck")
             }
             let capped = saver.saved(place)?.briefs ?? []
-            check("Kept once, newest \(DeviceStore.savedPerChat) per chat",
-                  decoded && once == 3 && capped.count == DeviceStore.savedPerChat && capped.first?.question == "q\(DeviceStore.savedPerChat - 1)",
-                  "brief_id read: \(decoded); twice in, \(once - 2) kept; after \(DeviceStore.savedPerChat) more: \(capped.count), newest on top")
+            let cappedCatchUps = capped.filter { $0.kind == .catchUp }
+            let cappedAnswers = capped.filter { $0.kind == .ask }
+            let lastCatchUp = saver.lastCatchUp(in: place)
+            check("Kept once, the last \(n) of each per chat",
+                  decoded && once == 3 && cappedCatchUps.count == n && cappedAnswers.count == n
+                    && capped.first?.question == "q\(n + 1)" && lastCatchUp?.messageCount == 100 + n + 1,
+                  "brief_id and until read: \(decoded); twice in, \(once - 2) kept; after \(n + 2) more of each: "
+                    + "\(cappedCatchUps.count) catch-ups and \(cappedAnswers.count) answers, newest on top")
 
-            // 12. Delete one, Clear cache keeps them, Clear all, and a delete
+            // 12. A list kept under the old cap of 100 shrinks to the last 3
+            // of each the first time it's read, on the phone too.
+            struct OldFile: Encodable {
+                let version = 1
+                let savedAt = Date.now
+                let value: SavedChat
+            }
+            let oldPlace = SavedPlace.chat(PreviewData.inbox[2].id)
+            let many = (0..<10).map { i in
+                i.isMultiple(of: 2)
+                    ? SavedBrief(id: UUID(), kind: .catchUp, savedAt: .now.addingTimeInterval(Double(-i) * 60),
+                                 messageCount: i, catchUp: brief, quotes: [])
+                    : SavedBrief(id: UUID(), kind: .ask, savedAt: .now.addingTimeInterval(Double(-i) * 60),
+                                 messageCount: i, question: "q\(i)", answer: answer, quotes: [])
+            }
+            let oldURL = folder.appending(path: "saved/\(oldPlace.file)")
+            try? FileManager.default.createDirectory(at: oldURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? JSONEncoder().encode(OldFile(value: SavedChat(name: "Capstone team", briefs: many))).write(to: oldURL)
+            let reader = store()
+            let shrunk = reader.saved(oldPlace)?.briefs ?? []
+            await reader.flush()
+            let onDisk = store().saved(oldPlace)?.briefs ?? []
+            check("An old list shrinks to the last \(n) of each",
+                  shrunk.map(\.messageCount) == [0, 1, 2, 3, 4, 5] && onDisk == shrunk,
+                  "10 kept under the old cap: \(shrunk.count) read back (\(shrunk.filter { $0.kind == .catchUp }.count) catch-ups, newest first), \(onDisk.count) on disk after")
+            saver.forgetAll(in: oldPlace)
+
+            // 13. Delete one, Clear cache keeps them, Clear all, and a delete
             // right after a keep stays deleted on disk.
             let web = SavedPlace.web("instagram")
             saver.keep(caught, in: web, name: "Instagram")
@@ -239,7 +284,7 @@ enum StoreCheck {
                   "one deleted; clear cache kept \(afterClear) chats' saved; clear all left \(store().allSaved().count)")
         }
 
-        // 13. Identical requests on their way share one answer (InFlight).
+        // 14. Identical requests on their way share one answer (InFlight).
         let reads = InFlight<Int>()
         var ran = 0
         async let one = try? reads.share("my_chats") { ran += 1; try await Task.sleep(for: .milliseconds(120)); return ran }
@@ -255,7 +300,7 @@ enum StoreCheck {
               together == [1, 1] && callsForPair == 1 && later == 2 && errors == [nil, nil] && reads.started == 3 && reads.joined == 2,
               "2 at once: \(callsForPair) call, same answer; a later one asks again; an error reaches both")
 
-        // 14. Launch clean-up: only the signed-in user's folder stays, and
+        // 15. Launch clean-up: only the signed-in user's folder stays, and
         // with nobody signed in nothing is touched.
         let b = DeviceStore(root: root) { userB }
         b.saveInbox(inbox)
@@ -271,7 +316,7 @@ enum StoreCheck {
         check("Launch keeps only your folder", untouched == 2 && folders == [userA.uuidString.lowercased()],
               "signed out: \(untouched) folders kept; signed in: \(folders.count) left")
 
-        // 15. Signing out deletes everything.
+        // 16. Signing out deletes everything.
         tidier.saveInbox(inbox)
         tidier.wipe()
         await tidier.flush()

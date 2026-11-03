@@ -3,10 +3,14 @@
 //  Ketchup
 //
 //  Catch-ups and Ask answers kept on the phone, so you can read them again
-//  later with no network call: each chat's, newest first, and the
-//  Instagram and Snapchat ones too (those never touch Ketchup's server).
-//  Each keeps the messages it cites, as they were, so its sources still
-//  read when the chat isn't loaded or isn't in Ketchup at all.
+//  later with no network call: each chat's last 3 catch-ups and last 3
+//  answers, newest first, and the Instagram and Snapchat ones too (3 of
+//  each per thread; those never touch Ketchup's server). Each keeps the
+//  messages it cites, as they were, so its sources still read when the
+//  chat isn't loaded or isn't in Ketchup at all.
+//
+//  When nothing new has come in since the last one, Catch me up shows it
+//  again instead of asking Muse Spark (ChatModel.catchUpIfNeeded).
 //
 //  DeviceStore writes them (saved/<chat>.json) with the same protection as
 //  the rest: complete until first unlock, out of backups, and gone at sign
@@ -64,6 +68,9 @@ struct SavedBrief: Codable, Identifiable, Equatable {
     let savedAt: Date
     /// Messages Muse Spark read for it.
     let messageCount: Int
+    /// The newest message a catch-up read, so the chat can tell nothing new
+    /// has come in since. Catch-ups kept by older builds don't have it.
+    var until: Date?
     /// A web chat's thread name; nil for Ketchup's own chats.
     var title: String?
     var catchUp: CatchUp?
@@ -75,8 +82,8 @@ struct SavedBrief: Codable, Identifiable, Equatable {
     init?(catchUp response: BriefResponse<CatchUp>, title: String? = nil, quote: (UUID) -> SavedQuote?) {
         guard let brief = response.result else { return nil }
         self.init(id: response.briefId ?? UUID(), kind: .catchUp, savedAt: .now,
-                  messageCount: response.messageCount ?? 0, title: title, catchUp: brief,
-                  quotes: brief.allRefs.compactMap(quote))
+                  messageCount: response.messageCount ?? 0, until: response.untilDate, title: title,
+                  catchUp: brief, quotes: brief.allRefs.compactMap(quote))
     }
 
     /// An answer to `question`.
@@ -88,12 +95,13 @@ struct SavedBrief: Codable, Identifiable, Equatable {
                   quotes: answer.refs.compactMap(quote))
     }
 
-    init(id: UUID, kind: Kind, savedAt: Date, messageCount: Int, title: String? = nil,
+    init(id: UUID, kind: Kind, savedAt: Date, messageCount: Int, until: Date? = nil, title: String? = nil,
          catchUp: CatchUp? = nil, question: String? = nil, answer: ChatAnswer? = nil, quotes: [SavedQuote]) {
         self.id = id
         self.kind = kind
         self.savedAt = savedAt
         self.messageCount = messageCount
+        self.until = until
         self.title = title
         self.catchUp = catchUp
         self.question = question
@@ -141,6 +149,42 @@ extension ChatModel {
     private func savedQuote(_ ref: UUID) -> SavedQuote? {
         guard let m = messages.first(where: { $0.id == ref }) else { return nil }
         return SavedQuote(id: ref, name: name(of: m.sender), text: m.body, at: m.createdAt)
+    }
+
+    // MARK: Nothing new since
+
+    /// The newest catch-up kept for this chat, when nobody else has written
+    /// since the newest message it read: Catch me up shows it again instead
+    /// of asking the server and Muse Spark.
+    func keptCatchUpIfNothingNew() -> SavedBrief? {
+        guard let kept = DeviceStore.shared.lastCatchUp(in: .chat(chat.id)), !hasNewMessages(since: kept) else { return nil }
+        #if DEBUG
+        print("[catch-up] nothing new since the kept catch-up, showing it with no call")
+        #endif
+        return kept
+    }
+
+    /// Someone else has written since the newest message `kept` read (or,
+    /// for one kept by an older build, since it was kept). Your own messages
+    /// aren't news to you.
+    func hasNewMessages(since kept: SavedBrief) -> Bool {
+        let since = kept.until ?? kept.savedAt
+        return messages.contains { $0.sender != myId && !$0.pending && $0.createdAt > since }
+    }
+
+    /// A catch-up is kept for this chat, so the bar can offer it again when
+    /// nothing's unread.
+    var hasKeptCatchUp: Bool {
+        DeviceStore.shared.lastCatchUp(in: .chat(chat.id)) != nil
+    }
+}
+
+extension BriefResponse where Result == CatchUp {
+    /// What the edge function sends back when nothing is unread, made on
+    /// the phone when it can tell first.
+    static var nothingNew: Self {
+        BriefResponse(kind: "catch_up", empty: true, cached: nil, result: nil, model: nil,
+                      messageCount: 0, latencyMs: nil, until: nil, error: nil)
     }
 }
 
