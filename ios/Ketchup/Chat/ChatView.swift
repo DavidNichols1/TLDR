@@ -208,7 +208,9 @@ struct ChatView: View {
         .onChange(of: model.unreadCount) { _, count in
             if count == 0 { app.markReadLocally(model.chat.id) }
         }
-        .onDisappear { model.close() }
+        // Not while a photo is open full screen: iOS 26.5 and 27 don't call
+        // this for a cover, but if one ever did, the chat must stay open.
+        .onDisappear { if viewing == nil { model.close() } }
     }
 
     // MARK: - Thread
@@ -461,7 +463,8 @@ struct ChatView: View {
                    jump: { id in
                        pendingJump = id
                        sheet = nil
-                   })
+                   },
+                   photo: { id in model.messages.first { $0.id == id }?.smallPhoto })
     }
 
     private func sheetDismissed() {

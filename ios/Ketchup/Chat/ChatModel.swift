@@ -134,6 +134,7 @@ final class ChatModel {
         } catch {
             loadError = error.localizedDescription
         }
+        resumePhotoSends()
         var exact = false
         if await loadMembers(), paged { exact = await readFromServerCursor() }
         computeUnread(exact: exact)
@@ -294,6 +295,19 @@ final class ChatModel {
         Task { await deliver(id) }
     }
 
+    /// Photos sent from an earlier visit that hadn't gone in when it ended:
+    /// back as bubbles, and on their way again. If that send is still going,
+    /// the second one lands as already there (Photos/ChatPhotos.swift).
+    private func resumePhotoSends() {
+        for unsent in PhotoUploads.shared.unfinished(in: chat.id) where !messages.contains(where: { $0.id == unsent.id }) {
+            var message = unsent
+            message.pending = true
+            message.failed = false
+            messages.append(message)
+            Task { await deliver(message.id) }
+        }
+    }
+
     func retry(_ id: UUID) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
         messages[i].failed = false
@@ -311,6 +325,7 @@ final class ChatModel {
             if error.localizedDescription.lowercased().contains("duplicate key") {
                 // An earlier attempt did land (its reply was lost); it's sent.
                 messages[i].pending = false
+                PhotoUploads.shared.finished(id)
             } else {
                 messages[i].pending = false
                 messages[i].failed = true
@@ -511,6 +526,7 @@ extension ChatModel {
     /// The fixtures are already in, so do what a live open does after loading:
     /// count unread and prefetch a big backlog.
     private func openPreview() {
+        resumePhotoSends()
         guard !loaded, !script.holdsLoading else { return }
         loaded = true
         computeUnread()

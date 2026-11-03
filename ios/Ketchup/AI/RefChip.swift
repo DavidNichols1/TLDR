@@ -18,22 +18,42 @@ struct RefContext {
     /// What a tap does, for VoiceOver. A source with no chat in Ketchup to
     /// jump to (a thread read off Instagram) shows the whole message instead.
     var hint = "Shows it in the chat"
+    /// A source that's a photo: its small copy, shown in the chip.
+    var photo: (UUID) -> StorageObject? = { _ in nil }
 }
 
-/// One source: "● Maya · so the Airbnb is now…".
+/// One source: "● Maya · so the Airbnb is now…". A photo shows itself,
+/// small, where the dot would be.
 struct RefChip: View {
     let id: UUID
     let context: RefContext
 
+    @Environment(\.displayScale) private var displayScale
+    @ScaledMetric(relativeTo: .caption) private var thumbnail: CGFloat = 16
+
     var body: some View {
         let preview = context.preview(id)
+        let dot = Circle()
+            .fill(preview.map { Self.color(for: $0.name) } ?? Theme.inkFaint)
+            .frame(width: 7, height: 7)
         Button {
             context.jump(id)
         } label: {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(preview.map { Self.color(for: $0.name) } ?? Theme.inkFaint)
-                    .frame(width: 7, height: 7)
+                if let photo = context.photo(id) {
+                    RemoteImage(object: photo, pixels: RemoteImages.pixels(points: thumbnail, scale: displayScale)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: { _ in
+                        Theme.rule
+                    }
+                    .frame(width: thumbnail, height: thumbnail)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .padding(.leading, -3)
+                } else {
+                    dot
+                }
                 if let preview {
                     Text("\(Text(verbatim: preview.name).fontWeight(.semibold).foregroundStyle(Theme.ink)) · \(Text(verbatim: preview.text))")
                 } else {

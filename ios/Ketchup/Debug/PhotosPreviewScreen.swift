@@ -6,9 +6,10 @@
 //  cropper framing a picked photo, the inbox with David's photo on the
 //  account button, the Breck chat with photos by each sender's run, and its
 //  members. Photos in chats: the end of Breck with photos in it, a photo of
-//  David's on its way up, one waiting in the composer, and the viewer. The
-//  photos are made up (Debug/PreviewPhotos.swift); Sam keeps his monogram,
-//  to show the fallback.
+//  David's on its way up, one waiting in the composer, and the viewer. Muse
+//  Spark reading them: a brief and an answer that cite Maya's photo of the
+//  door code. The photos are made up (Debug/PreviewPhotos.swift); Sam keeps
+//  his monogram, to show the fallback.
 //
 
 #if DEBUG
@@ -24,7 +25,12 @@ struct PhotosPreviewScreen: View {
         case sending = "photo-sending"
         case attach = "photo-attach"
         case viewer = "photo-viewer"
+        case catchUp = "photo-catchup"
+        case answer = "photo-answer"
     }
+
+    /// Maya's photo of the door code, which the brief and the answer cite.
+    static let doorPhoto = UUID(uuidString: "F0000000-0000-4000-8000-000000000004")!
 
     static var names: [String] { Screen.allCases.map(\.rawValue) }
 
@@ -42,9 +48,11 @@ struct PhotosPreviewScreen: View {
                    profile: Profile(id: member.userId, displayName: member.name,
                                     avatarPath: PreviewPhotos.avatarPath(for: member.name)))
         }
-        let withPhotos = Screen(rawValue: name).map { [.thread, .sending, .attach, .viewer].contains($0) } ?? false
-        _chatModel = State(initialValue: withPhotos
-            ? Self.photoChat(members: members)
+        let screen = Screen(rawValue: name)
+        let withPhotos = screen.map { [.thread, .sending, .attach, .viewer].contains($0) } ?? false
+        let citing = screen.map { [.catchUp, .answer].contains($0) } ?? false
+        _chatModel = State(initialValue: withPhotos || citing
+            ? Self.photoChat(members: members, unread: citing, asked: screen == .answer)
             : ChatModel.preview(chat: PreviewData.breck, myId: PreviewData.me, members: members,
                                 messages: PreviewData.messages, catchUp: .done(PreviewData.brief),
                                 answer: .done(PreviewData.answer), delay: .seconds(1.5)))
@@ -75,7 +83,8 @@ struct PhotosPreviewScreen: View {
                     // Slow enough to catch the ring partway round.
                     PhotoUploads.shared.previewDuration = .seconds(20)
                     try? await Task.sleep(for: .seconds(1))
-                    if let photo = PreviewPhotos.prepared("pickles") {
+                    // Through the same prep as a picked photo.
+                    if let data = PreviewPhotos.picked("pickles"), let photo = await PhotoPrep.prepare(data) {
                         chatModel.send(photo, caption: "pickles approves of the snow")
                     }
                 }
@@ -88,6 +97,10 @@ struct PhotosPreviewScreen: View {
                 if let cabin = chatModel.messages.first(where: { $0.imagePath == "preview/cabin.jpg" }) {
                     PhotoViewer(message: cabin, senderName: chatModel.name(of: cabin.sender))
                 }
+            case .catchUp:
+                CatchUpSheet(model: chatModel, refs: refs)
+            case .answer:
+                AskSheet(model: chatModel, refs: refs)
             case nil:
                 PreviewIndex(unknown: name)
             }
@@ -95,17 +108,27 @@ struct PhotosPreviewScreen: View {
         .environment(app)
     }
 
-    /// Breck read to the end, then three photos: Maya's cabin with a
-    /// caption, Jordan's mountains without one, and Maya again.
-    private static func photoChat(members: [Member]) -> ChatModel {
+    /// Ref chips as in the chat: who said it, and a photo's thumbnail.
+    private var refs: RefContext {
+        RefContext(preview: { [chatModel] in chatModel.preview($0) }, jump: { _ in },
+                   photo: { [chatModel] id in chatModel.messages.first { $0.id == id }?.smallPhoto })
+    }
+
+    /// Breck, then four photos: Maya's cabin with a caption, Jordan's
+    /// mountains without one, Maya's view, and Maya's door code. Read to the
+    /// end, or all unread with a brief (or an answer) that cites the door code.
+    private static func photoChat(members: [Member], unread: Bool = false, asked: Bool = false) -> ChatModel {
         let last = PreviewData.messages.last?.createdAt ?? .now
         var chat = PreviewData.breck
-        chat.unreadCount = 0
-        chat.lastReadAt = last.addingTimeInterval(3600)
+        if !unread {
+            chat.unreadCount = 0
+            chat.lastReadAt = last.addingTimeInterval(3600)
+        }
         let photos: [(id: String, sender: UUID, photo: String, caption: String, after: TimeInterval)] = [
-            ("F0000000-0000-4000-8000-000000000001", PreviewData.maya, "cabin", "the cabin!! door code is 4471", 600),
+            ("F0000000-0000-4000-8000-000000000001", PreviewData.maya, "cabin", "the cabin!!", 600),
             ("F0000000-0000-4000-8000-000000000002", PreviewData.jordan, "mountains", "", 900),
             ("F0000000-0000-4000-8000-000000000003", PreviewData.maya, "mountains", "view from the deck", 960),
+            (doorPhoto.uuidString, PreviewData.maya, "door", "the host sent the door code early 🙌", 1200),
         ]
         let messages = PreviewData.messages + photos.compactMap { item in
             guard let photo = PreviewPhotos.chatPhoto(item.photo) else { return nil }
@@ -114,8 +137,29 @@ struct PhotosPreviewScreen: View {
                            imagePath: photo.path, imageWidth: photo.width, imageHeight: photo.height)
         }
         return ChatModel.preview(chat: chat, myId: PreviewData.me, members: members, messages: messages,
-                                 catchUp: .done(PreviewData.brief), answer: .done(PreviewData.answer),
-                                 delay: .seconds(1.5))
+                                 catchUp: .done(citingBrief), answer: .done(citingAnswer),
+                                 delay: .seconds(1.5), asked: asked ? "what's the code for the cabin door?" : nil)
+    }
+
+    /// The fixture brief with what Muse Spark found in the door photo on top
+    /// (its words from a real call on the demo chat, Nov 3, 2026).
+    private static var citingBrief: BriefResponse<CatchUp> {
+        let base = PreviewData.brief
+        guard let brief = base.result else { return base }
+        let door = CatchUp.Item(text: "Maya shared the cabin door code early: 4471, hit # after", refs: [doorPhoto])
+        return BriefResponse(kind: base.kind, empty: base.empty, cached: base.cached,
+                             result: CatchUp(tldr: brief.tldr, highlights: [door] + brief.highlights, plans: brief.plans,
+                                             openQuestions: brief.openQuestions, owes: brief.owes, forYou: brief.forYou),
+                             model: base.model, messageCount: base.messageCount, latencyMs: base.latencyMs,
+                             until: base.until, error: base.error)
+    }
+
+    /// Ask's real answer to "what's the code for the cabin door?" (Nov 3, 2026).
+    private static var citingAnswer: BriefResponse<ChatAnswer> {
+        BriefResponse(kind: "ask", empty: false, cached: false,
+                      result: ChatAnswer(answer: "4471, hit # after. Maya posted it from the host.", found: true,
+                                         refs: [doorPhoto]),
+                      model: "muse-spark-1.3", messageCount: 304, latencyMs: 3279, until: nil, error: nil)
     }
 }
 #endif

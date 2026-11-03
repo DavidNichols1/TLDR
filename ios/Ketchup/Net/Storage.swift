@@ -108,6 +108,12 @@ enum Storage {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         let message = (json?["message"] as? String ?? "").lowercased()
         let status = (json?["statusCode"] as? String).flatMap(Int.init) ?? http.statusCode
+        // Every path is a one-time uuid, so a file already there is this one,
+        // from an earlier try whose reply got lost: it's uploaded. Storage says
+        // so as a 409, or a 400 "Asset Already Exists", KeyAlreadyExists or Duplicate.
+        let code = ((json?["code"] as? String) ?? (json?["error"] as? String) ?? "").lowercased()
+        if status == 409 || message.contains("already exists") || code.contains("alreadyexists")
+            || code == "already_exists" || code == "duplicate" { return }
         if status == 413 || message.contains("maximum allowed size") {
             throw APIError.server("That photo is too big to send.")
         }

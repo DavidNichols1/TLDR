@@ -90,7 +90,7 @@ extension PhotoPrep {
 
     /// Both copies of a picked photo, upright and re-encoded off the main
     /// thread. Nil if the file isn't a photo ImageIO can read.
-    nonisolated static func prepare(_ data: Data) async -> PreparedPhoto? {
+    @concurrent nonisolated static func prepare(_ data: Data) async -> PreparedPhoto? {
         prepared(data)
     }
 
@@ -118,6 +118,8 @@ final class PhotoUploads {
 
     private struct Waiting {
         let photo: PreparedPhoto
+        /// The pending bubble, so a chat opened again can show it.
+        let message: Message
         var smallDone = false
         var fullDone = false
     }
@@ -128,7 +130,7 @@ final class PhotoUploads {
     /// image cache under their final names, so the bubble draws it now.
     func hold(_ photo: PreparedPhoto, for message: Message) {
         guard let full = message.photo, let small = message.smallPhoto else { return }
-        waiting[message.id] = Waiting(photo: photo)
+        waiting[message.id] = Waiting(photo: photo, message: message)
         RemoteImages.shared.store(photo.full, for: full)
         RemoteImages.shared.store(photo.small, for: small)
     }
@@ -160,6 +162,13 @@ final class PhotoUploads {
             waiting[id]?.fullDone = true
         }
         report(id, 1)
+    }
+
+    /// Photos sent in this chat that haven't gone in yet, oldest first.
+    /// Leaving a chat ends its ChatModel; the next one shows these again and
+    /// sends them (ChatModel.open), so a failed upload can still be retried.
+    func unfinished(in chat: UUID) -> [Message] {
+        waiting.values.map(\.message).filter { $0.chatId == chat }.sorted { $0.createdAt < $1.createdAt }
     }
 
     /// The message is in: let its files go.

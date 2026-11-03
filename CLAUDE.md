@@ -194,17 +194,28 @@ Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
   original bytes on disk in `Caches/photos` (150 MB, least recently used goes first),
   keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale,
   and a private photo is signed only when it isn't on disk yet.
-- In the transcript Muse Spark reads, a photo is `[photo]` and its caption, with a line in
-  the prompt's header saying what that means (only when the chat has photos).
-  `_shared/transcript.ts` changed, so after merge redeploy both `catch-up` and
-  `catch-up-text`; `deno test supabase/functions/_shared/` must pass (4 tests).
+- Muse Spark sees photos (`_shared/photos.ts`): `catch-up` attaches the newest 6 photos among
+  the messages it reads (catch-up: the unread ones; Ask: its 800-message window) as
+  `image_url` parts with `data:` URLs of the small copies, downloaded with the caller's
+  token (400 KB cap, 6 s timeout; a failure leaves the line `[photo]`). Transcript lines
+  say `[photo N] caption`, each image is labelled `Photo N: [m12] from Maya`, and the
+  header explains both (only when the window has photos). A 400 from Meta with photos
+  attached retries once without them. The log line gains `photos` (how many attached).
+  Measured Nov 3, 2026, on the 302-message demo chat with 2 made-up photos: about 640
+  prompt tokens a photo, no added time (17.1 s to 16.0 s); the brief cited the door-code
+  photo. `deno test supabase/functions/_shared/` must pass (6 tests). `_shared` changed,
+  so after merge redeploy both `catch-up` and `catch-up-text`.
+- Source chips: `RefContext.photo` returns a message's small copy, and `RefChip` draws it
+  where the sender's dot goes (`ChatView.refContext` passes it).
 - Settings has Add a photo (Change your photo once there is one) and Remove your photo,
   under You; `.profilePhotoPicker` is on `SettingsView`. The inbox's top-left button and
   Settings' header show your photo.
 - Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`,
-  `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`. The photos are drawn on
-  the fly (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his monogram to show the
-  fallback. `photo-sending` sends Pickles the dog with a pretend 20 s upload.
+  `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`, `photo-catchup` (add
+  `-section highlights`), `photo-answer`. The photos are drawn on the fly
+  (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his monogram to show the
+  fallback. `photo-sending` sends Pickles the dog with a pretend 20 s upload; the brief and
+  answer use Muse Spark's real words about the door-code photo.
 - Checks: the RLS suite covers both parts (49/49 with Settings' checks, Nov 3, 2026). As anon, with the
   publishable key: `POST /storage/v1/object/list/avatars` returns `[]` and an upload
   returns 403. After real use: `select id, avatar_path from profiles where avatar_path is
