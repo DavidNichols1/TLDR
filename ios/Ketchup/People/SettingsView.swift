@@ -154,12 +154,22 @@ struct SettingsView: View {
 
     private var privacy: some View {
         SettingsSection("Privacy") {
-            blockedPeopleSlot
+            NavigationLink {
+                BlockedPeopleView()
+            } label: {
+                SettingsRow("Blocked people", systemImage: "hand.raised", value: blockedCount, chevron: true)
+            }
+            .buttonStyle(.pressable)
         }
+        .task { await PeopleStore.shared.load() }
     }
 
-    /// SLOT (People session, slice 2): "Blocked people", with Unblock.
-    @ViewBuilder private var blockedPeopleSlot: some View {}
+    /// "None" or how many, once the list has loaded.
+    private var blockedCount: String? {
+        let store = PeopleStore.shared
+        guard store.loaded else { return nil }
+        return store.blocked.isEmpty ? "None" : "\(store.blocked.count)"
+    }
 
     // MARK: On this iPhone
 

@@ -24,6 +24,10 @@ struct ChatBubble: View {
     var startsRun = true
     var endsRun = true
     var highlighted = false
+    /// Someone else's bubble: their name opens their profile, and the long
+    /// press offers Report (People/).
+    var onSenderTap: (() -> Void)? = nil
+    var onReport: (() -> Void)? = nil
     let onRetry: () -> Void
 
     private static let round: CGFloat = 18
@@ -43,11 +47,7 @@ struct ChatBubble: View {
     var body: some View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
             if let senderName, !mine {
-                Text(senderName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(senderColor)
-                    .lineLimit(1)
-                    .padding(.leading, 12)
+                SenderName(name: senderName, color: senderColor, onTap: onSenderTap)
             }
             Text(text)
                 .font(.body)
@@ -67,6 +67,11 @@ struct ChatBubble: View {
                         UIPasteboard.general.string = text
                     } label: {
                         Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    if let onReport {
+                        Button(role: .destructive, action: onReport) {
+                            Label("Report", systemImage: "flag")
+                        }
                     }
                     if let time {
                         Text(time.formatted(date: .abbreviated, time: .shortened))

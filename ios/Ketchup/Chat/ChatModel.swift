@@ -425,6 +425,28 @@ final class ChatModel {
         return try await KetchupAPI.ask(chat: chat.id, question: question)
     }
 
+    // MARK: - Blocking (People/)
+
+    /// You blocked (or unblocked) someone from this chat's screens. Blocked:
+    /// their messages and their unread count leave at once, and a catch-up
+    /// on screen goes, since it read them. Unblocked: they come back with the
+    /// newest page. The server does the rest (RLS on messages).
+    func blockChanged(_ person: UUID, blocked: Bool) async {
+        if blocked {
+            let unreadGone = messages.filter { $0.sender == person && $0.createdAt > cursorAtOpen }.count
+            messages.removeAll { $0.sender == person }
+            unreadCount = max(0, unreadCount - unreadGone)
+            unreadAtOpen = max(0, unreadAtOpen - unreadGone)
+            if catchUp.value != nil { catchUp = .idle }
+            if answer.value != nil { answer = .idle }
+            keepOnDevice()
+        } else if !isPreview,
+                  let page = try? await KetchupAPI.messages(in: chat.id, limit: max(messages.count, Self.pageSize)) {
+            merge(page)
+            keepOnDevice()
+        }
+    }
+
     // MARK: - Lookups
 
     func name(of user: UUID) -> String {

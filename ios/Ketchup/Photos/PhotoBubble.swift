@@ -20,6 +20,10 @@ struct PhotoBubble: View {
     var startsRun = true
     var endsRun = true
     var highlighted = false
+    /// Someone else's photo: their name opens their profile, and the long
+    /// press offers Report (People/).
+    var onSenderTap: (() -> Void)? = nil
+    var onReport: (() -> Void)? = nil
     let onOpen: () -> Void
     let onRetry: () -> Void
 
@@ -57,11 +61,7 @@ struct PhotoBubble: View {
         let box = Self.box(width: message.imageWidth, height: message.imageHeight, maxWidth: maxWidth)
         VStack(alignment: mine ? .trailing : .leading, spacing: 4) {
             if let senderName, !mine {
-                Text(senderName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(senderColor)
-                    .lineLimit(1)
-                    .padding(.leading, 12)
+                SenderName(name: senderName, color: senderColor, onTap: onSenderTap)
             }
             VStack(alignment: .leading, spacing: 0) {
                 photo(box)
@@ -89,6 +89,11 @@ struct PhotoBubble: View {
                         UIPasteboard.general.string = message.body
                     } label: {
                         Label("Copy caption", systemImage: "doc.on.doc")
+                    }
+                }
+                if let onReport {
+                    Button(role: .destructive, action: onReport) {
+                        Label("Report", systemImage: "flag")
                     }
                 }
                 Text(message.createdAt.formatted(date: .abbreviated, time: .shortened))
