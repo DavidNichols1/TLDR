@@ -76,7 +76,8 @@ final class InstagramBrowser {
               let script = try? String(contentsOf: file, encoding: .utf8) else { throw InstagramError.readerMissing }
         let value = try await webView.callAsyncJavaScript(
             script,
-            arguments: ["maxMessages": last, "maxScrolls": 6, "readerName": readerName, "debug": false],
+            // Older messages come in batches of about 20: a bigger pick may need a few more.
+            arguments: ["maxMessages": last, "maxScrolls": min(10, 2 + last / 20), "readerName": readerName, "debug": false],
             in: nil,
             contentWorld: .defaultClient)
         guard let json = value as? String else { throw InstagramError.unreadable }
@@ -86,12 +87,13 @@ final class InstagramBrowser {
         }
         #if DEBUG
         if let s = result.stats {  // counts only, never content
-            print("[instagram] read \(s.found) messages, \(s.scrolls) scroll-ups, start reached \(s.reachedStart), via \(s.root), \(s.ms) ms")
+            print("[instagram] read \(s.found) messages, \(s.scrolls) loads, stop \(s.stop ?? "?"), via \(s.root), \(s.ms) ms")
         }
         #endif
         guard !messages.isEmpty else { throw InstagramError.nothingFound }
         return IGThread(title: result.title ?? "", isGroup: result.isGroup ?? false, messages: messages,
-                        reachedStart: result.stats?.reachedStart ?? false, truncated: result.truncated ?? false)
+                        reachedStart: result.stats?.reachedStart ?? false, truncated: result.truncated ?? false,
+                        stats: result.stats)
     }
 
     #if DEBUG

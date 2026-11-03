@@ -42,7 +42,8 @@ const walk = (el, depth) => {
   const bg = cs.backgroundImage !== "none" ? "gradient" : (cs.backgroundColor && !/rgba\([^)]*,\s*0\)$|transparent/.test(cs.backgroundColor) ? cs.backgroundColor : "");
   const radius = Math.round(parseFloat(cs.borderTopLeftRadius) || 0);
   const style = [bg && `bg=${bg}`, radius && `r=${radius}`, cs.opacity !== "1" && `op=${cs.opacity}`,
-    /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 8 && `scroll(${el.scrollHeight}/${el.clientHeight}, top ${Math.round(el.scrollTop)})`,
+    /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 8 &&
+      `scroll(${el.scrollHeight}/${el.clientHeight}, top ${Math.round(el.scrollTop)}, anchor ${cs.overflowAnchor || "?"})`,
     cs.flexDirection === "column-reverse" && "column-reverse"].filter(Boolean);
   const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim()).map((n) => n.nodeValue.trim()).join(" ");
   const range = document.createRange();

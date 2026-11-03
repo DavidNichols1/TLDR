@@ -24,7 +24,7 @@ enum InstagramAPI {
     /// My messages go under the reader's Ketchup name, so "For you" and
     /// questions aimed at them by name come out right.
     private static func body(_ thread: IGThread, readerName: String, mode: String) -> [String: Any] {
-        [
+        var body: [String: Any] = [
             "mode": mode,
             "source": "instagram",
             "thread_title": thread.title,
@@ -36,6 +36,8 @@ enum InstagramAPI {
                 return row
             },
         ]
+        if let stats = thread.stats { body["reader"] = stats.report }  // counts only, for the server log
+        return body
     }
 
     private static func call<Result: Decodable>(_ body: [String: Any]) async throws -> BriefResponse<Result> {

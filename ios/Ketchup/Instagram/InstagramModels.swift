@@ -28,6 +28,8 @@ struct IGThread: Equatable {
     let reachedStart: Bool
     /// More messages were loaded than the reader keeps (it keeps the newest).
     let truncated: Bool
+    /// How the read went, in counts only (sent along so the server log can show it).
+    let stats: IGReaderResult.Stats?
 
     var displayTitle: String { title.isEmpty ? "Instagram chat" : title }
 }
@@ -35,12 +37,30 @@ struct IGThread: Equatable {
 /// The reader script's JSON.
 struct IGReaderResult: Decodable {
     /// Counts only: safe to log.
-    struct Stats: Decodable {
+    struct Stats: Decodable, Equatable {
         let root: String
+        let stop: String?
         let scrolls: Int
+        let steps: Int?
         let reachedStart: Bool
+        let placeholders: Int?
+        let rows: Int?
+        let units: Int?
         let found: Int
+        let skipped: Int?
+        let empty: Int?
         let ms: Int
+
+        /// For the request body: numbers and fixed words only, never page text.
+        var report: [String: Any] {
+            var out: [String: Any] = ["root": root, "scrolls": scrolls, "reachedStart": reachedStart, "found": found, "ms": ms]
+            if let stop { out["stop"] = stop }
+            for (key, value) in [("steps", steps), ("placeholders", placeholders), ("rows", rows),
+                                 ("units", units), ("skipped", skipped), ("empty", empty)] {
+                if let value { out[key] = value }
+            }
+            return out
+        }
     }
 
     let ok: Bool

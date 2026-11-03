@@ -27,7 +27,7 @@
 // - Exact times. Instagram prints a time only at breaks in the conversation,
 //   so each message carries the last time shown above it. English labels
 //   only ("Today 3:41 PM", "Fri 8:30 PM", "Oct 28, 4:12 PM").
-// - Anything older than what loads in `maxScrolls` fetches or ~28 seconds of
+// - Anything older than what loads in `maxScrolls` fetches or ~45 seconds of
 //   reading, and only the newest `maxMessages` are returned. No read cursor
 //   either: the page has no "unread" marker, so this is the loaded thread,
 //   not just what's new.
@@ -178,8 +178,9 @@ function threadTitle(root, scroller) {
     if (score > bestScore) { best = t; bestScore = score; }
   }
   if (best) return best;
-  const doc = document.title.replace(/^\(\d+\)\s*/, "").replace(/\s*[•|·-]\s*(instagram|direct|chats?)\b.*$/i, "").trim();
-  return /^(instagram|direct|chats?|inbox)$/i.test(doc) ? "" : doc;
+  const doc = document.title.replace(/^\(\d+\)\s*/, "")
+    .replace(/\s*[•|·-]\s*(messages?|direct|chats?|inbox|instagram)\b.*$/i, "").trim();
+  return /^(instagram|direct|chats?|inbox|messages?)$/i.test(doc) ? "" : doc;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +422,61 @@ async function settle(ctx, scroller) {
   }
 }
 
+/** Visits rows that were never filled in while we looked, newest first, and
+ *  reads them. WebKit's scroll anchoring can keep the top of the list in view
+ *  while Instagram adds older messages, which moves part of each new batch
+ *  out of sight before it is ever filled. Stops once the newest `MAX`
+ *  messages are complete, or at the time budget. Returns rows visited. */
+async function fillGaps(ctx, scroller) {
+  const view = () => (scroller === document.scrollingElement
+    ? { top: 0, height: window.innerHeight } : scroller.getBoundingClientRect());
+  const tried = new Set();
+  let visited = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    // Newest first: sorted by where the rows sit, whatever their DOM order.
+    const rows = rowsOf(ctx.list).map((row) => ({ row, r: row.getBoundingClientRect() }))
+      .filter((x) => x.r.height > 0).sort((a, b) => b.r.top - a.r.top);
+    let have = 0, gap = null;
+    for (const { row } of rows) {
+      if (ctx.rows.has(row)) {
+        for (const u of ctx.rows.get(row)) if (isMessageUnit(u)) have++;
+        if (have >= MAX + 10) break;
+        continue;
+      }
+      if (tried.has(row) || row.matches('[role="progressbar"]') || row.querySelector('[role="progressbar"]')) continue;
+      gap = row;
+      break;
+    }
+    if (!gap) return visited;
+    // Bring each unread row to the middle of the view, then read what's there.
+    for (const { row } of rows) {
+      if (Date.now() - started >= BUDGET_MS) return visited;
+      if (ctx.rows.has(row) || tried.has(row)) continue;
+      if (row.matches('[role="progressbar"]') || row.querySelector('[role="progressbar"]')) continue;
+      tried.add(row);
+      const r = row.getBoundingClientRect(), v = view();
+      scroller.scrollTop += r.top - v.top - (v.height - Math.min(r.height, v.height)) / 2;
+      await settle(ctx, scroller);
+      collect(ctx);
+      visited++;
+      let have2 = 0;
+      for (const units of ctx.rows.values()) for (const u of units) if (isMessageUnit(u)) have2++;
+      if (have2 >= MAX + 10 && rowsNewerComplete(ctx, row, tried)) break;
+    }
+  }
+  return visited;
+}
+
+/** True when every row below `row` (newer) has been read, or tried and found empty. */
+function rowsNewerComplete(ctx, row, tried) {
+  const top = row.getBoundingClientRect().top;
+  return rowsOf(ctx.list).every((other) => {
+    const r = other.getBoundingClientRect();
+    return r.height === 0 || r.top <= top || ctx.rows.has(other) || tried.has(other) ||
+      !!other.querySelector('[role="progressbar"]');
+  });
+}
+
 /** Turns the pieces, top to bottom, into messages with senders and times. */
 function walk(all) {
   // A row Instagram re-created while we scrolled is read twice: same text, same place.
@@ -433,7 +489,7 @@ function walk(all) {
   }).sort((a, b) => (b.topY - a.topY) || (a.order - b.order));
 
   const out = [];
-  const stats = { separators: 0, labels: 0, avatars: 0, media: 0, skipped: 0 };
+  const stats = { separators: 0, labels: 0, avatars: 0, media: 0, skipped: 0, empty: 0 };
   const names = new Map(); // username → the display name its label showed
   let at = null, atLabel = null, label = null, labelUser, reply = null;
   const after = (i) => {
@@ -468,14 +524,15 @@ function walk(all) {
       } else {
         const next = after(i);
         if (u.size <= 13.5 && t.length <= 50 && u.side === "them" && next && next.side === "them" && u.bottomY - next.topY < 40) {
-          label = t; labelUser = undefined; stats.labels++; reply = null;
+          label = t.replace(/\s*[·•]\s*(pinned|edited|forwarded)\s*$/i, "") || t;
+          labelUser = undefined; stats.labels++; reply = null;
           continue;
         }
         if (u.size <= 13.5) { stats.skipped++; continue; } // small loose text: a status line, not a message
         msg = { side: u.side, text: t, small: false, user: u.user }; // a message whose bubble we couldn't see
       }
     } else {
-      if (!u.text) { stats.skipped++; continue; }
+      if (!u.text) { stats.skipped++; stats.empty++; continue; } // a bubble with nothing readable in it
       if (u.media) stats.media++;
       msg = { side: u.side, text: u.text, small: u.small || u.faded, user: u.user };
     }
@@ -525,7 +582,7 @@ function walk(all) {
 // Step up through the thread (Instagram loads older messages when the top is
 // reached), then put the scroll back where it was.
 
-const BUDGET_MS = 28000;
+const BUDGET_MS = 45000;
 
 try {
   const { root, how } = findRoot();
@@ -535,14 +592,18 @@ try {
   const ctx = { root, list, rows: new Map(), order: 0, plainText: !root.querySelector('[dir="auto"]') };
   const placeholders = rowsOf(list).filter((row) => !filled(row)).length;
   collect(ctx);
-  let loads = 0, steps = 0, reachedStart = false, reversed = false;
+  let loads = 0, steps = 0, gaps = 0, reachedStart = false, reversed = false, stop = "no-scroller";
 
   if (scroller) {
     reversed = scroller.scrollTop < 0 || getComputedStyle(scroller).flexDirection === "column-reverse";
     const fromBottom = reversed ? -scroller.scrollTop : scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
     const step = Math.max(120, Math.round(scroller.clientHeight * 0.9));
-    // A few extra, since a reply's quoted bubble counts here but isn't a message of its own.
-    while (messageCount(ctx) < MAX + 10 && Date.now() - started < BUDGET_MS && steps < 250) {
+    // Why it stopped goes in the stats: "enough", "budget", "steps", "loads" or "start".
+    for (;;) {
+      // A few extra, since a reply's quoted bubble counts here but isn't a message of its own.
+      if (messageCount(ctx) >= MAX + 10) { stop = "enough"; break; }
+      if (Date.now() - started >= BUDGET_MS) { stop = "budget"; break; }
+      if (steps >= 250) { stop = "steps"; break; }
       const before = scroller.scrollTop;
       scroller.scrollTop = before - step;
       if (scroller.scrollTop < 0) reversed = true;
@@ -552,19 +613,20 @@ try {
       if (Math.abs(scroller.scrollTop - before) >= 1) continue;
       // The top of what's loaded. Instagram fetches older messages on its own
       // when the top is reached; wait for that, at most `maxScrolls` times.
-      if (loads >= SCROLLS) break;
+      if (loads >= SCROLLS) { stop = "loads"; break; }
       const height = scroller.scrollHeight;
       let grew = false;
-      for (let waited = 0; waited < 3500 && !grew; waited += 150) {
+      for (let waited = 0; waited < 5000 && !grew; waited += 150) {
         await sleep(150);
         grew = scroller.scrollHeight > height + 4;
       }
-      if (!grew) { reachedStart = true; break; }
+      if (!grew) { reachedStart = true; stop = "start"; break; }
       loads++;
       await sleep(300 + Math.floor(Math.random() * 300)); // be gentle
       await settle(ctx, scroller);
       collect(ctx);
     }
+    if (Date.now() - started < BUDGET_MS) gaps = await fillGaps(ctx, scroller);
     scroller.scrollTop = reversed ? -fromBottom : scroller.scrollHeight - scroller.clientHeight - fromBottom;
   }
 
@@ -592,9 +654,10 @@ try {
     messages: kept,
     truncated,
     // Counts only, safe to log.
-    stats: { root: how, scrolls: loads, steps, reachedStart, reversed, placeholders, rows: ctx.rows.size,
-             found: messages.length, named: named.size, separators: stats.separators, labels: stats.labels,
-             avatars: stats.avatars, media: stats.media, skipped: stats.skipped, ms: Date.now() - started },
+    stats: { root: how, stop, scrolls: loads, steps, gaps, reachedStart, reversed, placeholders, rows: ctx.rows.size,
+             units: messageCount(ctx), found: messages.length, named: named.size, separators: stats.separators,
+             labels: stats.labels, avatars: stats.avatars, media: stats.media, skipped: stats.skipped,
+             empty: stats.empty, ms: Date.now() - started },
   });
 } catch (e) {
   return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });

@@ -64,6 +64,30 @@ function timeOrNull(v: unknown): string | null {
   return new Date(t).toISOString();
 }
 
+// The app's reader reports how its read went (steps, loads, why it stopped).
+// Only these keys, as numbers, booleans or fixed words, ever reach the log.
+const READER_NUMBERS = ["scrolls", "steps", "placeholders", "rows", "units", "found", "skipped", "empty", "ms"];
+const READER_WORDS: Record<string, string[]> = {
+  root: ["aria-label", "grid", "scroller", "main"],
+  stop: ["enough", "budget", "steps", "loads", "start", "no-scroller"],
+};
+
+function readerStats(v: unknown): Record<string, number | boolean | string> | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const raw = v as Record<string, unknown>;
+  const out: Record<string, number | boolean | string> = {};
+  for (const key of READER_NUMBERS) {
+    const n = raw[key];
+    if (typeof n === "number" && Number.isFinite(n)) out[key] = Math.max(0, Math.min(10_000_000, Math.round(n)));
+  }
+  for (const [key, allowed] of Object.entries(READER_WORDS)) {
+    const w = raw[key];
+    if (typeof w === "string" && allowed.includes(w)) out[key] = w;
+  }
+  if (typeof raw.reachedStart === "boolean") out.reachedStart = raw.reachedStart;
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** A log-safe label for a failure. Never the message: a JSON parse error
  *  quotes the model's output, and an API error can echo the request. */
 function failureKind(e: unknown): string {
@@ -95,6 +119,7 @@ Deno.serve(async (req) => {
   const timeZone = validZone(body.time_zone);
   const readerName = oneLine(body.reader_name, 40) || "you";
   const title = oneLine(body.thread_title, 80);
+  const reader = readerStats(body.reader);
   if (!SOURCES.has(source)) return json(400, { error: "Unknown source" });
   if (mode === "ask" && !question) return json(400, { error: "Ask a question" });
   if (!Array.isArray(body.messages)) return json(400, { error: "messages required" });
@@ -171,7 +196,7 @@ Deno.serve(async (req) => {
       });
       model = reply.model;
       // Counts only: never the messages, the names or what the model wrote.
-      console.log(JSON.stringify({ fn: "catch-up-text", source, mode, attempt, messages: messages.length, ...reply.usage }));
+      console.log(JSON.stringify({ fn: "catch-up-text", source, mode, attempt, messages: messages.length, ...reply.usage, reader }));
       try {
         const parsed = parseModelJSON(reply.text);
         result = mode === "ask" ? cleanAnswer(parsed, transcript.refs) : cleanCatchUp(parsed, transcript.refs);
