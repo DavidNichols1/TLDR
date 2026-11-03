@@ -3,9 +3,10 @@
 //  Ketchup
 //
 //  Settings, from the inbox's top-left button: who you are (your name,
-//  which you can change, and the email you sign in with), the web chats'
-//  sign-ins, signing out, deleting your account, and about. Its pages are
-//  in AccountPages.swift.
+//  which you can change, and the email you sign in with), your people and
+//  inviting friends, blocked people, the web chats' sign-ins, signing out,
+//  deleting your account, and about. Its pages are in AccountPages.swift,
+//  PeopleView.swift, InviteView.swift and BlockedPeopleView.swift.
 //
 //  Rows other sessions add at merge have a marked SLOT below: an empty view
 //  in the right section, so the merge fills in a body and nothing else. A
@@ -39,6 +40,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 30) {
                         header
                         you
+                        people.id("people")
                         privacy.id("privacy")
                         WebChatSignOutSection().id("web")
                         onThisPhone.id("phone")
@@ -152,6 +154,33 @@ struct SettingsView: View {
         } catch {
             photoProblem = error.localizedDescription
         }
+    }
+
+    // MARK: People
+
+    private var people: some View {
+        SettingsSection("People") {
+            NavigationLink {
+                PeopleView()
+            } label: {
+                SettingsRow("Your people", systemImage: "person.2", value: peopleCount, chevron: true)
+            }
+            .buttonStyle(.pressable)
+            NavigationLink {
+                InviteView()
+            } label: {
+                SettingsRow("Invite friends", systemImage: "paperplane", chevron: true)
+            }
+            .buttonStyle(.pressable)
+        }
+        .task { await PeopleStore.shared.loadContacts() }
+    }
+
+    /// "None" or how many, once the list has loaded.
+    private var peopleCount: String? {
+        let store = PeopleStore.shared
+        guard store.contactsLoaded else { return nil }
+        return store.contacts.isEmpty ? "None" : "\(store.contacts.count)"
     }
 
     // MARK: Privacy

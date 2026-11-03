@@ -2,15 +2,19 @@
 //  StartChatSheets.swift
 //  Ketchup
 //
-//  The inbox's "+" menu: name a new chat, or join one with its 6-character
-//  invite code. Both only collect the input; ChatsListView does the work.
+//  The inbox's "+" menu: name a new chat (and pick your people to add), or
+//  join one with its 6-character invite code. Both only collect the input;
+//  ChatsListView does the work.
 //
 
 import SwiftUI
 
-/// Name a new chat. `onCreate` runs with the name already in `name`.
+/// Name a new chat, and pick any of your people to add straight in (People/).
+/// `onCreate` runs with the name already in `name` and them in `picked`.
 struct NewChatSheet: View {
     @Binding var name: String
+    var people: [Person] = []
+    var picked: Binding<Set<UUID>> = .constant([])
     let onCreate: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -27,7 +31,15 @@ struct NewChatSheet: View {
                 .onSubmit { if !trimmed.isEmpty { onCreate() } }
                 .paperField(focused: focused)
 
-            Text("You'll get an invite code to share.")
+            if !people.isEmpty {
+                SectionTitle("Add your people")
+                    .padding(.top, 8)
+                PeoplePicker(people: people, picked: picked)
+            }
+
+            Text(picked.wrappedValue.isEmpty
+                 ? "You'll get an invite code to share."
+                 : "They're in from the start. You'll also get an invite code to share.")
                 .font(.footnote)
                 .foregroundStyle(Theme.inkSoft)
 
@@ -41,6 +53,7 @@ struct NewChatSheet: View {
 
     private func cancel() {
         name = ""
+        picked.wrappedValue = []
         dismiss()
     }
 }

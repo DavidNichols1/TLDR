@@ -23,6 +23,7 @@ struct ProfileView: View {
     @State private var shared: [ChatSummary]?
     @State private var confirmBlock = false
     @State private var working = false
+    @State private var adding = false
     @State private var reporting = false
     @State private var error: String?
 
@@ -30,6 +31,7 @@ struct ProfileView: View {
 
     private var store: PeopleStore { .shared }
     private var blocked: Bool { store.isBlocked(person.id) }
+    private var isContact: Bool { store.isContact(person.id) }
 
     init(person: Person, in chat: ChatSummary? = nil, onBlockChange: @escaping (Bool) -> Void = { _ in }) {
         self.person = person
@@ -52,6 +54,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 30) {
                 header
                 sharedChats
+                yourPeople
                 actions
                 if let error {
                     FormError(text: error)
@@ -80,8 +83,10 @@ struct ProfileView: View {
             Text("You won't see their messages in any chat, and \(Theme.modelName) won't read them for your catch-ups. They won't be told, and they'll still see yours.")
         }
         .motion(value: blocked)
+        .motion(value: isContact)
         .task {
             await store.load()
+            await store.loadContacts()
             await loadShared()
         }
     }
@@ -142,7 +147,6 @@ struct ProfileView: View {
         SettingsSection("Block or report", footer: blocked
             ? "You don't see their messages in any chat, and \(Theme.modelName) leaves them out of your catch-ups. Unblock to see them again."
             : "Blocking is quiet. They aren't told and still see your messages; theirs disappear for you everywhere, catch-ups included.") {
-            contactSlot
             if blocked {
                 Button {
                     Task { await setBlocked(false) }
@@ -173,8 +177,45 @@ struct ProfileView: View {
         }
     }
 
-    /// SLOT (People session, slice 3): "Add to your people" or "Remove".
-    @ViewBuilder private var contactSlot: some View {}
+    // MARK: Your people
+
+    /// Add them to your people (or take them out), so a new chat can include
+    /// them without a code. Not while they're blocked.
+    @ViewBuilder
+    private var yourPeople: some View {
+        if !blocked {
+            SettingsSection("Your people", footer: isContact
+                ? "They're on your list when you start a chat, so you can add them without a code."
+                : "Add them, and they're on your list when you start a chat. No code needed.") {
+                Button {
+                    Task { await setContact(!isContact) }
+                } label: {
+                    SettingsRow(isContact ? "Remove from your people" : "Add to your people",
+                                systemImage: isContact ? "person.badge.minus" : "person.badge.plus") {
+                        if adding { ProgressView().tint(Theme.inkSoft) }
+                    }
+                }
+                .buttonStyle(.pressable)
+                .disabled(adding)
+            }
+        }
+    }
+
+    private func setContact(_ add: Bool) async {
+        guard !adding else { return }
+        adding = true
+        error = nil
+        defer { adding = false }
+        do {
+            if add {
+                try await store.addContact(person, sharedChats: max(shared?.count ?? 1, 1))
+            } else {
+                try await store.removeContact(person.id)
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
 
     // MARK: Actions
 

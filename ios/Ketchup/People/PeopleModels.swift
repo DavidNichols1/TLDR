@@ -43,6 +43,26 @@ struct BlockedPerson: Codable, Identifiable, Equatable {
     }
 }
 
+/// A row of `my_contacts()`: one of your people, by name.
+struct Contact: Codable, Identifiable, Equatable {
+    let id: UUID
+    var displayName: String
+    var avatarPath: String?
+    var addedAt: Date
+    /// Chats you're both in right now.
+    var sharedChats: Int
+
+    var person: Person { Person(id: id, name: displayName, avatarPath: avatarPath) }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+        case avatarPath = "avatar_path"
+        case addedAt = "added_at"
+        case sharedChats = "shared_chats"
+    }
+}
+
 /// Why something's reported. The raw values are the reports table's
 /// `reason` check.
 enum ReportReason: String, CaseIterable, Identifiable {

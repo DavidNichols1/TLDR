@@ -17,8 +17,11 @@ struct ChatsListView: View {
     @State private var showNew = false
     @State private var showJoin = false
     @State private var showSettings = false
+    @State private var showInvite = false
     @State private var settingsExit: SettingsExit?
     @State private var newName = ""
+    /// Your people picked in New chat, added straight in (People/).
+    @State private var newPeople: Set<UUID> = []
     @State private var joinCode = ""
     @State private var busy = false
     @State private var error: String?
@@ -68,10 +71,11 @@ struct ChatsListView: View {
                 }
             }
             .sheet(isPresented: $showNew) {
-                NewChatSheet(name: $newName) {
+                NewChatSheet(name: $newName, people: PeopleStore.shared.contacts.map(\.person), picked: $newPeople) {
                     showNew = false
                     Task { await create() }
                 }
+                .task { await PeopleStore.shared.loadContacts() }
             }
             .sheet(isPresented: $showJoin) {
                 JoinChatSheet(code: $joinCode) {
@@ -79,6 +83,7 @@ struct ChatsListView: View {
                     Task { await join() }
                 }
             }
+            .sheet(isPresented: $showInvite) { InviteSheet() }
             // Signing out waits for the sheet to go, so it isn't left over sign-in.
             .sheet(isPresented: $showSettings, onDismiss: {
                 guard let exit = settingsExit else { return }
@@ -157,6 +162,7 @@ struct ChatsListView: View {
             Menu {
                 Button { showNew = true } label: { Label("New chat", systemImage: "square.and.pencil") }
                 Button { showJoin = true } label: { Label("Join with code", systemImage: "number") }
+                Button { showInvite = true } label: { Label("Invite friends", systemImage: "paperplane") }
             } label: {
                 if busy { ProgressView() } else { Image(systemName: "plus").foregroundStyle(Theme.ink) }
             }
@@ -213,12 +219,16 @@ struct ChatsListView: View {
 
     private func create() async {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let people = Array(newPeople)
         newName = ""
+        newPeople = []
         guard !name.isEmpty else { return }
         busy = true
         defer { busy = false }
         do {
-            let id = try await KetchupAPI.createChat(name: String(name.prefix(50)))
+            let id = people.isEmpty
+                ? try await KetchupAPI.createChat(name: String(name.prefix(50)))
+                : try await KetchupAPI.createChat(name: String(name.prefix(50)), with: people)
             await app.refreshChats()
             path = [id]
         } catch {
