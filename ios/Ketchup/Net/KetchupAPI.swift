@@ -18,7 +18,7 @@ enum KetchupAPI {
         guard let me = client.userId else { throw APIError.notSignedIn }
         let data = try await client.rest("GET", "/rest/v1/profiles",
                                          query: [.init(name: "id", value: "eq.\(me.uuidString)"),
-                                                 .init(name: "select", value: "id,display_name")])
+                                                 .init(name: "select", value: "id,display_name,avatar_path")])
         return try JSON.decoder.decode([Profile].self, from: data).first
     }
 
@@ -62,7 +62,7 @@ enum KetchupAPI {
     static func members(of chat: UUID) async throws -> [Member] {
         let data = try await client.rest("GET", "/rest/v1/chat_members",
                                          query: [.init(name: "chat_id", value: "eq.\(chat.uuidString)"),
-                                                 .init(name: "select", value: "user_id,joined_at,last_read_at,profile:profiles(id,display_name)"),
+                                                 .init(name: "select", value: "user_id,joined_at,last_read_at,profile:profiles(id,display_name,avatar_path)"),
                                                  .init(name: "order", value: "joined_at.asc")])
         return try JSON.decoder.decode([Member].self, from: data)
     }

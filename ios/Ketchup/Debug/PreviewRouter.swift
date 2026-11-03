@@ -4,7 +4,8 @@
 //
 //  Which screen `-screen <name>` opens. `ai-` names belong to the Muse Spark
 //  screens (AIPreviewScreen.swift), `web-` names to the web-chat screens
-//  (WebChatPreviewScreen.swift), `design` is the component gallery, and
+//  (WebChatPreviewScreen.swift), `photo-` names to the photo screens
+//  (PhotosPreviewScreen.swift), `design` is the component gallery, and
 //  the rest are the chat screens (CorePreviewScreen.swift). `list` (or any
 //  name that isn't a screen) shows every name, and tapping one opens it.
 //
@@ -25,6 +26,7 @@ struct PreviewRouter: View {
     /// Every screen's `-screen` name, in the order the list shows them.
     static var names: [String] {
         [DesignGallery.name] + CorePreviewScreen.names + AIPreviewScreen.names + WebChatPreviewScreen.names
+            + PhotosPreviewScreen.names
     }
 
     var body: some View {
@@ -35,6 +37,8 @@ struct PreviewRouter: View {
                 AIPreviewScreen(name: name)
             } else if name.hasPrefix("web-"), WebChatPreviewScreen.names.contains(name) {
                 WebChatPreviewScreen(name: name)
+            } else if name.hasPrefix("photo-"), PhotosPreviewScreen.names.contains(name) {
+                PhotosPreviewScreen(name: name)
             } else if CorePreviewScreen.names.contains(name) {
                 CorePreviewScreen(name: name)
             } else {

@@ -40,6 +40,8 @@ struct ChatView: View {
     private static let bottomId = "bottom"
     private static let unreadId = "unread-divider"
 
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 28
+
     enum ChatSheet: String, Identifiable {
         case catchUp, ask, info
         var id: String { rawValue }
@@ -254,17 +256,27 @@ struct ChatView: View {
         case .message(let m, let newRun, let endsRun):
             let mine = m.sender == model.myId
             let name = model.name(of: m.sender)
-            ChatBubble(text: m.body,
-                       mine: mine,
-                       pending: m.pending,
-                       failed: m.failed,
-                       senderName: newRun && !mine ? name : nil,
-                       senderColor: Theme.personColor(name: name),
-                       time: m.createdAt,
-                       startsRun: newRun,
-                       endsRun: endsRun,
-                       highlighted: highlighted == m.id,
-                       onRetry: { model.retry(m.id) })
+            HStack(alignment: .bottom, spacing: 8) {
+                // Other people's photos sit by the last bubble of each run.
+                if !mine {
+                    if endsRun {
+                        Avatar(name: name, path: model.avatarPath(of: m.sender), size: avatarSize)
+                    } else {
+                        Color.clear.frame(width: avatarSize, height: 1)
+                    }
+                }
+                ChatBubble(text: m.body,
+                           mine: mine,
+                           pending: m.pending,
+                           failed: m.failed,
+                           senderName: newRun && !mine ? name : nil,
+                           senderColor: Theme.personColor(name: name),
+                           time: m.createdAt,
+                           startsRun: newRun,
+                           endsRun: endsRun,
+                           highlighted: highlighted == m.id,
+                           onRetry: { model.retry(m.id) })
+            }
                 .padding(.top, newRun ? 10 : 0)
                 .padding(.vertical, 1.5)
                 // Under its neighbors, so the jump mark stays behind every bubble.

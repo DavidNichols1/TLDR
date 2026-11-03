@@ -8,10 +8,13 @@ import Foundation
 struct Profile: Decodable, Identifiable, Equatable {
     let id: UUID
     var displayName: String
+    /// Their photo in the avatars bucket (Photos/Avatar.swift), if they set one.
+    var avatarPath: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
+        case avatarPath = "avatar_path"
     }
 }
 

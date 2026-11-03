@@ -31,6 +31,7 @@ final class AppModel {
                 self?.me = nil
                 self?.chats = []
                 self?.chatsLoaded = false
+                RemoteImages.shared.clear()
             }
         }
     }
@@ -77,6 +78,12 @@ final class AppModel {
         if previewUser == nil { try await KetchupAPI.setDisplayName(trimmed) }
         me?.displayName = trimmed
         confirmName()
+    }
+
+    /// A new or removed profile photo, once the server has it
+    /// (Photos/ProfilePhotos.swift does the saving).
+    func setAvatarPath(_ path: String?) {
+        me?.avatarPath = path
     }
 
     func refreshChats() async {

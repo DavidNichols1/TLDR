@@ -20,6 +20,7 @@ struct ChatsListView: View {
     @State private var joinCode = ""
     @State private var busy = false
     @State private var error: String?
+    @State private var choosingPhoto = false
 
     @ScaledMetric(relativeTo: .headline) private var monogramSize: CGFloat = 48
 
@@ -78,6 +79,7 @@ struct ChatsListView: View {
             } message: {
                 Text(error ?? "")
             }
+            .profilePhotoPicker(isPresented: $choosingPhoto)
         }
         // Keep the inbox fresh while it's on screen (badges, previews).
         .task {
@@ -127,6 +129,17 @@ struct ChatsListView: View {
             Menu {
                 if let me = app.me {
                     Text("Signed in as \(me.displayName)")
+                    // For now; the profile photo moves to Settings once it lands.
+                    Section {
+                        Button { choosingPhoto = true } label: {
+                            Label(me.avatarPath == nil ? "Add a photo" : "Change photo", systemImage: "photo")
+                        }
+                        if me.avatarPath != nil {
+                            Button { Task { await removePhoto() } } label: {
+                                Label("Remove photo", systemImage: "person.crop.square")
+                            }
+                        }
+                    }
                 }
                 Button(role: .destructive) {
                     Task { await app.signOut() }
@@ -149,13 +162,12 @@ struct ChatsListView: View {
         }
     }
 
-    /// My initials in my color, where a generic person icon used to be.
+    /// My photo, or my initials in my color, where a generic person icon used to be.
     @ViewBuilder
     private var profileLabel: some View {
         if let me = app.me {
-            Text(Theme.initials(me.displayName))
-                .font(.system(.subheadline, design: .serif, weight: .bold))
-                .foregroundStyle(Theme.personColor(name: me.displayName))
+            Avatar(name: me.displayName, path: me.avatarPath, size: 30)
+                .accessibilityHidden(false)
                 .accessibilityLabel("Profile, \(me.displayName)")
         } else {
             Image(systemName: "person")
@@ -193,6 +205,14 @@ struct ChatsListView: View {
     }
 
     // MARK: Actions
+
+    private func removePhoto() async {
+        do {
+            try await ProfilePhotos.remove(app: app)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
 
     private func create() async {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
