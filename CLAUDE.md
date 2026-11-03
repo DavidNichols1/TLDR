@@ -342,6 +342,9 @@ site's reader and outline scripts and fixtures. The way in is the signed-in home
   `-destination 'id=<udid>'` (or `generic/platform=iOS` while it's locked) and
   `-allowProvisioningUpdates`, then
   `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`
+  (`<DerivedData>` is the folder whose `info.plist` `WorkspacePath` is this checkout: each worktree
+  session builds into its own `Ketchup-*` folder, so the newest one may not be main's;
+  `/usr/libexec/PlistBuddy -c 'Print :WorkspacePath' <folder>/info.plist`)
   (it fails while the phone is locked). To open a screen there:
   `xcrun devicectl device process launch --device <udid> --terminate-existing --console com.vibetemp.ketchup -- -screen web-snapchat -KetchupSnapchatFixture NO`
   (app arguments go after `--`). Instagram real runs (Nov 3, 2026, David's account): before the
