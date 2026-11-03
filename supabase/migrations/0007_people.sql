@@ -4,7 +4,8 @@
 -- Applied live in parts, one apply_migration per slice of the people work,
 -- each named 0007_people_<part>. This file is all of them, in order, so a
 -- fresh project gets everything from one `supabase db push`:
---   0007_people_account   delete_account()
+--   0007_people_account          delete_account()
+--   0007_people_account_photos   delete_account() previews a photo like apply_message
 
 -- ---------------------------------------------------------------------------
 -- Part 1: delete account (App Store guideline 5.1.1(v)).
@@ -49,6 +50,57 @@ begin
   update public.chats c
      set (last_message_at, last_message_preview, last_message_sender) =
          (select m.created_at, left(m.body, 140), m.sender
+            from public.messages m
+           where m.chat_id = c.id
+           order by m.created_at desc
+           limit 1)
+   where c.id = any (touched);
+end;
+$$;
+
+revoke execute on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Part 1b: delete_account() writes a chat's inbox line the way apply_message
+-- does since 0006 part 2 (photo messages), so when a photo is what's left as
+-- the last message the line reads "📷 Photo" (or "📷 " and its caption), not
+-- an empty preview. Same function otherwise. Needs 0006 part 2
+-- (messages.image_path).
+
+create or replace function public.delete_account()
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  me uuid := auth.uid();
+  touched uuid[];
+begin
+  if me is null then raise exception 'Not signed in'; end if;
+
+  select coalesce(array_agg(distinct t.chat_id), '{}') into touched
+    from (select chat_id from public.messages where sender = me
+          union
+          select chat_id from public.chat_members where user_id = me) t;
+
+  delete from public.ai_briefs b
+   where b.user_id <> me
+     and b.chat_id = any (touched)
+     and exists (select 1 from public.messages m
+                  where m.chat_id = b.chat_id and m.sender = me and m.created_at <= b.until);
+
+  delete from auth.users where id = me;
+
+  update public.chats c
+     set (last_message_at, last_message_preview, last_message_sender) =
+         (select m.created_at,
+                 case
+                   when m.image_path is null then left(m.body, 140)
+                   when m.body = '' then '📷 Photo'
+                   else '📷 ' || left(m.body, 138)
+                 end,
+                 m.sender
             from public.messages m
            where m.chat_id = c.id
            order by m.created_at desc

@@ -30,6 +30,9 @@ extension AppModel {
     /// `leave(.accountDeleted)` signs out. A no-op in offline previews.
     func deleteAccount() async throws {
         guard previewUser == nil else { return }
+        // MERGE (Photos, branch claude/photos-d0b1ee): call ChatPhotos.deleteMine()
+        // here first. SQL can't delete Storage files, so the avatar and the
+        // photos you sent go through the Storage API before the rows do.
         try await KetchupAPI.deleteAccount()
     }
 
