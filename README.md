@@ -166,6 +166,9 @@ flowchart LR
   subgraph iPhone
     A["Ketchup iOS app<br/>SwiftUI, zero dependencies<br/>hand-rolled Supabase Auth + REST client<br/>Realtime websocket, polling fallback"]
   end
+  subgraph Android
+    B["Ketchup Android app<br/>Kotlin + Jetpack Compose<br/>hand-rolled client and Realtime websocket<br/>reader bubble over Instagram"]
+  end
   subgraph Supabase
     DB[("Postgres<br/>RLS = security boundary<br/>RPCs: create/join/leave chat,<br/>mark_read, my_chats")]
     RT["Realtime<br/>(messages, filtered by RLS)"]
@@ -174,8 +177,11 @@ flowchart LR
   META["Meta Model API<br/>Muse Spark"]
 
   A -- "publishable key + user JWT" --> DB
+  B -- "publishable key + user JWT" --> DB
   DB --> RT -- "new messages" --> A
+  RT -- "new messages" --> B
   A -- "Catch me up / Ask (user JWT)" --> FN
+  B -- "Catch me up / Ask (user JWT)" --> FN
   FN -- "caller's JWT" --> DB
   FN -- "META_API_KEY (secret)" --> META
 ```
@@ -185,6 +191,12 @@ flowchart LR
   PostgREST, RPCs and edge functions over `URLSession`. Realtime runs over the Phoenix
   websocket protocol and reconnects with backoff. While the socket is down, the chat
   polls every 4 seconds.
+- **Android app** ([`android/`](android)): Kotlin and Jetpack Compose on the same
+  backend, with no networking libraries. The same kind of hand-written Supabase client
+  (email-code auth, PostgREST, RPCs, edge functions) and its own small websocket client
+  for Realtime, over TLS with the system's trust store and a hostname check. 114 JVM
+  unit tests cover the Realtime protocol, paging, the brief and the reader's parser.
+  See "Android, and the Instagram bubble" below.
 - **Database** ([`supabase/migrations/`](supabase/migrations)): profiles, chats, members,
   messages and `ai_briefs`. Writes that change membership go through security-definer
   RPCs, and clients can't write directly to `chats` or `chat_members`. A new member's
@@ -292,6 +304,20 @@ Optional: paste `supabase/tests/rls_check.sql` into the SQL editor. Every row sh
    `ios/Ketchup/Config.swift`.
 4. Run on a simulator or a device.
 
+**Android** (Android Studio's JDK, SDK 36):
+
+```sh
+cd android
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+./gradlew :app:assembleDebug :app:testDebugUnitTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Every screen also opens offline on test data: `adb shell am start -n
+com.vibetemp.ketchup/.MainActivity --es screen list`. [`android/README.md`](android/README.md)
+has the rest.
+
 **Demo data**: [`scripts/seed-demo/`](scripts/seed-demo) creates five test friends and a
 302-message ski-trip chat, then prints an invite code. Join with that code and you start
 with everything unread:
@@ -340,6 +366,38 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
   (name, start page, allowed sites, thread URL, reader script, user agent, desktop layout).
 
+## Android, and the Instagram bubble (experimental)
+
+The Android app ([`android/`](android)) is the same Ketchup: sign in with an email code,
+chats in real time, and Catch me up and Ask with the same brief, tickets, diner check
+and sources that jump back to the message. Ask opens straight to the question, without
+a catch-up first.
+
+Its Instagram and Snapchat pages work differently from the iPhone's. Android lets an
+app read the screen through accessibility, the way apps like SocialLite do, so there's
+no website inside Ketchup. You use the real Instagram app.
+
+- **How it works.** An accessibility service
+  ([`android/.../reader/`](android/app/src/main/java/com/vibetemp/ketchup/reader)) listens
+  only to Instagram and Snapchat. When a DM thread is open, a small Ketchup bubble floats
+  over it (an accessibility overlay, so no draw-over permission). Tap it and pick the last
+  30, 80 or 120 messages. It reads them off the screen, scrolling back for older ones and
+  dropping repeats, and tells your messages from theirs by which side they're on. Then it
+  sends the thread to the same [`catch-up-text`](supabase/functions/catch-up-text/index.ts)
+  function as the iPhone, and the brief opens over Instagram. Back returns to the chat.
+- **It reads only when you tap, and only the chat you have open.** Nothing is kept on the
+  phone or the server, and the logs hold counts only. Before the bubble can be turned on,
+  a page says what it reads, when, and where it goes. It goes by what's on screen and
+  where, not Instagram's internal view names, which change.
+- **Where it stands.** On an emulator, against a made-up thread laid out like Instagram's,
+  Last 30 read 30 of 30 in 2.2 seconds and Last 120 read all 88 messages in 10.3 seconds.
+  It hasn't been tried on the real Instagram app yet. Snapchat may not share its chat
+  text with other apps at all, so it may stay Instagram only.
+- **Same terms problem as the iPhone version, plus Google Play's.** Play only allows
+  accessibility services for accessibility, so this is a sideloaded, experimental build.
+  On Android 13 and later, a sideloaded app needs Allow restricted settings (App info,
+  then the ⋮ menu) before its service can be turned on; the app shows how.
+
 ## Settings and your account
 
 Settings opens from your initial at the top left of Chats
@@ -364,7 +422,7 @@ Settings opens from your initial at the top left of Chats
 
 This repo was started on November 2, 2026, during the hackathon. The commit history
 shows the build: schema and RLS, then the edge function, then the Muse Spark wiring,
-then the iOS app.
+then the iOS app. The Android app followed on November 3, 2026.
 
 ## Built on
 
