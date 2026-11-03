@@ -100,7 +100,7 @@ private fun PanelStates(source: TextSource = TextSource.INSTAGRAM) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ReaderBubble()
-            Text("The bubble, over a ${source.appName} thread", style = KetchupTheme.type.footnote, color = Color(0xFF737373))
+            Text("The bubble, over ${if (source == TextSource.INSTAGRAM) "an" else "a"} ${source.appName} thread", style = KetchupTheme.type.footnote, color = Color(0xFF737373))
         }
         states.forEach { (label, state) ->
             Text(label, style = KetchupTheme.type.monoCaption, color = Color(0xFF737373))
