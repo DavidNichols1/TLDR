@@ -74,13 +74,20 @@ checks that every claim is backed by a real message.
 7. **Caching and rate limits.** Every result is saved to `ai_briefs`, and only you can
    read yours. Tapping Catch me up again on the same unread messages returns the saved
    brief straight away with no new model call. Each person gets 60 briefs per hour.
+8. **Ready before you tap.** Opening a chat with 15+ unread starts the catch-up in the
+   background, so the tap usually shows the result instantly. The read cursor still only
+   moves when you actually open the result.
 
 Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 
 - `POST https://api.meta.ai/v1/chat/completions`, model `muse-spark-1.3`,
-  `reasoning_effort: low`. You can override these with the `META_MODEL` and
-  `META_REASONING` secrets. TODO(muse): confirm the endpoint and model name against the
-  first live call after deploy.
+  `reasoning_effort: low`, `response_format: json_schema`. You can override the model and
+  effort with the `META_MODEL` and `META_REASONING` secrets.
+- Measured on the 302-message demo chat (November 2, 2026): about 9.5k tokens in and
+  3.4k out (1.3k of it reasoning), **about 24 seconds and about 3¢ per catch-up**. Every
+  planted plan, debt and open question came back correct. `minimal` effort halves the
+  time (12 s) but invented a time the chat never gave, so `low` stays the default and the
+  background prefetch hides the wait. "Ask the chat" takes about 3 seconds.
 - It retries once on 429/500/503 and honors `Retry-After`. The key is read from the edge
   function's secrets and is never sent to the app.
 

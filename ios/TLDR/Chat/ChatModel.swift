@@ -57,6 +57,16 @@ final class ChatModel {
     private(set) var lastQuestion = ""
 
     private static let pageSize = 200
+    /// The edge function reads at most 600 unread; PostgREST serves up to 1000 rows.
+    private static let maxFirstLoad = 700
+    /// Unread count that triggers a background catch-up on open.
+    private static let prefetchAt = 15
+    /// Set once the user has asked for the catch-up (tapped the button).
+    private var userAsked = false
+    /// A prefetched catch-up nobody has opened yet: the cursor moves to this
+    /// only when the user actually looks at it.
+    private var unseenBrief = false
+    private var unseenUntil: Date?
 
     @ObservationIgnored
     lazy var realtime = ChatRealtime(chatId: chat.id) { [weak self] message in
@@ -76,8 +86,11 @@ final class ChatModel {
         realtime.start()
         guard !loaded else { return }
         do {
-            let page = try await TLDRAPI.messages(in: chat.id, limit: Self.pageSize)
-            hasOlder = page.count >= Self.pageSize
+            // Reach back past the first unread message (plus a little context),
+            // so the "N new messages" divider lands where the unread part starts.
+            let limit = min(max(Self.pageSize, unreadCount + 25), Self.maxFirstLoad)
+            let page = try await TLDRAPI.messages(in: chat.id, limit: limit)
+            hasOlder = page.count >= limit
             merge(page)
             loaded = true
             loadError = nil
@@ -86,6 +99,10 @@ final class ChatModel {
         }
         await loadMembers()
         computeUnread()
+        // A big backlog: start Muse Spark now so the tap feels instant.
+        if unreadCount >= Self.prefetchAt {
+            Task { await runCatchUp(prefetch: true) }
+        }
     }
 
     func close() {
@@ -217,14 +234,24 @@ final class ChatModel {
     /// Starts a catch-up unless one is running or a finished one still
     /// covers everything unread.
     func catchUpIfNeeded() async {
+        userAsked = true
         switch catchUp {
-        case .loading: return
-        case .done where unreadCount == 0: return
-        default: await runCatchUp()
+        case .loading:
+            return  // a prefetch is running; it marks read when it lands
+        case .done where unseenBrief:
+            markRead(at: unseenUntil)  // the prefetched brief is being read now
+            unseenBrief = false
+        case .done where unreadCount == 0:
+            return
+        default:
+            await runCatchUp()
         }
     }
 
-    func runCatchUp() async {
+    /// `prefetch` runs it in the background on open; the read cursor waits
+    /// until the user taps "Catch me up" and sees the result.
+    func runCatchUp(prefetch: Bool = false) async {
+        if !prefetch { userAsked = true }
         guard !catchUp.isLoading else { return }
         catchUp = .loading
         do {
@@ -235,7 +262,12 @@ final class ChatModel {
             }
             catchUp = .done(response)
             // Caught up through the newest message the brief read.
-            markRead(at: response.untilDate)
+            if userAsked {
+                markRead(at: response.untilDate)
+            } else {
+                unseenBrief = true
+                unseenUntil = response.untilDate
+            }
         } catch {
             catchUp = .failed(AIErrors.message(for: error))
         }

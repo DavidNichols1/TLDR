@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
         maxTokens: 6000, // counts reasoning tokens too
       });
       model = reply.model;
+      console.log(JSON.stringify({ mode, attempt, messages: fresh.length, ...reply.usage }));
       try {
         const parsed = parseModelJSON(reply.text);
         result = mode === "ask" ? cleanAnswer(parsed, transcript.refs) : cleanCatchUp(parsed, transcript.refs);

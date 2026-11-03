@@ -21,7 +21,11 @@ the technical recipe. README.md is the judge-facing overview.
   unauthenticated POST must return 401.
 - Muse Spark: `supabase/functions/_shared/muse.ts`, `POST https://api.meta.ai/v1/chat/completions`,
   model `muse-spark-1.3` (override with `META_MODEL`), docs at https://dev.meta.ai/docs.
-- Logs for a catch-up call: Supabase MCP `query_logs` (edge function logs).
+- Logs for a catch-up call: Supabase MCP `query_logs`, source `function_logs`; each Muse call
+  logs `{mode, attempt, messages, prompt, completion, reasoning}` token counts. Latency is in
+  `ai_briefs.latency_ms`. Keep `META_REASONING=low` (minimal invented a plan time on Nov 2).
+- The app prefetches a catch-up when a chat opens with 15+ unread (ChatModel.open); the read
+  cursor moves only when the user opens the result.
 - Check secrets by name only: `supabase secrets list --project-ref cfqlnthmqwkhjbhylvgu`
   (run it from the repo root; it writes a `supabase/.temp` cache that is gitignored there).
 - `enforce_message_hygiene` forces `messages.created_at = now()` on insert; the seed
