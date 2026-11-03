@@ -82,8 +82,17 @@ the technical recipe. README.md is the judge-facing overview.
   "Clear cache" rows (`savedCatchUpsSlot`). Clear cache runs `DeviceStore.clearCopies()` and
   `RemoteImages.clear()`; saved catch-ups stay. Deletes go through the store's queue with a
   marker in memory, so a read in between can't bring a file back.
-- Offline check, no sign-in: `-screen store-check` must show "14 of 14 passed, 1 skipped" on a
-  simulator (data protection only exists on a phone, where it's 15 of 15); the console prints
+- No duplicate calls. Server: `_shared/once.ts` (in `catch-up`): a pending `ai_briefs` row
+  (`model = 'pending'`) whose id hashes user, chat, kind, since, until and question claims the
+  brief; the primary key lets one insert win, the others poll it (800 ms) and return it as saved;
+  a failed call deletes its claim, a dead one goes stale after 120 s. `deno test
+  supabase/functions/_shared/` covers it with a stand-in table. App: `Net/InFlight.swift` shares
+  identical GETs and `my_chats` (`Supabase.rest(shares:)`); the prefetch only starts if no tap
+  has; create and join ignore a second tap while busy. Live test: deploy a copy as
+  `catch-up-speed-test`, then a signed-in DEBUG build's Settings › "Test: two identical asks at
+  once" asks it twice together (the log should show one Muse Spark call); delete the slug after.
+- Offline check, no sign-in: `-screen store-check` must show "15 of 15 passed, 1 skipped" on a
+  simulator (data protection only exists on a phone, where it's 16 of 16); the console prints
   `[store-check] PASS …`. DEBUG builds log reads as `[store] read a thread, 74 KB in 0.9 ms`.
 - The files on a simulator: `xcrun simctl get_app_container <udid> com.vibetemp.ketchup data`,
   then `Library/Application Support/Ketchup/`.

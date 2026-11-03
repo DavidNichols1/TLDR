@@ -187,6 +187,9 @@ struct SettingsView: View {
     @ViewBuilder private var savedCatchUpsSlot: some View {
         SavedCatchUpsRow()
         ClearCacheRow()
+        #if DEBUG
+        DedupeTestRow()
+        #endif
     }
 
     // MARK: Account

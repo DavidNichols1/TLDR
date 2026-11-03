@@ -212,6 +212,7 @@ struct ChatsListView: View {
     // MARK: Actions
 
     private func create() async {
+        guard !busy else { return }  // a second tap while it's still going
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         newName = ""
         guard !name.isEmpty else { return }
@@ -227,6 +228,7 @@ struct ChatsListView: View {
     }
 
     private func join() async {
+        guard !busy else { return }
         let code = joinCode.uppercased().filter { $0.isLetter || $0.isNumber }
         joinCode = ""
         guard code.count == 6 else {

@@ -95,6 +95,12 @@ checks that every claim is backed by a real message.
 7. **Caching and rate limits.** Every result is saved to `ai_briefs`, and only you can
    read yours. Tapping Catch me up again on the same unread messages returns the saved
    brief straight away with no new model call. Each person gets 60 briefs per hour.
+   **Identical requests pay once**, even when they arrive together (a double tap, the
+   prefetch racing your tap): the first claims the brief with a row whose id is a hash of
+   what it covers, so only one can win, and the rest wait for its answer
+   ([`once.ts`](supabase/functions/_shared/once.ts)). The same question over the same
+   messages is answered once too. In the app, identical reads already on their way share
+   one request ([`InFlight.swift`](ios/Ketchup/Net/InFlight.swift)).
 8. **Ready before you tap.** Opening a chat with 15+ unread starts the catch-up in the
    background, so the tap usually shows the result instantly. The read cursor still only
    moves when you actually open the result.
