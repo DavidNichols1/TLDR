@@ -287,6 +287,29 @@ A profile opens from a name or photo in the thread (a sheet) or a member in Chat
 
 - **Say what's shared.** The invite page names what Ketchup gets from the contact picker: the one number, used once.
 
+## Plans
+
+The plans are a menu on the counter (`ios/Ketchup/Plans/`): three paper cards with the dish on the left, a dotted leader, and the price on the right as the biggest number on the card. Screenshots: `screens/plans/`.
+
+<p>
+<img src="screens/plans/paywall-light.png" width="200" alt="Free, Plus and Pro as three cards, the Free card stamped Your plan">
+<img src="screens/plans/plan-limit-hit-dark.png" width="200" alt="This catch-up reads 302 messages, with today's bar, over the plans, dark">
+<img src="screens/plans/consent-light.png" width="200" alt="Before your first catch-up: three plain points and I'm 18 or older">
+<img src="screens/plans/storekit-purchase-sheet-light.png" width="200" alt="StoreKit's test purchase sheet for Ketchup Plus over the paywall">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `PaywallView` | "More catch-ups a day" in New York, then a card per plan: its messages a day (Pro adds Listen), the price from the App Store (the list price until it answers), and a pickle `Stamp("Your plan")` on yours. The plan worth getting next has the one ketchup button; the other is outline. Restore purchases, the renewal terms and Terms of Use under the cards. |
+| `PaywallSheet` | The same with `SheetBar("Ketchup plans")`, over a catch-up the server turned down: a "Today" card first with the server's sentence and the bar. After a purchase, "You're on Plus" with Back to my catch-up. |
+| `UsageBar` | "112 of 150 messages today", a hairline track filling with ink (mustard from four fifths, when it matters to you), "38 left · back at 12:00 AM". |
+| `PlanSection` | Settings' Plan: "Your plan" with the plans behind it, and the bar, with the Standard-mode line under it. Hidden until the server has plans. |
+| `AIConsentSheet` | Asked once: three points on paper (what goes to Muse Spark, friends' messages included; Standard mode, no training; 18 and older), an ink check for "I'm 18 or older", and the ketchup "Allow and continue", which waits for the check. "Not now" sends nothing. |
+| `ListenButton` | Pro's outline "Listen" under the byline; Stop while it reads. Free and Plus see a lock and "Pro", and a tap shows the plans. |
+
+- **Say what it costs and where it goes.** The paywall says every plan uses Meta's Standard mode, which Meta doesn't train on, and what a catch-up counts. No "unlock", no "premium".
+- **The server's sentence is the copy.** "You've used today's 150 free messages." shows as is, in the error card and on the paywall.
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -312,6 +335,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `store-check` | Not a screen: runs the on-device copy and saved catch-ups (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
 | `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report`, `people`, `people-empty`, `profile-contact`, `new-chat-people`, `invite` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread. `-renameTo Dave` here (and `-leave YES` on `home`) acts 1.2 s in; add `-serverRefuses YES` for the way back |
+| `paywall`, `plan-free-usage`, `plan-limit-hit`, `consent`, `plan-listen` | Plans (`Debug/PlansPreviewScreen.swift`): the paywall on Free with 112 of 150 used; Settings with the Plan section; Breck's 302 unread turned down on Free with the paywall over it; the consent sheet over a catch-up; a Pro catch-up with Listen. On a simulator, `-storekitTest YES` (and the framework path in CLAUDE.md) makes the paywall buy through Xcode's local StoreKit test, `-buy plus` presses Get Plus |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`, `photo-catchup`, `photo-answer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin; `photo-catchup` (add `-section highlights`) and `photo-answer` cite Maya's door-code photo with its thumbnail |
 
 Light and dark screenshots:
