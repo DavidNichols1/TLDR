@@ -3,7 +3,7 @@
 // and for the refs coming back. No network, no database.
 
 import { assertEquals } from "jsr:@std/assert@1";
-import { buildTextTranscript, buildTranscript, resolveRefs } from "./transcript.ts";
+import { buildTextTranscript, buildTranscript, isJoin, joinNote, resolveRefs } from "./transcript.ts";
 import { cleanAnswer, cleanCatchUp } from "./brief.ts";
 
 Deno.test("catch-up transcript keeps its exact line format", () => {
@@ -52,6 +52,36 @@ Deno.test("index 0 is a real ref; unknown and repeated refs are dropped", () => 
   assertEquals(brief.highlights, [{ text: "Leaving at 6", refs: [0] }]);
   const answer = cleanAnswer({ answer: "6am", found: true, refs: ["m2"] }, refs);
   assertEquals(answer, { answer: "6am", found: true, refs: [1] });
+});
+
+Deno.test("a join is a line of context: no ref, not counted, never cited", () => {
+  const names = new Map([["u1", "Maya"], ["u2", "Sam"]]);
+  const context = [
+    { id: "j1", sender: "u1", body: "joined", created_at: "2026-11-02T00:59:00Z", kind: "joined" },
+    { id: "a", sender: "u1", body: "skiing?", created_at: "2026-11-02T01:00:00Z" }, // from before 0009: no kind
+  ];
+  const fresh = [
+    { id: "j2", sender: "u2", body: "joined", created_at: "2026-11-02T02:00:00Z", kind: "joined" },
+    { id: "b", sender: "u2", body: "hi all, what did I miss", created_at: "2026-11-02T02:01:00Z", kind: "text" },
+    { id: "j3", sender: "u9", body: "joined", created_at: "2026-11-02T02:02:00Z", kind: "joined" },
+  ];
+  const t = buildTranscript(context, fresh, names, "America/Denver");
+  assertEquals(t.text.split("\n"), [
+    "=== ALREADY READ (context only, do not summarize) ===",
+    "[Maya joined]",
+    "[m1] Sun, Nov 1, 6:00 PM · Maya: skiing?",
+    "=== UNREAD (summarize these) ===",
+    "[Sam joined]",
+    "[m2] Sun, Nov 1, 7:01 PM · Sam: hi all, what did I miss",
+    "[Someone joined]",
+  ]);
+  assertEquals([...t.refs], [["m1", "a"], ["m2", "b"]]);
+  assertEquals(t.count, 2);
+  // Whatever the model makes of a join line, it can't come back as a source.
+  assertEquals(resolveRefs(["[Sam joined]", "Sam joined", "j2", "m2"], t.refs), ["b"]);
+  assertEquals([...context, ...fresh].map(isJoin), [true, false, true, false, true]);
+  assertEquals(joinNote(fresh).startsWith(`Joins: a line "[<name> joined]" says that person joined`), true);
+  assertEquals(joinNote([context[1], fresh[1]]), "");
 });
 
 Deno.test("a photo's line says [photo], then its caption", () => {
