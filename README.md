@@ -185,7 +185,11 @@ flowchart LR
   messages and `ai_briefs`. Writes that change membership go through security-definer
   RPCs, and clients can't write directly to `chats` or `chat_members`. A new member's
   read cursor starts before the chat began, so their first Catch me up covers the whole
-  history.
+  history. Indexes are measured, not guessed: [`speed_check.sql`](supabase/tests/speed_check.sql)
+  times the hot paths on today's data and on a busy account built inside a rolled-back
+  transaction (20,000 messages, 5,000 unread, 3,000 saved briefs). Migration 0008 added
+  only what moved a number: every send's rate check went from 0.80 ms to 0.015 ms, and
+  catch-up's hourly cap from 0.11 ms to 0.016 ms.
 - **Edge function** ([`supabase/functions/catch-up/`](supabase/functions/catch-up)): runs
   with JWT verification on. It reads messages *with the caller's token*, so Row Level
   Security decides what the model can see. It uses the service role only to write and
@@ -250,7 +254,7 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 79-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **An 80-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
   Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
