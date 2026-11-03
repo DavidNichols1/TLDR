@@ -388,6 +388,13 @@ final class ChatModel {
         case .done where unreadCount == 0:
             return
         default:
+            // Nothing new since the catch-up kept on the phone: the sheet
+            // shows that one again (Saved/), with no call to the server or
+            // Muse Spark. The server's own "nothing unread" lands the same way.
+            if synced, unreadCount == 0, keptCatchUpIfNothingNew() != nil {
+                catchUp = .done(.nothingNew)
+                return
+            }
             await runCatchUp()
         }
     }

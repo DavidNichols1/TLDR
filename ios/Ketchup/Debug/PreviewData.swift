@@ -25,7 +25,8 @@ enum PreviewData {
     /// `-section <id>` scrolls a long screen (the design gallery) to a part.
     static let section: String? = UserDefaults.standard.string(forKey: "section")
     /// Whose copy DeviceStore keeps in a preview (in a scratch folder): nobody,
-    /// except while `keptChatModel()` sets the Breck chat up.
+    /// except while `keptChatModel()` sets the Breck chat up, and a made-up
+    /// user of their own on the `brief-` screens (SavedPreviewScreen.swift).
     static var storeUser: UUID?
 
     // MARK: People

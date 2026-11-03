@@ -5,8 +5,8 @@
 //  Which screen `-screen <name>` opens. `ai-` names belong to the Muse Spark
 //  screens (AIPreviewScreen.swift), `web-` names to the web-chat screens
 //  (WebChatPreviewScreen.swift), `photo-` names to the photo screens
-//  (PhotosPreviewScreen.swift), `saved` names to the saved catch-ups
-//  (SavedPreviewScreen.swift), `design` is the component gallery,
+//  (PhotosPreviewScreen.swift), `saved` and `brief-` names to the saved
+//  catch-ups (SavedPreviewScreen.swift), `design` is the component gallery,
 //  `store-check` checks the copy kept on the phone, Settings and the people
 //  screens are in PeoplePreviewScreen.swift, and the rest are the chat
 //  screens (CorePreviewScreen.swift). `list` (or any
@@ -39,7 +39,7 @@ struct PreviewRouter: View {
                 DesignGallery()
             } else if name == StoreCheckScreen.name {
                 StoreCheckScreen()
-            } else if name.hasPrefix("saved"), SavedPreviewScreen.names.contains(name) {
+            } else if SavedPreviewScreen.names.contains(name) {
                 SavedPreviewScreen(name: name)
             } else if name.hasPrefix("ai-"), AIPreviewScreen.names.contains(name) {
                 AIPreviewScreen(name: name)

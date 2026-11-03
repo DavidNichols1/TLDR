@@ -4,7 +4,8 @@
 //
 //  What the two Muse Spark sheets share: the bar across the top, the byline
 //  that credits Muse Spark, the cards for a failed call and for nothing
-//  new, and how a page's sections arrive.
+//  new (with no catch-up kept, or over the last one), and how a page's
+//  sections arrive.
 //
 
 import SwiftUI
@@ -136,6 +137,49 @@ struct CaughtUpCard: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 12)
         .padding(.vertical, 56)
+    }
+}
+
+/// Over the last catch-up kept on the phone, when there's nothing new to
+/// read: "Nothing new since 2:14 PM. Here's your last catch-up." If people
+/// wrote after it and you've read them since, it says that instead.
+struct NothingNewNote: View {
+    /// When the catch-up was kept.
+    let since: Date
+    /// Someone wrote after it, and it's all read.
+    var readSince = false
+
+    @State private var shown = false
+    @ScaledMetric(relativeTo: .headline) private var drop: CGFloat = 24
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            KetchupDrop()
+                .fill(Theme.ketchup)
+                .frame(width: drop, height: drop)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(headline)
+                    .font(.serif(.headline))
+                    .foregroundStyle(Theme.ink)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.inkSoft)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .paperCard(padding: 16)
+        .accessibilityElement(children: .combine)
+        .riseIn(shown, index: 0)
+        .onAppear { shown = true }
+    }
+
+    private var headline: String {
+        readSince ? "Nothing unread." : "Nothing new since \(since.sinceStamp)."
+    }
+
+    private var detail: String {
+        readSince ? "Here's your last catch-up, from \(since.sinceStamp)." : "Here's your last catch-up."
     }
 }
 

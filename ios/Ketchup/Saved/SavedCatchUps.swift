@@ -4,11 +4,13 @@
 //
 //  Catch-ups and answers kept on the phone (Store/SavedBriefs.swift), to
 //  read again with no network call:
-//    - SavedBriefsSheet: one chat's "Earlier catch-ups", newest first, each
-//      with its time and message count. Open one to read it; its sources
-//      jump to the message when the chat has it loaded, and otherwise show
-//      the message as it was kept. Swipe or long-press to delete one, or
-//      Clear all.
+//    - SavedBriefsSheet: one chat's "Earlier catch-ups" (its last 3
+//      catch-ups and last 3 answers), newest first, each with its time and
+//      message count. Open one to read it; its sources jump to the message
+//      when the chat has it loaded, and otherwise show the message as it
+//      was kept. Swipe or long-press to delete one, or Clear all. It opens
+//      from the chat's … menu and from the catch-up itself
+//      (EarlierCatchUpsRow, under the brief).
 //    - SavedCatchUpsView: every chat's, pushed from Settings' "Saved
 //      catch-ups" row (SavedCatchUpsRow), next to its "Clear cache" row
 //      (ClearCacheRow).
@@ -80,7 +82,9 @@ struct SavedBriefsSheet: View {
                     .font(.serif(.largeTitle))
                     .foregroundStyle(Theme.ink)
                     .accessibilityAddTraits(.isHeader)
-                Text("Kept on this phone until you delete them, newest first.")
+                Text(place.isWeb
+                     ? "The last 3 catch-ups and 3 answers for each thread, newest first. Kept on this phone until you delete them."
+                     : "Your last 3 catch-ups and 3 answers, newest first. Kept on this phone until you delete them.")
                     .font(.subheadline)
                     .foregroundStyle(Theme.inkSoft)
             }
@@ -162,19 +166,7 @@ struct SavedBriefsSheet: View {
     /// Sources read from the chat when it has the message loaded, and jump
     /// there; otherwise they read as kept, and open whole.
     private func refs(for brief: SavedBrief) -> RefContext {
-        let live = livePreview
-        return RefContext(
-            preview: { id in
-                live?(id) ?? brief.quote(id).map { ($0.name, SavedQuote.opening($0.text)) }
-            },
-            jump: { id in
-                if let jump, live?(id) != nil || brief.quote(id) == nil {
-                    jump(id)
-                } else if let saved = brief.quote(id) {
-                    quote = saved
-                }
-            },
-            hint: jump == nil ? "Shows the whole message" : "Shows it in the chat")
+        .kept(brief, live: livePreview, jump: jump, show: { quote = $0 })
     }
 
     /// The reader as the chat names them, for "You" in owes and questions.
@@ -210,7 +202,7 @@ struct SavedCatchUpsView: View {
 
     var body: some View {
         List {
-            Text("Every catch-up you've opened and every answer you got, kept on this phone until you delete them.")
+            Text("Each chat's last 3 catch-ups and last 3 answers, kept on this phone until you delete them.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.inkSoft)
                 .savedRow(top: 12, bottom: 6)
@@ -405,6 +397,59 @@ struct SavedBriefRow: View {
     }
 }
 
+/// Under a catch-up: the way to the chat's others, and what the phone keeps
+/// ("3 catch-ups and 1 answer"). Opens SavedBriefsSheet.
+struct EarlierCatchUpsRow: View {
+    /// The chat's kept catch-ups and answers.
+    let kept: [SavedBrief]
+    let open: () -> Void
+
+    @State private var shown = false
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 14) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Theme.inkSoft)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Earlier catch-ups")
+                        .font(.headline)
+                        .foregroundStyle(Theme.ink)
+                    Text(verbatim: detail)
+                        .font(.mono(.caption))
+                        .foregroundStyle(Theme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.inkFaint)
+                    .accessibilityHidden(true)
+            }
+            .paperCard(padding: 16)
+        }
+        .buttonStyle(.pressable)
+        .accessibilityHint("Opens the ones kept on this phone")
+        .riseIn(shown, index: 7, after: 0.14)
+        .onAppear { shown = true }
+    }
+
+    /// "3 catch-ups and 1 answer".
+    private var detail: String {
+        let catchUps = kept.filter { $0.kind == .catchUp }.count
+        let answers = kept.count - catchUps
+        return [
+            catchUps == 0 ? nil : catchUps == 1 ? "1 catch-up" : "\(catchUps) catch-ups",
+            answers == 0 ? nil : answers == 1 ? "1 answer" : "\(answers) answers",
+        ]
+        .compactMap { $0 }
+        .joined(separator: " and ")
+    }
+}
+
 /// No saved catch-ups yet.
 private struct SavedEmpty: View {
     var compact = false
@@ -423,7 +468,7 @@ private struct SavedEmpty: View {
             Text("Nothing saved yet")
                 .font(.serif(.title2))
                 .foregroundStyle(Theme.ink)
-            Text("Catch-ups you open and answers you get are kept here, on this phone, so you can read them again. Even offline.")
+            Text("Your last 3 catch-ups and answers in each chat are kept here, on this phone, so you can read them again. Even offline.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.inkSoft)
         }
@@ -501,6 +546,31 @@ extension SavedQuote {
     }
 }
 
+extension RefContext {
+    /// A kept catch-up's sources: read from the chat when it has the message
+    /// loaded (`live`), and jump there; otherwise they read as kept, and
+    /// `show` opens the message whole (SavedQuoteCard).
+    static func kept(_ brief: SavedBrief,
+                     live: ((UUID) -> (name: String, text: String)?)?,
+                     jump: ((UUID) -> Void)?,
+                     photo: @escaping (UUID) -> StorageObject? = { _ in nil },
+                     show: @escaping (SavedQuote) -> Void) -> RefContext {
+        RefContext(
+            preview: { id in
+                live?(id) ?? brief.quote(id).map { ($0.name, SavedQuote.opening($0.text)) }
+            },
+            jump: { id in
+                if let jump, live?(id) != nil || brief.quote(id) == nil {
+                    jump(id)
+                } else if let saved = brief.quote(id) {
+                    show(saved)
+                }
+            },
+            hint: jump == nil ? "Shows the whole message" : "Shows it in the chat",
+            photo: photo)
+    }
+}
+
 extension SavedBrief {
     /// After "Read by Muse Spark": "302 messages", "Saved Nov 3, 4:12 PM".
     var byline: [String] {
@@ -520,6 +590,19 @@ extension Date {
             return "\(formatted(.dateTime.weekday(.abbreviated))) \(time)"
         }
         return "\(formatted(.dateTime.month(.abbreviated).day())), \(time)"
+    }
+
+    /// The same in a sentence, for "Nothing new since …": "2:14 PM",
+    /// "yesterday at 9:40 PM", "Monday at 9:30 AM", "Oct 28 at 9:30 AM".
+    var sinceStamp: String {
+        let time = formatted(date: .omitted, time: .shortened)
+        let cal = Calendar.current
+        if cal.isDateInToday(self) { return time }
+        if cal.isDateInYesterday(self) { return "yesterday at \(time)" }
+        if let days = cal.dateComponents([.day], from: self, to: .now).day, days < 7 {
+            return "\(formatted(.dateTime.weekday(.wide))) at \(time)"
+        }
+        return "\(formatted(.dateTime.month(.abbreviated).day())) at \(time)"
     }
 }
 

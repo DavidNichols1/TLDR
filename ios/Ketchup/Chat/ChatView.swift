@@ -122,6 +122,7 @@ struct ChatView: View {
             if model.loaded && !model.messages.isEmpty {
                 CatchUpBar(unread: model.unreadCount,
                            hasBrief: model.catchUp.value != nil,
+                           hasKept: model.hasKeptCatchUp,
                            onCatchUp: { sheet = .catchUp },
                            onAsk: { sheet = .ask })
             }

@@ -5,6 +5,8 @@
 //  Pinned under the chat's title: the big ketchup "Catch me up · 302 new"
 //  button while there's something to catch up on, and "Ask" always. Once
 //  the background catch-up has landed, the count quietly adds "ready".
+//  With nothing unread, "Your catch-up" reopens the last one (this visit's,
+//  or the one kept on the phone).
 //
 
 import SwiftUI
@@ -13,6 +15,9 @@ struct CatchUpBar: View {
     let unread: Int
     /// A finished catch-up exists and can be reopened.
     let hasBrief: Bool
+    /// A catch-up is kept on the phone (Saved/), to show again when
+    /// nothing's unread.
+    var hasKept = false
     let onCatchUp: () -> Void
     let onAsk: () -> Void
 
@@ -39,7 +44,7 @@ struct CatchUpBar: View {
                 .accessibilityLabel("Catch me up")
                 .accessibilityValue(ready ? "\(unread) new messages, ready" : "\(unread) new messages")
                 .transition(.opacity)
-            } else if hasBrief {
+            } else if hasBrief || hasKept {
                 Button(action: onCatchUp) {
                     Label {
                         Text("Your catch-up")
