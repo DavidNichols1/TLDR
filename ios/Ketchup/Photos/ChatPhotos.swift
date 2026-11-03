@@ -45,29 +45,6 @@ enum ChatPhotos {
         path.hasSuffix(".jpg") ? String(path.dropLast(4)) + "_small.jpg" : path + "_small"
     }
 
-    /// Account deletion: every chat photo you sent and your profile photo,
-    /// through the Storage API (deleting rows with SQL would leave the files
-    /// behind). Call it before `delete_account()`; best effort.
-    static func deleteMine(app: AppModel) async {
-        guard let me = app.myId, app.previewUser == nil else { return }
-        if let avatar = app.me?.avatarPath {
-            try? await Storage.remove([.avatar(avatar)])
-        }
-        guard let data = try? await Supabase.shared.rest("GET", "/rest/v1/messages", query: [
-            .init(name: "sender", value: "eq.\(me.uuidString)"),
-            .init(name: "image_path", value: "not.is.null"),
-            .init(name: "select", value: "image_path"),
-            .init(name: "limit", value: "5000"),
-        ]) else { return }
-        struct Row: Decodable { let image_path: String }
-        let paths = ((try? JSONDecoder().decode([Row].self, from: data)) ?? []).map(\.image_path)
-        let files = paths.flatMap { [StorageObject(bucket: Storage.chatMedia, path: $0),
-                                     StorageObject(bucket: Storage.chatMedia, path: smallPath(for: $0))] }
-        // The API takes up to 1,000 names a call.
-        for start in stride(from: 0, to: files.count, by: 500) {
-            try? await Storage.remove(Array(files[start..<min(start + 500, files.count)]))
-        }
-    }
 }
 
 // MARK: - Getting a photo ready

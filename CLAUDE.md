@@ -97,7 +97,8 @@ the technical recipe. README.md is the judge-facing overview.
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
 the viewer sets display name **David**, joins with the printed invite code, and has
-302 unread. `--rearm` resets David to all-unread between video takes.
+302 unread. `--rearm` resets David to all-unread between video takes. `--photos` (opt-in,
+safe to re-run) adds two made-up photos on the last day, so a catch-up can cite one: 304 unread.
 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,
@@ -188,8 +189,8 @@ Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
   with the message's own id. A retry carries on from the file that didn't make it.
 - Never delete storage files with SQL: it orphans the file (`storage.protect_delete`
   refuses anyway). The app deletes a replaced photo through the Storage API.
-  `ChatPhotos.deleteMine(app:)` deletes someone's avatar and every chat photo they sent,
-  for Delete account (call it before `delete_account()`).
+  Delete account removes a person's avatar and chat photos server side, after their rows
+  (the `delete-account` edge function; see Settings and people).
 - One image pipeline, `RemoteImages.shared`: decoded photos in memory at the drawn size,
   original bytes on disk in `Caches/photos` (150 MB, least recently used goes first),
   keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale,
