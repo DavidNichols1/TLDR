@@ -174,6 +174,27 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **"Experimental" is said, not shouted:** a kicker under the name, a line in the footer.
 
+## Settings
+
+Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of Chats. Screenshots: `screens/people/`.
+
+<p>
+<img src="screens/people/settings-light.png" width="200" alt="Settings: your name and email, Change your name, the web chats' sign-outs, Account">
+<img src="screens/people/settings-about-dark.png" width="200" alt="Account and the About colophon, dark">
+<img src="screens/people/settings-delete-light.png" width="200" alt="Delete your account: what goes, what stays, and the ketchup button">
+<img src="screens/people/settings-name-light.png" width="200" alt="Change your name, with the monogram following what you type">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `SettingsSection("You", kicker:footer:)` | A `SectionTitle` (and a kicker, under it when both don't fit) over rows on one `paperCard`, hairlines between them. Rows that draw nothing take no room, and a section with no rows doesn't show, so a slot can sit empty. |
+| `SettingsRow(_:systemImage:value:detail:destructive:chevron:)` | One row: an `inkSoft` icon, the label, a value on the right, or a `detail` line under a long label ("Nothing saved"). `destructive` is `ketchupText` (Delete account). At accessibility sizes the value goes under the label. Use it as a button's or link's label with `.pressable`. |
+| The header | A "Settings" kicker over your name in New York and your email, with your monogram on the right. |
+| About | A colophon on paper: the drop, the `Wordmark`, the version in a kicker, `MuseByline`, and the hackathon line. |
+
+- **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
+- **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out".
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -197,6 +218,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
 
 Light and dark screenshots:
 

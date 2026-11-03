@@ -1,0 +1,274 @@
+//
+//  SettingsView.swift
+//  Ketchup
+//
+//  Settings, from the inbox's top-left button: who you are (your name,
+//  which you can change, and the email you sign in with), the web chats'
+//  sign-ins, signing out, deleting your account, and about. Its pages are
+//  in AccountPages.swift.
+//
+//  Rows other sessions add at merge have a marked SLOT below: an empty view
+//  in the right section, so the merge fills in a body and nothing else. A
+//  section whose rows are all empty doesn't show.
+//
+
+import SwiftUI
+
+struct SettingsView: View {
+    /// Closes the sheet, then signs out (ChatsListView runs it once the
+    /// sheet is gone).
+    let close: (SettingsExit) -> Void
+
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmSignOut = false
+
+    @ScaledMetric(relativeTo: .largeTitle) private var monogramSize: CGFloat = 56
+
+    /// "You" until the profile has loaded.
+    private var name: String { app.me?.displayName ?? "You" }
+
+    var body: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 30) {
+                        header
+                        you
+                        privacy.id("privacy")
+                        WebChatSignOutSection().id("web")
+                        onThisPhone.id("phone")
+                        account.id("account")
+                        about.id("about")
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 36)
+                }
+                #if DEBUG
+                // `-section web`, `account` or `about` scrolls a preview there.
+                .onAppear {
+                    if let section = PreviewData.section { proxy.scrollTo(section, anchor: .top) }
+                }
+                #endif
+            }
+            .background(Theme.cream)
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // The big header says whose settings these are; the bar keeps just Done.
+                ToolbarItem(placement: .principal) {
+                    Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .confirmationDialog("Sign out of Ketchup?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+                Button("Sign out", role: .destructive) { close(.signOut) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let email = app.accountEmail {
+                    Text("To get back in, you'll sign in with a code sent to \(email).")
+                }
+            }
+        }
+        .presentationBackground(Theme.cream)
+    }
+
+    // MARK: You
+
+    /// "Settings" over your name in New York, the email you sign in with,
+    /// and your monogram.
+    private var header: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Kicker("Settings")
+                Text(name)
+                    .font(.serif(.largeTitle))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityAddTraits(.isHeader)
+                if let email = app.accountEmail {
+                    Text(email)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSoft)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Signed in as \(email)")
+                }
+            }
+            Spacer(minLength: 0)
+            // SLOT (Photos session): your profile photo replaces the monogram here.
+            Monogram(name: app.me?.displayName ?? "?", size: monogramSize)
+        }
+        .padding(.top, 6)
+    }
+
+    private var you: some View {
+        SettingsSection("You", footer: "Friends see your name in your chats, and \(Theme.modelName) uses it in catch-ups.") {
+            NavigationLink {
+                EditNameView()
+            } label: {
+                SettingsRow("Change your name", systemImage: "pencil", chevron: true)
+            }
+            .buttonStyle(.pressable)
+            profilePhotoSlot
+        }
+    }
+
+    /// SLOT (Photos session): the "Profile photo" row.
+    @ViewBuilder private var profilePhotoSlot: some View {}
+
+    // MARK: Privacy
+
+    private var privacy: some View {
+        SettingsSection("Privacy") {
+            blockedPeopleSlot
+        }
+    }
+
+    /// SLOT (People session, slice 2): "Blocked people", with Unblock.
+    @ViewBuilder private var blockedPeopleSlot: some View {}
+
+    // MARK: On this iPhone
+
+    private var onThisPhone: some View {
+        SettingsSection("On this iPhone") {
+            savedCatchUpsSlot
+        }
+    }
+
+    /// SLOT (Speed session): "Saved catch-ups" and "Clear cache".
+    @ViewBuilder private var savedCatchUpsSlot: some View {}
+
+    // MARK: Account
+
+    private var account: some View {
+        SettingsSection("Account") {
+            Button {
+                confirmSignOut = true
+            } label: {
+                SettingsRow("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+            .buttonStyle(.pressable)
+            NavigationLink {
+                DeleteAccountView { close(.accountDeleted) }
+            } label: {
+                SettingsRow("Delete account", systemImage: "trash", destructive: true, chevron: true)
+            }
+            .buttonStyle(.pressable)
+        }
+    }
+
+    // MARK: About
+
+    /// The colophon: the drop and the name, the version, Muse Spark's
+    /// byline, and where Ketchup was made.
+    private var about: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle("About")
+            VStack(spacing: 10) {
+                KetchupDrop()
+                    .fill(Theme.ketchup)
+                    .frame(width: 30, height: 30)
+                    .rotationEffect(.degrees(-8))
+                    .accessibilityHidden(true)
+                Wordmark(size: 30)
+                Kicker("Version \(Self.version)")
+                    .padding(.top, 2)
+                MuseByline(verb: "Read by")
+                Text("Built for the Meta Global AI Developer Hackathon, November 2026.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSoft)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .paperCard(padding: 20)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// "1.0 (1)": the version and build from Info.plist.
+    static var version: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = info?["CFBundleVersion"] as? String ?? "1"
+        return "\(short) (\(build))"
+    }
+}
+
+// MARK: - Web chats
+
+/// "Sign out of Instagram in Ketchup", and Snapchat. Each forgets what
+/// that site saved in Ketchup's web views on this iPhone.
+private struct WebChatSignOutSection: View {
+    var body: some View {
+        SettingsSection("Web chats", kicker: "Experimental",
+                        footer: "Ketchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched.") {
+            ForEach(WebChatSource.all) { source in
+                WebChatSignOutRow(source: source)
+            }
+        }
+    }
+}
+
+private struct WebChatSignOutRow: View {
+    let source: WebChatSource
+
+    private enum Status { case checking, saved, nothingSaved, working, done }
+
+    @State private var status = Status.checking
+    @State private var confirm = false
+
+    var body: some View {
+        Button {
+            confirm = true
+        } label: {
+            SettingsRow("Sign out of \(source.name) in Ketchup", systemImage: "globe", detail: detail) {
+                switch status {
+                case .working:
+                    ProgressView().tint(Theme.inkSoft)
+                case .done:
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Theme.pickle)
+                        .accessibilityHidden(true)
+                case .checking, .saved, .nothingSaved:
+                    EmptyView()
+                }
+            }
+        }
+        .buttonStyle(.pressable)
+        // Usable while the check runs (forgetting nothing is harmless); the
+        // first check after launch can take a few seconds while WebKit starts.
+        .disabled(status == .nothingSaved || status == .working || status == .done)
+        .sensoryFeedback(.success, trigger: status) { _, now in now == .done }
+        .task { status = await source.hasSavedData() ? .saved : .nothingSaved }
+        .confirmationDialog("Sign out of \(source.name) in Ketchup?", isPresented: $confirm, titleVisibility: .visible) {
+            Button("Sign out of \(source.name)", role: .destructive) {
+                Task { await forget() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Ketchup forgets \(source.name)'s sign-in and what its site saved on this iPhone. Your \(source.name) account isn't touched.")
+        }
+    }
+
+    private var detail: String? {
+        switch status {
+        case .nothingSaved: "Nothing saved"
+        case .done: "Signed out"
+        case .checking, .saved, .working: nil
+        }
+    }
+
+    private func forget() async {
+        status = .working
+        await source.forgetSavedData()
+        status = .done
+    }
+}
