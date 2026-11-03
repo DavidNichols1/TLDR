@@ -191,6 +191,23 @@ flowchart LR
   quotes you, and catch-ups friends saved that read your messages are deleted too: your
   words don't outlive you inside someone else's summary. Messages don't stay behind as
   "Deleted account", because in a group of friends the words still say who wrote them.
+- **Blocking happens in the database, so Muse Spark respects it too.** A blocked person's
+  messages are left out by the messages read policy itself, so every path that reads as
+  you follows it: the app's reads, Realtime (which applies the policy for each
+  subscriber) and the catch-up edge function, which reads as the caller. Muse Spark
+  never reads a blocked person's messages for your catch-ups. Your unread counts and
+  inbox lines leave them out too, and saved catch-ups that read them are dropped. It's
+  one way and quiet: they stay in the chat and aren't told.
+- **The same policy got faster.** It used to check your membership once for every row;
+  now it checks once per query (an array of your chats, plus the people you've blocked).
+  On the 302-message demo chat the app's first page went from 6.4 ms to 0.49 ms in
+  the database, and the catch-up's read from 8.0 ms to 0.45 ms (EXPLAIN ANALYZE, median
+  of 7, November 3, 2026).
+- **Reports go to us, not to the app.** You can report a message (long press) or a
+  person (their profile), with a reason. Only the reporter can file one, nobody can read
+  reports through the API, and the server keeps a copy of the reported message so it
+  can still be reviewed if it's deleted later. An edge function emails a heads-up with
+  no names or message text in it.
 - **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
   Profile photos are in a public bucket, so the app loads them without a token, but
   nobody can list it. You can only upload into and delete from your own folder (10 an
@@ -199,13 +216,14 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 49-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 69-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
-  Instagram and Snapchat catch-up's usage cap, profile photos (own folder only, no
-  listing, the hourly cap), chat photos (members only, uploaded first, own chat only,
-  only the sender deletes) and deleting an account. It runs in one transaction and
-  rolls back.
+  Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
+  inbox lines, dropped catch-ups, one way), reports (unreadable, never your own, never
+  from outside a chat), profile photos (own folder only, no listing, the hourly cap),
+  chat photos (members only, uploaded first, own chat only, only the sender deletes)
+  and deleting an account. It runs in one transaction and rolls back.
 
 ## Run it yourself
 
@@ -287,6 +305,9 @@ Settings opens from your initial at the top left of Chats
   workers). Your accounts there aren't touched.
 - **Sign out, or delete your account for good** (see Security above). A page says what
   goes and what stays, then asks once more.
+- **Profiles, Block and Report.** Tap a name or photo in a chat, or a member in Chat
+  info, for their profile: the chats you share, Block and Report. Long press someone's
+  message to report it. Settings → Blocked people has Unblock.
 
 ## Built during the event
 

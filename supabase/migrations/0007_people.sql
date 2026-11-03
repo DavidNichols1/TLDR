@@ -7,6 +7,7 @@
 --   0007_people_account          delete_account()
 --   0007_people_account_photos   delete_account() previews a photo like apply_message
 --   0007_people_blocks_reports   blocks, reports, the messages policy, my_chats
+--   0007_people_reports_index    an index for reports.reported_user
 
 -- ---------------------------------------------------------------------------
 -- Part 1: delete account (App Store guideline 5.1.1(v)).
@@ -387,3 +388,9 @@ revoke execute on function public.my_chat_ids(), public.my_blocked_ids(), public
 grant execute on function public.my_chat_ids(), public.my_blocked_ids(), public.block_person(uuid),
   public.unblock_person(uuid), public.my_blocks() to authenticated;
 revoke execute on function public.apply_block_change(), public.fill_report() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Part 2b: an index for reports.reported_user, so deleting an account (which
+-- sets it to null on reports about them) doesn't scan the whole table.
+
+create index reports_reported_user_idx on public.reports (reported_user);

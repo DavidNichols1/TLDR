@@ -224,6 +224,28 @@ Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of
 - **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
 - **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out".
 
+### Profiles, Block and Report
+
+A profile opens from a name or photo in the thread (a sheet) or a member in Chat info (pushed). It's built from the same sections and rows as Settings.
+
+<p>
+<img src="screens/people/profile-light.png" width="200" alt="Jordan's profile: in 1 chat with you, Chats you share, Block or report">
+<img src="screens/people/profile-blocked-dark.png" width="200" alt="The same profile blocked: a Blocked stamp and Unblock, dark">
+<img src="screens/people/report-light.png" width="200" alt="Report this message: the message on paper, what's wrong, a note, Block them too">
+<img src="screens/people/settings-blocked-light.png" width="200" alt="Blocked people, each with Unblock">
+</p>
+
+| Piece | What it does |
+|---|---|
+| `ProfileView(person:in:onBlockChange:)` | Header like Settings' (a kicker, the name in New York, their `Avatar`), Chats you share, then Block or report. Blocked shows a ketchup `Stamp("Blocked")`. `ProfileSheet` is the same with Done, for the thread. |
+| `ReportView(target:)` | The message on paper under the sender's name kicker, What's wrong? (one choice, an ink check), an optional note, "Block them too", and the one ketchup button, Send report. Then a thank-you with the drop. `ReportSheet` adds Cancel. |
+| `BlockedPeopleView` | Each blocked person with their avatar, when, and an outline Unblock. |
+| `SenderName` | The name over a run of bubbles; a button to their profile when there's one to open. |
+
+- **Block is red, Report isn't.** Block is the destructive row; Report is ink with a flag and opens a page.
+- **Say who's told.** Every block and report screen says it plainly: they aren't told, they won't know it was you.
+- **In Chat info,** a blocked member gets a ketchup "Blocked" kicker, and everyone but you has a chevron.
+
 ## Voice
 
 - Plain, warm, a little cheeky. **At most one pun per screen.**
@@ -247,7 +269,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-loading-blank`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). `ai-loading-blank` is the skim before the thread's messages are here. Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `store-check` | Not a screen: runs the on-device copy (`Store/DeviceStore.swift`) against a scratch folder and lists what passed (`Debug/StoreCheckScreen.swift`) |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
-| `settings`, `settings-sheet`, `settings-name`, `settings-delete` | Settings and its pages (`Debug/PeoplePreviewScreen.swift`). `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it |
+| `settings`, `settings-sheet`, `settings-name`, `settings-delete`, `settings-blocked`, `profile`, `profile-blocked`, `report`, `report-sent`, `info-blocked`, `chat-profile`, `chat-report` | Settings and the people screens (`Debug/PeoplePreviewScreen.swift`), on the demo chat's made-up friends. `settings` is full screen (add `-section web`, `account` or `about`); `settings-sheet` is the sheet as the inbox opens it; `chat-profile` and `chat-report` open over the Breck thread |
 | `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |
 
 Light and dark screenshots:
