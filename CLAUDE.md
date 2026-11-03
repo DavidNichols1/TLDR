@@ -59,30 +59,51 @@ the technical recipe. README.md is the judge-facing overview.
 the viewer sets display name **David**, joins with the printed invite code, and has
 302 unread. `--rearm` resets David to all-unread between video takes.
 
-## Photos (profile photos; chat photos next)
+## Photos (profile photos and photos in chats)
 Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
-`.profilePhotoPicker(isPresented:)`, `RemoteImages`) and `ios/Ketchup/Net/Storage.swift`.
-Migration `0006_photos.sql`, applied live in parts (`0006_photos_1_avatars`).
+`.profilePhotoPicker(isPresented:)`, `ChatPhotos` with `PhotoUploads` and
+`.chatPhotoPicker`, `PhotoBubble`, `PhotoViewer`, `RemoteImages`) and
+`ios/Ketchup/Net/Storage.swift`. Migration `0006_photos.sql`, applied live in parts
+(`0006_photos_1_avatars`, `0006_photos_2_chat_media`).
 - `avatars` bucket: public (the app loads a photo by its public URL, no token), JPEG up to
   1 MB. On storage.objects you can insert, select and delete only in your own `<uid>/`
   folder, names `<uuid>.jpg`, 10 uploads an hour (`storage_uploads_ok`). No broad select
   policy, so nobody can list the bucket. `profiles.avatar_path` must be
   `<own id>/<uuid>.jpg` (check constraint); the app lowercases both ids to match.
+- `chat-media` bucket: private, JPEG up to 5 MB. A photo message's files are
+  `<chat>/<message id>.jpg` (at most 2048 px, 400 KB to 1.3 MB) and `<message id>_small.jpg`
+  (768 px, 80 to 180 KB): the thread and Muse Spark use the small one, the viewer the
+  full one. Members of the chat read (signed URLs) and upload (200 files an hour); only
+  the uploader deletes. `messages.image_path`/`image_width`/`image_height`: the path must
+  be in the message's own chat and already uploaded (the hygiene trigger checks), and the
+  body may be empty with a photo. The inbox line says "📷 Photo" or "📷 " and the caption.
+- Sending a photo: both copies go into the image cache under their final names first (the
+  bubble shows at once), the small one uploads, then the full one, then the row goes in
+  with the message's own id. A retry carries on from the file that didn't make it.
 - Never delete storage files with SQL: it orphans the file (`storage.protect_delete`
   refuses anyway). The app deletes a replaced photo through the Storage API.
+  `ChatPhotos.deleteMine(app:)` deletes someone's avatar and every chat photo they sent,
+  for Delete account (call it before `delete_account()`).
 - One image pipeline, `RemoteImages.shared`: decoded photos in memory at the drawn size,
   original bytes on disk in `Caches/photos` (150 MB, least recently used goes first),
-  keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale.
+  keyed `bucket/path`, emptied on sign-out. Paths never change, so nothing goes stale,
+  and a private photo is signed only when it isn't on disk yet.
+- In the transcript Muse Spark reads, a photo is `[photo]` and its caption, with a line in
+  the prompt's header saying what that means (only when the chat has photos).
+  `_shared/transcript.ts` changed, so after merge redeploy both `catch-up` and
+  `catch-up-text`; `deno test supabase/functions/_shared/` must pass (4 tests).
 - For now the account button's menu (Chats page, top left) has Add a photo, Change photo
   and Remove photo. A Settings page takes it over at merge: `.profilePhotoPicker` moves with it.
-- Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`. The
-  photos are drawn on the fly (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his
-  monogram to show the fallback.
-- Checks: the RLS suite covers it (36/36 on Nov 3, 2026). As anon, with the publishable
-  key: `POST /storage/v1/object/list/avatars` returns `[]` and an upload returns 403. After
-  a real upload: `select id, avatar_path from profiles where avatar_path is not null;` and
-  `select bucket_id, count(*) from storage.objects group by 1;` (one file per person: the
-  replaced one is gone).
+- Offline previews: `-screen photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`,
+  `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer`. The photos are drawn on
+  the fly (`Debug/PreviewPhotos.swift`, no real people); Sam keeps his monogram to show the
+  fallback. `photo-sending` sends Pickles the dog with a pretend 20 s upload.
+- Checks: the RLS suite covers both parts (44/44 on Nov 3, 2026). As anon, with the
+  publishable key: `POST /storage/v1/object/list/avatars` returns `[]` and an upload
+  returns 403. After real use: `select id, avatar_path from profiles where avatar_path is
+  not null;`, `select bucket_id, count(*) from storage.objects group by 1;` and
+  `select id, image_path, image_width, image_height from messages where image_path is not
+  null order by created_at desc limit 5;`.
 
 ## Web-chat catch-up: Instagram and Snapchat (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,

@@ -107,9 +107,9 @@ After sign-in, the home is three pages side by side: **Chats** (the inbox, first
 - **A page is built the first time you head its way**, then kept: a web page doesn't load until you go there, and doesn't reload as you swipe past.
 - **`HomePage.all`** lists the pages, left to right, and `HomePage.content` says what each shows: another chat app is one more `.web(…)` in the list.
 
-## Profile photos
+## Photos
 
-A photo is a print pinned to the paper: the same rounded square as a monogram, edged with a hairline. Screenshots: `screens/photos/` (made-up photos, no real people).
+A profile photo is a print pinned to the paper: the same rounded square as a monogram, edged with a hairline. A photo in a chat is a bubble of its own shape. Screenshots: `screens/photos/` (made-up photos, no real people).
 
 <p>
 <img src="screens/photos/crop-light.png" width="200" alt="Frame it: a mountain photo under a rounded-square window cut in the paper">
@@ -123,6 +123,17 @@ A photo is a print pinned to the paper: the same rounded square as a monogram, e
 | `AvatarCropper` | "Frame it": the picked photo under paper with a rounded-square window cut out; drag and pinch, the photo always covers the window. "Use photo" is the one ketchup button and says "Saving" until the upload is done. VoiceOver can zoom with swipe up and down. |
 | In a chat | Other people's photos sit by the last bubble of each run, bottom-aligned, 28 pt. Mine get none. |
 | Account button | My photo inside the top bar's glass button. Its menu adds, changes or removes the photo (until Settings takes that over). |
+| `PhotoBubble` | A chat photo in the thread: its own shape (between 1:2 and 2.2:1), at most 240 pt wide, laid out from its stored size before it loads. The caption sits under it in the same bubble, on card paper (theirs) or ink (mine), with a text bubble's run corners. Tap to open. |
+| Upload ring | While my photo uploads: an ink ring filling a hairline track on a cream disc over the photo. "Not sent. Tap to retry" if it fails, like text. |
+| Composer | A photo button before the field (`ChatInputBar(onPhoto:)`). The picked photo waits above the field with an ink x to take it off; the field says "Add a caption", and the ketchup send works with or without words. |
+| `PhotoViewer` | Full screen on dark paper (17120F in both modes): pinch or double-tap to zoom, Share (and Save Image) in the top bar's glass buttons, who sent it and when in cream type under it. |
+
+<p>
+<img src="screens/photos/thread-light.png" width="200" alt="Photos in the Breck thread, with captions under them">
+<img src="screens/photos/sending-light.png" width="200" alt="David's photo uploading: the ink ring half full">
+<img src="screens/photos/attach-dark.png" width="200" alt="A photo waiting in the composer with a caption, dark">
+<img src="screens/photos/viewer-light.png" width="200" alt="Maya's cabin photo full screen">
+</p>
 
 ## Muse Spark screens
 
@@ -196,7 +207,7 @@ xcrun simctl launch --terminate-running-process <udid> com.vibetemp.ketchup -scr
 | `signin`, `signin-code`, `name`, `home`, `home-instagram`, `inbox`, `inbox-empty`, `new-chat`, `join`, `chat`, `chat-jump`, `info`, `icon` | The chat screens (`Debug/CorePreviewScreen.swift`). `home` opens the pager on Chats (the same screen as `inbox`), `home-instagram` on the Instagram page with the synthetic test thread, offline (add `-KetchupInstagramFixture NO` for the real site). `chat-jump` stages the jump-to-message highlight; `icon` renders the app icon |
 | `ai-catchup`, `ai-checked`, `ai-loading`, `ai-error`, `ai-empty`, `ai-ask`, `ai-ask-loading`, `ai-ask-error`, `ai-answer`, `ai-notfound` | The Muse Spark screens (`Debug/AIPreviewScreen.swift`). Add `-section for-you`, `plans`, `owes`, `questions` or `highlights` to scroll the brief there, `-delay 4` to land it late, `-reduceMotion YES` to see the Reduce Motion version |
 | `web-instagram`, `web-snapchat`, `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote` | The web-chat screens (`Debug/WebChatPreviewScreen.swift`) on the synthetic threads. `web-instagram` and `web-snapchat` are each page on its bundled fixture; `web-brief` is a hand-written brief, not a Muse Spark call |
-| `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info` | Profile photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo, then the inbox, the Breck thread and its members with made-up photos (`Debug/PreviewPhotos.swift`). Sam has none, to show the monogram |
+| `photo-crop`, `photo-inbox`, `photo-chat`, `photo-info`, `photo-thread`, `photo-sending`, `photo-attach`, `photo-viewer` | Photos (`Debug/PhotosPreviewScreen.swift`): the cropper on a made-up mountain photo; the inbox, the Breck thread and its members with made-up profile photos (`Debug/PreviewPhotos.swift`; Sam has none, to show the monogram); the end of Breck with photos in it, David's photo uploading (a pretend 20 s upload), one waiting in the composer, and the viewer on Maya's cabin |
 
 Light and dark screenshots:
 
