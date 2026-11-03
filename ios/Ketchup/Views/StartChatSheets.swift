@@ -81,12 +81,17 @@ struct JoinChatSheet: View {
         dismiss()
     }
 
-    /// Capital letters and numbers, at most six. A pasted share message
-    /// ("Join “Breck” on Ketchup with code WQGAEA") keeps its last 6-character word.
+    /// Capital letters and numbers, at most six. From a pasted share message
+    /// ("Join “Breck” on Ketchup with code WQGAEA") it keeps the word after
+    /// "code", or else the last 6-character word.
     static func clean(_ raw: String) -> String {
         let upper = raw.uppercased()
         let kept = upper.filter { $0.isLetter || $0.isNumber }
-        if kept.count > length, let word = upper.matches(of: /\b[A-Z0-9]{6}\b/).last {
+        guard kept.count > length else { return kept }
+        if let match = upper.firstMatch(of: /CODE[^A-Z0-9]+([A-Z0-9]{6})\b/) {
+            return String(match.1)
+        }
+        if let word = upper.matches(of: /\b[A-Z0-9]{6}\b/).last {
             return String(word.output)
         }
         return String(kept.prefix(length))
