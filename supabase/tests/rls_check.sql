@@ -81,19 +81,24 @@ update results set pass = (select count(*) = 1 from public.join_attempts
   where user_id = '00000000-0000-0000-0000-0000000000c3')
  where name = 'wrong code counted (not rolled back)';
 
--- The text cap, as the edge function calls it: 2 of 2 allowed, then a
--- refusal that isn't counted.
+-- The text cap, as the edge function calls it: 2 of 2 allowed (one per
+-- source, so both count toward it), then a refusal that isn't counted.
 grant all on results to service_role;
 set local role service_role;
 insert into results select 'text cap allows the 1st use',
   public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'catch_up', 120, 2);
-insert into results select 'text cap allows the 2nd use',
-  public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'ask', 120, 2);
+insert into results select 'text cap allows the 2nd use (snapchat)',
+  public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'snapchat', 'ask', 120, 2);
 insert into results select 'text cap refuses the 3rd use',
   not public.take_text_brief('00000000-0000-0000-0000-0000000000a1', 'instagram', 'catch_up', 120, 2);
 reset role;
 insert into results select 'refused text use not counted',
   (select count(*) = 2 from public.text_brief_usage where user_id = '00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  insert into public.text_brief_usage (user_id, source, mode, message_count)
+  values ('00000000-0000-0000-0000-0000000000a1', 'tiktok', 'ask', 1);
+  insert into results values ('unknown text source refused', false);
+exception when check_violation then insert into results values ('unknown text source refused', true); end $$;
 
 select * from results;
 rollback;

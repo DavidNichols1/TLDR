@@ -1,9 +1,9 @@
 // catch-up-text: "Catch me up" and "Ask" for a conversation the app read off a
-// page instead of out of Ketchup's database. One source today, experimental and
-// not released: an Instagram DM thread the reader has open in their own
-// signed-in Instagram session inside the app (ios/Ketchup/Instagram/).
+// page instead of out of Ketchup's database. Experimental and not released: an
+// Instagram DM thread or a Snapchat chat the reader has open in their own
+// signed-in session inside the app (ios/Ketchup/WebChat/).
 //
-// POST { mode: "catch_up" | "ask", question?, source: "instagram", thread_title,
+// POST { mode: "catch_up" | "ask", question?, source: "instagram" | "snapchat", thread_title,
 //        reader_name, time_zone, messages: [{ sender, text, at? }] }   (oldest first)
 // Authorization: Bearer <a signed-in Ketchup user's access token>
 //
@@ -14,7 +14,7 @@
 // Stores nothing from the conversation: no ai_briefs row, and the logs get
 // counts and token usage only, never message text, names or model output.
 // The one write is a usage row with no content, for the hourly cap
-// (migration 0004).
+// (migrations 0004 and 0005).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildTextTranscript, type TextMessage } from "../_shared/transcript.ts";
@@ -25,7 +25,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const SOURCES = new Set(["instagram"]);
+// What each source's thread is, for the prompt. A new source also needs the
+// text_brief_usage source check (a migration).
+const SOURCES = new Map([
+  ["instagram", "an Instagram DM thread"],
+  ["snapchat", "a Snapchat chat"],
+]);
 const MAX_MESSAGES = 600;   // newest messages a request covers
 const MAX_TEXT = 4000;      // characters kept per message (the transcript sends 600)
 const MAX_BYTES = 1_000_000;
@@ -172,7 +177,7 @@ Deno.serve(async (req) => {
   });
   const senders = [...new Set(messages.map((m) => m.sender))].filter((s) => s !== readerName);
   const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\n` +
-    `Chat: ${title ? `"${title}", ` : ""}an Instagram DM thread the reader has open\n` +
+    `Chat: ${title ? `"${title}", ` : ""}${SOURCES.get(source)} the reader has open\n` +
     `Members: ${[readerName, ...senders].join(", ")}\n` +
     (messages.some((m) => m.at) ? "Times are approximate: the page only shows one at breaks in the conversation.\n" : "");
   const userPrompt = mode === "ask"
