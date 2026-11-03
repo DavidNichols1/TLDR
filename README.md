@@ -381,11 +381,16 @@ no website inside Ketchup. You use the real Instagram app.
   ([`android/.../reader/`](android/app/src/main/java/com/vibetemp/ketchup/reader)) listens
   only to Instagram and Snapchat. When a DM thread is open, a small Ketchup bubble floats
   over it (an accessibility overlay, so no draw-over permission). Tap it and pick the last
-  30, 80 or 120 messages. It reads them off the screen, scrolling back for older ones and
+  10, 30, 80 or 120 messages. It reads them off the screen, scrolling back for older ones and
   dropping repeats, and tells your messages from theirs by which side they're on (on
   Snapchat, by the name row above them). Then it
   sends the thread to the same [`catch-up-text`](supabase/functions/catch-up-text/index.ts)
   function as the iPhone, and the brief opens over Instagram. Back returns to the chat.
+- **Or read as you scroll.** Pick **Until I stop scrolling** and the bubble doesn't scroll
+  for you: it reads whatever you scroll past, counts as it goes, and catches you up about 3
+  seconds after you stop (or right away with Catch me up now; it stops at 600 messages or 3
+  minutes). It only reads once the list stands still, since a list in mid-scroll can hand
+  back stale rows.
 - **It reads only when you tap, and only the chat you have open.** Nothing is kept on the
   phone or the server, and the logs hold counts only. Before the bubble can be turned on,
   a page says what it reads, when, and where it goes. It goes by what's on screen and
