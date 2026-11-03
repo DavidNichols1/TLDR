@@ -105,9 +105,12 @@ struct CatchUpSheet: View {
     }
 
     /// The reader as the chat names them ("David"), which is how Muse Spark
-    /// writes them in owes and questions.
+    /// writes them in owes and questions. Members without a profile come
+    /// through as "Someone", which isn't a name to greet.
     private var readerName: String {
-        model.names[model.myId] ?? app?.me?.displayName ?? ""
+        [app?.me?.displayName, model.names[model.myId]]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty && $0 != "Someone" } ?? ""
     }
 
     #if DEBUG

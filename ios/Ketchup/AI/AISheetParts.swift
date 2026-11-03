@@ -84,14 +84,14 @@ struct AIErrorCard: View {
     let retry: () -> Void
 
     var body: some View {
-        let parts = Self.split(message)
+        let parts = Sentences.first(message)
         // "Try again." under a Try again button says it twice.
         let rest = parts.rest.flatMap { $0.lowercased().hasPrefix("try again.") && $0.count <= 10 ? nil : $0 }
         let more = [rest, note].compactMap { $0 }.joined(separator: " ")
         VStack(alignment: .leading, spacing: 16) {
             Kicker("Didn't go through", color: Theme.ketchupText)
             VStack(alignment: .leading, spacing: 6) {
-                Text(parts.headline)
+                Text(parts.first)
                     .font(.serif(.title3))
                     .foregroundStyle(Theme.ink)
                 if !more.isEmpty {
@@ -110,16 +110,6 @@ struct AIErrorCard: View {
             }
         }
         .paperCard(padding: 20)
-    }
-
-    /// "Muse Spark is busy right now. Try again in a moment." gives the first
-    /// sentence as a headline and the rest to go under it.
-    static func split(_ message: String) -> (headline: String, rest: String?) {
-        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let stop = trimmed.range(of: ". ") else { return (trimmed, nil) }
-        let rest = trimmed[stop.upperBound...].trimmingCharacters(in: .whitespaces)
-        return (String(trimmed[..<stop.upperBound]).trimmingCharacters(in: .whitespaces),
-                rest.isEmpty ? nil : rest)
     }
 }
 

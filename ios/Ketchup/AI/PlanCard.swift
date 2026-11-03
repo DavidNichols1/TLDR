@@ -119,7 +119,7 @@ struct PlanCard: View {
 
     /// A bare date ("2026-11-07") means the chat never said what time.
     private var hasTime: Bool {
-        plan.startsAt?.contains("T") ?? false
+        (plan.startsAt?.count ?? 0) > 10
     }
 
     private func timeText(_ start: Date) -> String {
@@ -128,10 +128,11 @@ struct PlanCard: View {
         return start.formatted(date: .omitted, time: .shortened).uppercased()
     }
 
-    /// "TO 1:00 PM" when the plan has an end time.
+    /// When the plan has an end time: "TO 1:00 PM", or "TO SUN 4:00 PM" when
+    /// it ends on another day.
     private func untilText(_ start: Date) -> String? {
-        guard !plan.allDay, hasTime, let end = plan.end, end > start else { return nil }
-        return "TO " + end.formatted(date: .omitted, time: .shortened).uppercased()
+        guard let end = endTime(after: start) else { return nil }
+        return "TO \(end)".uppercased()
     }
 
     private var spokenWhen: String {
@@ -139,7 +140,17 @@ struct PlanCard: View {
         let day = start.formatted(.dateTime.weekday(.wide).month(.wide).day())
         if plan.allDay { return "\(day), all day" }
         guard hasTime else { return "\(day), time to be decided" }
-        return "\(day) at \(start.formatted(date: .omitted, time: .shortened))"
+        let from = "\(day) at \(start.formatted(date: .omitted, time: .shortened))"
+        return endTime(after: start, wide: true).map { "\(from) to \($0)" } ?? from
+    }
+
+    /// "1:00 PM" the same day, or "Sun 4:00 PM" ("Sunday 4:00 PM" for
+    /// VoiceOver) on another.
+    private func endTime(after start: Date, wide: Bool = false) -> String? {
+        guard !plan.allDay, hasTime, let end = plan.end, end > start else { return nil }
+        let time = end.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDate(end, inSameDayAs: start) { return time }
+        return "\(end.formatted(.dateTime.weekday(wide ? .wide : .abbreviated))) \(time)"
     }
 }
 

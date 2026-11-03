@@ -255,6 +255,13 @@ private struct AnswerCard: View {
                         .font(.body)
                         .foregroundStyle(Theme.inkSoft)
                 }
+                // An answer Muse Spark couldn't back with a message.
+                if !parts.saysNotFound && answer.refs.isEmpty {
+                    Text("\(Theme.modelName) couldn't point to a message for this.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.inkSoft)
+                        .padding(.top, 2)
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             if !answer.refs.isEmpty {
@@ -274,17 +281,22 @@ private struct AnswerCard: View {
         }
     }
 
-    /// "The chat doesn't say. Sam asked twice and nobody answered." gives
-    /// that first sentence as the headline. Any other answer gets it added.
-    static func split(_ answer: String) -> (headline: String, rest: String?) {
-        let headline = "The chat doesn't say."
-        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-        let opener = trimmed.replacingOccurrences(of: "’", with: "'")
-        guard opener.lowercased().hasPrefix("the chat doesn't say") else {
-            return (headline, trimmed.isEmpty ? nil : trimmed)
+    /// "The chat doesn't say. Sam asked twice." splits after "say."; any
+    /// other answer after its own first sentence ("The chat doesn't say
+    /// whether the house has a hot tub."), so nothing is cut mid-sentence.
+    /// `saysNotFound` is false for an answer that only lacked a source.
+    static func split(_ answer: String) -> (headline: String, rest: String?, saysNotFound: Bool) {
+        let text = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let opener = "the chat doesn't say"
+        let saysNotFound = text.replacingOccurrences(of: "’", with: "'").lowercased().hasPrefix(opener)
+        if saysNotFound {
+            let after = text.dropFirst(opener.count)
+            if after.isEmpty || ".:;!".contains(after.first!) {
+                let rest = after.drop { " .:;!".contains($0) }.trimmingCharacters(in: .whitespaces)
+                return ("The chat doesn't say.", rest.isEmpty ? nil : rest.prefix(1).uppercased() + rest.dropFirst(), true)
+            }
         }
-        let after = String(trimmed.dropFirst("the chat doesn't say".count)
-            .drop { " .,:;".contains($0) })
-        return (headline, after.isEmpty ? nil : after)
+        let parts = Sentences.first(text)
+        return (parts.first, parts.rest, saysNotFound)
     }
 }

@@ -52,9 +52,13 @@ private struct ToDoRow: View {
                 check
             }
             .buttonStyle(.pressable)
+            // Lays out at the ring's size; the extra 10 pt all round is
+            // still there to tap.
+            .padding(-10)
             .sensoryFeedback(.selection, trigger: isDone)
-            .accessibilityLabel(isDone ? "Checked off" : "Check off")
-            .accessibilityHint(item.text)
+            .accessibilityLabel(item.text)
+            .accessibilityValue(isDone ? "Done" : "Not done")
+            .accessibilityAddTraits(.isToggle)
 
             VStack(alignment: .leading, spacing: 10) {
                 Button {
@@ -70,7 +74,8 @@ private struct ToDoRow: View {
                 }
                 .buttonStyle(.pressable)
                 .disabled(item.refs.isEmpty)
-                .accessibilityHint("Shows it in the chat")
+                // The check above already read the words out.
+                .accessibilityLabel("Show where it was said")
 
                 RefChips(refs: item.refs, context: refs)
                     .opacity(isDone ? 0.55 : 1)
@@ -97,8 +102,8 @@ private struct ToDoRow: View {
                 .opacity(isDone ? 1 : 0)
         }
         .frame(width: box, height: box)
-        // A bigger target than it looks.
-        .contentShape(.rect.inset(by: -10))
+        // A 44 pt target around a 24 pt ring.
+        .padding(10)
         .motion(Motion.lively, value: isDone)
     }
 }

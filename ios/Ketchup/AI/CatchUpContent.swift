@@ -155,8 +155,8 @@ struct CatchUpContent: View {
     /// Questions that name the reader come first.
     private var questionsForYouFirst: [CatchUp.Question] {
         guard let firstName else { return brief.openQuestions }
-        let named = brief.openQuestions.filter { $0.question.localizedCaseInsensitiveContains(firstName) }
-        let rest = brief.openQuestions.filter { !$0.question.localizedCaseInsensitiveContains(firstName) }
+        let named = brief.openQuestions.filter { BriefMarks.mentions(firstName, in: $0.question) }
+        let rest = brief.openQuestions.filter { !BriefMarks.mentions(firstName, in: $0.question) }
         return named + rest
     }
 }

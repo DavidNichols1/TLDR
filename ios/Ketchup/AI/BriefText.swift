@@ -4,7 +4,8 @@
 //
 //  Muse Spark's sentences, marked up for skimming: money and times get the
 //  mustard marker on their own, the reader's name stands out in a question,
-//  and a to-do gets a pen stroke through it once it's done.
+//  a first sentence can stand as a headline, and a to-do gets a pen stroke
+//  through it once it's done.
 //
 
 import SwiftUI
@@ -22,15 +23,25 @@ enum BriefMarks {
         marked(text, by: moneyAndTimesPattern)
     }
 
-    /// Every whole-word mention of `name`: the reader, in someone's question.
+    /// Every mention of `name` as a name: the reader, in someone's question.
     static func name(_ name: String, in text: String) -> Text {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty,
-              let pattern = try? NSRegularExpression(
-                  pattern: "\\b\(NSRegularExpression.escapedPattern(for: name))\\b",
-                  options: .caseInsensitive)
-        else { return Text(verbatim: text) }
+        guard let pattern = namePattern(name) else { return Text(verbatim: text) }
         return marked(text, by: pattern)
+    }
+
+    /// Whether `text` mentions `name` as a name.
+    static func mentions(_ name: String, in text: String) -> Bool {
+        guard let pattern = namePattern(name) else { return false }
+        return pattern.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) != nil
+    }
+
+    /// The whole word, capitalized the way Muse Spark writes names, so a
+    /// reader called Will doesn't light up every "will".
+    private static func namePattern(_ name: String) -> NSRegularExpression? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        let capitalized = name.prefix(1).uppercased() + name.dropFirst()
+        return try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: capitalized))\\b")
     }
 
     private static let moneyAndTimesPattern: NSRegularExpression = {
@@ -38,7 +49,7 @@ enum BriefMarks {
         let clock = #"\d{1,2}(?::\d{2})?\s?(?:am|pm|a\.m\.|p\.m\.)(?![a-z])|\d{1,2}:\d{2}"#
         let time = "(?:\(clock)|noon|midnight)"
         let pattern = [
-            #"(?<!\bfrom )(?<!\binstead of )(?<!\bwas )[$€£]\d[\d,]*(?:\.\d{1,2})?"#,
+            #"(?<!\bfrom )(?<!\binstead of )(?<!\bwas )[$€£]\d+(?:,\d{3})*(?:\.\d{1,2})?"#,
             "\\b\(day)\\s+(?:at\\s+)?\(time)",
             "(?<=\\b(?:by|before|until) )\(day)",
             "\\b\(time)",
@@ -64,6 +75,20 @@ enum BriefMarks {
             result = Text("\(result)\(Text(verbatim: string.substring(from: cursor)))")
         }
         return result
+    }
+}
+
+// MARK: - Sentences
+
+enum Sentences {
+    /// "Muse Spark is busy right now. Try again in a moment." gives the first
+    /// sentence, to set as a headline, and the rest, to go under it.
+    static func first(_ text: String) -> (first: String, rest: String?) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let stop = text.range(of: #"[.?!]\s+"#, options: .regularExpression) else { return (text, nil) }
+        let first = text[..<stop.upperBound].trimmingCharacters(in: .whitespaces)
+        let rest = text[stop.upperBound...].trimmingCharacters(in: .whitespaces)
+        return (first, rest.isEmpty ? nil : rest)
     }
 }
 

@@ -88,18 +88,25 @@ struct SkimmingView: View {
     /// Where everything is `t` seconds in. The line being read sits in the
     /// middle row while the marker sweeps across it, then the list moves up
     /// a row and the next line gets read. Lines already read keep a fading
-    /// trace of the marker.
+    /// trace of the marker. A long list loops; one too short to fill the
+    /// window reads through once and stops on its last line, so no message
+    /// shows twice at the same time.
     private func moving(at t: TimeInterval) -> some View {
-        let step = Int(t / Self.beat)
-        let phase = t - Double(step) * Self.beat
+        let loops = lines.count > rows + 1
         let reading = Self.beat - Self.lift
+        var step = Int(t / Self.beat)
+        var phase = t - Double(step) * Self.beat
+        if !loops, step >= lines.count - 1 {
+            step = lines.count - 1
+            phase = reading
+        }
         let sweep = Self.easeOut(min(phase / reading, 1))
         let rise = Self.easeInOut(max(0, (phase - reading) / Self.lift))
         let slot = rows / 2
         return ZStack(alignment: .topLeading) {
             // Line `step` is being read; one more row either side slides in and out.
             ForEach((step - slot - 1)...(step + rows - slot), id: \.self) { index in
-                if index >= 0 {
+                if index >= 0, loops || index < lines.count {
                     // In rows from the top of the window, and from the reading row.
                     let position = Double(index - step + slot) - rise
                     let distance = position - Double(slot)
@@ -175,10 +182,14 @@ struct SkimmingView: View {
 
 extension SkimLine {
     /// Up to `limit` of a chat's messages as window lines, from `start` on.
-    static func lines(from model: ChatModel, startingAt start: UUID?, limit: Int = 200) -> [SkimLine] {
+    /// A backlog shorter than `atLeast` reaches back for earlier lines, so
+    /// the window has enough to run.
+    static func lines(from model: ChatModel, startingAt start: UUID?, limit: Int = 200,
+                      atLeast: Int = 12) -> [SkimLine] {
         let messages = model.messages
-        let first = start.flatMap { id in messages.firstIndex { $0.id == id } }
-            ?? max(0, messages.count - limit)
+        let from = start.flatMap { id in messages.firstIndex { $0.id == id } }
+            ?? messages.count - limit
+        let first = max(0, min(from, messages.count - atLeast))
         return messages[first...].prefix(limit).map { message in
             let name = model.name(of: message.sender)
             return SkimLine(name: name,
