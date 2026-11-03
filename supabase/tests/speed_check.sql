@@ -3,7 +3,9 @@
 -- transaction, and rolls everything back. Run it with execute_sql after a
 -- schema change and compare with the numbers in 0008_speed_indexes.sql.
 -- Paths 1 to 4 run as David under RLS, as the app reads them; 5 to 7 run as
--- the server does (catch-up's service role, the send trigger).
+-- the server does (catch-up's service role, the send trigger). Since 0009
+-- the app and catch-up read every column (select *), and the send trigger
+-- counts only text (kind), so this file needs 0009.
 --
 -- The busy account: a 20,000-message chat with 5,000 unread, 20 more chats
 -- of 300 messages, David the sender of a quarter of it, and 3,000 saved
@@ -35,19 +37,19 @@ create function pg_temp.measure_all(p_phase text, david uuid, chat uuid, cursor_
 language plpgsql as $f$
 begin
   perform pg_temp.measure('1 open chat: newest 327', p_phase, format(
-    'select id, chat_id, sender, body, created_at, image_path, image_width, image_height from public.messages where chat_id = %L order by created_at desc limit 327', chat), david);
+    'select * from public.messages where chat_id = %L order by created_at desc limit 327', chat), david);
   perform pg_temp.measure('2 open chat: members', p_phase, format(
     'select m.user_id, m.joined_at, m.last_read_at, p.display_name, p.avatar_path from public.chat_members m left join public.profiles p on p.id = m.user_id where m.chat_id = %L order by m.joined_at', chat), david);
   perform pg_temp.measure('3 inbox: my_chats()', p_phase, 'select * from public.my_chats()', david);
   perform pg_temp.measure('4 catch-up: unread read', p_phase, format(
-    'select id, sender, body, created_at, image_path from public.messages where chat_id = %L and created_at > %L order by created_at desc limit 600', chat, cursor_at), david);
+    'select * from public.messages where chat_id = %L and created_at > %L order by created_at desc limit 600', chat, cursor_at), david);
   perform pg_temp.measure('5 catch-up: saved-brief lookup', p_phase, format(
     'select id, result, model from public.ai_briefs where user_id = %L and chat_id = %L and kind = %L and since = %L and until = %L and question is null and model <> %L order by created_at desc limit 1',
     david, chat, 'catch_up', since_at, until_at, 'pending'), null);
   perform pg_temp.measure('6 catch-up: hourly cap count', p_phase, format(
     'select count(*) from public.ai_briefs where user_id = %L and created_at >= now() - interval %L', david, '1 hour'), null);
   perform pg_temp.measure('7 every send: rate check', p_phase, format(
-    'select count(*) from public.messages where sender = %L and created_at > now() - interval %L', david, '10 seconds'), null);
+    'select count(*) from public.messages where sender = %L and created_at > now() - interval %L and kind = %L', david, '10 seconds', 'text'), null);
 end $f$;
 
 do $$

@@ -490,6 +490,12 @@ async function main() {
   const { chat, created } = await ensureChat(api, users[CREATOR]);
   console.log(`  chat "${chat.name}" ${chat.id}  (${created ? "created" : "exists"})`);
 
+  // Migration 0009 adds messages.kind: "joined" marks a "David joined" line,
+  // which is never the inbox line and never counts as unread. Before 0009 is
+  // applied the column isn't there, so ask once and filter only if it is.
+  const hasKind = await api.req("GET", "/rest/v1/messages?select=kind&limit=1").then(() => true, () => false);
+  const textOnly = hasKind ? "&kind=eq.text" : "";
+
   const members = await api.req<{ user_id: string; last_read_at: string }[]>(
     "GET",
     `/rest/v1/chat_members?select=user_id,last_read_at&chat_id=eq.${chat.id}`,
@@ -506,7 +512,7 @@ async function main() {
   }
   console.log(`  members: ${seedIds.length} demo friends (${missing.length} added), ${members.filter((m) => !seedIds.includes(m.user_id)).length} others`);
 
-  const before = await api.count("messages", `chat_id=eq.${chat.id}`);
+  const before = await api.count("messages", `chat_id=eq.${chat.id}${textOnly}`);
 
   if (RESET) {
     await api.req("DELETE", `/rest/v1/messages?chat_id=eq.${chat.id}&sender=in.${seedList}`, undefined, "return=minimal");
@@ -569,7 +575,7 @@ async function main() {
   const chatCreated = new Date(rows[0].at - 25 * 60_000).toISOString();
   const latest = await api.req<{ body: string; sender: string; created_at: string }[]>(
     "GET",
-    `/rest/v1/messages?select=body,sender,created_at&chat_id=eq.${chat.id}&order=created_at.desc&limit=1`,
+    `/rest/v1/messages?select=body,sender,created_at&chat_id=eq.${chat.id}${textOnly}&order=created_at.desc&limit=1`,
   );
   await api.req("PATCH", `/rest/v1/chats?id=eq.${chat.id}`, {
     created_at: chatCreated,
@@ -583,6 +589,25 @@ async function main() {
     { joined_at: chatCreated, last_read_at: new Date(rows[rows.length - 1].at).toISOString() },
     "return=minimal",
   );
+
+  // A "joined" line can't sit inside the conversation: after a --retime or
+  // --end-date, someone who joined before the move would join mid-chat. Those
+  // lines go to the chat's start, where its members begin. Never fatal.
+  if (hasKind) {
+    try {
+      const lastAt = new Date(rows[rows.length - 1].at).toISOString();
+      const inside = await api.req<{ id: string }[]>(
+        "GET",
+        `/rest/v1/messages?select=id&chat_id=eq.${chat.id}&kind=eq.joined&created_at=gt.${enc(chatCreated)}&created_at=lte.${enc(lastAt)}`,
+      );
+      for (const j of inside) {
+        await api.req("PATCH", `/rest/v1/messages?id=eq.${j.id}`, { created_at: chatCreated }, "return=minimal");
+      }
+      if (inside.length) console.log(`  moved ${inside.length} "joined" line(s) to the chat's start`);
+    } catch (e) {
+      console.warn(`  note: couldn't check the "joined" lines (${(e as Error).message})`);
+    }
+  }
 
   // Anyone else in the chat (you): show, and optionally reset, their unread state.
   const others = members.filter((m) => !seedIds.includes(m.user_id));
@@ -599,7 +624,7 @@ async function main() {
         await api.req("DELETE", `/rest/v1/ai_briefs?chat_id=eq.${chat.id}&user_id=eq.${o.user_id}&kind=eq.catch_up`, undefined, "return=minimal");
       }
       const cursor = unreadFrom ?? o.last_read_at;
-      const unread = await api.count("messages", `chat_id=eq.${chat.id}&created_at=gt.${enc(cursor)}&sender=neq.${o.user_id}`);
+      const unread = await api.count("messages", `chat_id=eq.${chat.id}&created_at=gt.${enc(cursor)}&sender=neq.${o.user_id}${textOnly}`);
       const nm = nameOf.get(o.user_id) ?? o.user_id;
       const hint = unread === 0 && !REARM ? "  ← run with --rearm to make it unread again" : "";
       const nameHint = nm === VIEWER_NAME ? "" : `  (display name isn't "${VIEWER_NAME}", so "for you" items won't match)`;
@@ -609,7 +634,7 @@ async function main() {
     console.log("  --rearm: nobody besides the demo friends has joined yet");
   }
 
-  const after = await api.count("messages", `chat_id=eq.${chat.id}`);
+  const after = await api.count("messages", `chat_id=eq.${chat.id}${textOnly}`);
   report(plan, place, now);
   console.log(`\nMessages in chat: ${before} → ${after}`);
   console.log(`\n  INVITE CODE:  ${chat.invite_code}\n`);

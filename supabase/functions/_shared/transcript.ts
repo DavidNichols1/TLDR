@@ -13,6 +13,20 @@ export interface ChatMessage {
   created_at: string;
   /** Set when the message is a photo (chat-media, 0006); the body is its caption. */
   image_path?: string | null;
+  /** "text", or "joined" for a "Maya joined" line (0009). Rows from before it have none. */
+  kind?: string | null;
+}
+
+/** A "Maya joined" line: context for the model, never a message to summarize or cite. */
+export function isJoin(m: ChatMessage): boolean {
+  return m.kind === "joined";
+}
+
+/** What the prompt's header says about join lines, if the transcript has any. */
+export function joinNote(messages: ChatMessage[]): string {
+  return messages.some(isJoin)
+    ? `Joins: a line "[<name> joined]" says that person joined the chat at that point. It has no ref and isn't a message: never cite it or summarize it.\n`
+    : "";
 }
 
 /** A message the app read off a page, not out of Ketchup's database. */
@@ -27,7 +41,7 @@ export interface Transcript<Ref = string> {
   text: string;
   /** "m12" → message uuid (text transcripts: the message's index) */
   refs: Map<string, Ref>;
-  /** messages included, in order */
+  /** messages included (join lines aren't messages) */
   count: number;
 }
 
@@ -64,7 +78,8 @@ function messageText(m: ChatMessage, photoNumber?: number): string {
  * context: messages the reader has already seen (shown so the model knows
  * what "that" refers to, but never summarized); fresh: the unread ones.
  * photoNumbers: message id → its number among the photos attached to the
- * request (_shared/photos.ts).
+ * request (_shared/photos.ts). A join line is "[Maya joined]" in its place,
+ * with no ref, so nothing can cite it, and it isn't counted.
  */
 export function buildTranscript(
   context: ChatMessage[],
@@ -77,11 +92,15 @@ export function buildTranscript(
   const lines: string[] = [];
   let n = 0;
   const add = (m: ChatMessage) => {
+    const who = names.get(m.sender) ?? "Someone";
+    if (isJoin(m)) {
+      lines.push(`[${who} joined]`);
+      return;
+    }
     n += 1;
     const ref = `m${n}`;
     refs.set(ref, m.id);
-    lines.push(line(ref, localStamp(m.created_at, timeZone), names.get(m.sender) ?? "Someone",
-      messageText(m, photoNumbers.get(m.id))));
+    lines.push(line(ref, localStamp(m.created_at, timeZone), who, messageText(m, photoNumbers.get(m.id))));
   };
   if (context.length) {
     lines.push("=== ALREADY READ (context only, do not summarize) ===");
@@ -91,7 +110,7 @@ export function buildTranscript(
     lines.push(context.length ? "=== UNREAD (summarize these) ===" : "=== MESSAGES ===");
     fresh.forEach(add);
   }
-  return { text: lines.join("\n"), refs, count: context.length + fresh.length };
+  return { text: lines.join("\n"), refs, count: n };
 }
 
 /**

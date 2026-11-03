@@ -132,6 +132,8 @@
     <string name="chat_too_far_back">That message is too far back to show.</string>
     <string name="chat_today">Today</string>
     <string name="chat_unread_divider">%1$d new</string>
+    <!-- A "Maya joined" line in the thread (migration 0009); the name is styled in the person's color. -->
+    <string name="chat_joined">%1$s joined</string>
     <plurals name="chat_unread_divider_spoken">
         <item quantity="one">%d new message</item>
         <item quantity="other">%d new messages</item>

@@ -29,6 +29,7 @@ import java.time.Instant
 // signin, signin-code, name, home (the pager on Chats), home-instagram,
 // home-snapchat, inbox-loading, inbox-empty, new-chat, join, chat (Breck,
 // 302 new), chat-loading, chat-jump (a brief's jump to Maya's "$540 total"),
+// chat-joined (Rowan joins Breck and says hi: "Rowan joined" under "1 new"),
 // info (Members and invite), settings, and chat-not-sent (a send that fails
 // and offers a retry). chat-breck is the old name for chat.
 
@@ -49,6 +50,7 @@ val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "chat-breck" to { BreckChat() },
     "chat-loading" to { BreckChat(holdsLoading = true) },
     "chat-jump" to { BreckChat(ChatStart(jumpTo = JUMP_TARGET)) },
+    "chat-joined" to { BreckChat(joined = true) },
     "info" to { BreckChat(ChatStart(info = true)) },
     "chat-not-sent" to { BreckChat(ChatStart(send = "on my way"), sendsFail = true) },
     "settings" to { Home(rememberPreviewApp(), HomeStart(page = HomePage.CHATS, remembers = false, stack = listOf("settings"))) },
@@ -57,10 +59,10 @@ val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
 /** Maya's "so the Airbnb is now $540 total = $90 each", a message the catch-up cites, a good way up the thread. */
 private const val JUMP_TARGET = "6fe6a3cc-7a99-5aa3-a3dd-be8a6a18adb5"
 
-/** The pager with Breck open over it, so Back goes to the inbox. */
+/** The pager with Breck open over it, so Back goes to the inbox. [joined]: Rowan joins at the end ([JoinedBreck]). */
 @Composable
-private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = false, sendsFail: Boolean = false) {
-    val app = rememberPreviewApp(holdsLoading = holdsLoading, sendsFail = sendsFail)
+private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = false, sendsFail: Boolean = false, joined: Boolean = false) {
+    val app = rememberPreviewApp(holdsLoading = holdsLoading, sendsFail = sendsFail, joined = joined)
     Home(app, HomeStart(page = HomePage.CHATS, remembers = false, stack = listOf("chat:${PreviewData.BRECK_ID}"), chat = start))
 }
 
@@ -76,11 +78,12 @@ private fun rememberPreviewApp(
     loading: Boolean = false,
     holdsLoading: Boolean = false,
     sendsFail: Boolean = false,
+    joined: Boolean = false,
 ): AppModel {
     val context = LocalContext.current
     val data = previewData()
-    return remember(name, chats, loading, holdsLoading, sendsFail) {
-        val inbox = PreviewInbox(data)
+    return remember(name, chats, loading, holdsLoading, sendsFail, joined) {
+        val inbox = PreviewInbox(data, joined)
         AppModel.offline(context, Profile(PreviewData.ME, name), chats ?: inbox.chats, loading).apply {
             chatBackend = FixtureChatBackend(inbox.messages, inbox.members, holdsLoading, sendsFail)
         }
@@ -88,14 +91,15 @@ private fun rememberPreviewApp(
 }
 
 /** The inbox's chats and what's in them: Breck from the fixtures, three made up (iOS `PreviewData.others`). */
-private class PreviewInbox(data: PreviewData) {
+private class PreviewInbox(data: PreviewData, joined: Boolean = false) {
     val chats: List<ChatSummary>
     val messages = mutableMapOf<String, List<Message>>()
     val members = mutableMapOf<String, List<Member>>()
 
     init {
-        messages[PreviewData.BRECK_ID] = data.messages
-        members[PreviewData.BRECK_ID] = data.members
+        val breck = if (joined) JoinedBreck.chat(data) else data.breck
+        messages[PreviewData.BRECK_ID] = if (joined) JoinedBreck.messages(data) else data.messages
+        members[PreviewData.BRECK_ID] = if (joined) JoinedBreck.members(data) else data.members
         // Times hang off Breck's last message, so the order never changes.
         val anchor = data.messages.last().createdAt
         val others = listOf(
@@ -129,7 +133,7 @@ private class PreviewInbox(data: PreviewData) {
                 readThrough = 2,
             ),
         )
-        chats = listOf(data.breck) + others
+        chats = listOf(breck) + others
     }
 
     /** One made-up chat. Lines are (who, what, minutes before the anchor); you've read through line [readThrough]. */
@@ -166,6 +170,40 @@ private class PreviewInbox(data: PreviewData) {
             lastMessageSenderName = cast.firstOrNull { it.first == last.sender }?.second,
             lastReadAt = readAt,
             unreadCount = unread ?: list.count { it.createdAt > readAt && it.sender != PreviewData.ME },
+        )
+    }
+}
+
+/**
+ * `chat-joined` (iOS `-screen chat-joined`): Breck read through Maya's
+ * "goodnight losers 💙", then Rowan (made up, a friend of Maya's) joins with
+ * the invite code and says hi. "Rowan joined" sits under the "1 new" line: a
+ * join line starts the new part but isn't counted.
+ */
+private object JoinedBreck {
+    private const val ROWAN = "d0000000-0000-4000-8000-000000000007"
+
+    private fun readTo(data: PreviewData): Instant = data.messages.last().createdAt
+
+    fun messages(data: PreviewData): List<Message> = data.messages + listOf(
+        Message(
+            id = "f0000000-0000-4000-8000-000000000001", chatId = PreviewData.BRECK_ID, sender = ROWAN,
+            body = "joined", createdAt = readTo(data).plusSeconds(30L * 60), kind = Message.JOINED,
+        ),
+        Message(
+            id = "f0000000-0000-4000-8000-000000000002", chatId = PreviewData.BRECK_ID, sender = ROWAN,
+            body = "hey! Maya sent me the code. what did I miss? 👀", createdAt = readTo(data).plusSeconds(31L * 60),
+        ),
+    )
+
+    fun members(data: PreviewData): List<Member> =
+        data.members + Member(ROWAN, readTo(data).plusSeconds(30L * 60), PreviewData.BRECK_CREATED, Profile(ROWAN, "Rowan"))
+
+    fun chat(data: PreviewData): ChatSummary {
+        val last = messages(data).last()
+        return data.breck.copy(
+            memberCount = data.members.size + 1, lastMessageAt = last.createdAt, lastMessagePreview = last.body,
+            lastMessageSenderName = "Rowan", lastReadAt = readTo(data), unreadCount = 1,
         )
     }
 }

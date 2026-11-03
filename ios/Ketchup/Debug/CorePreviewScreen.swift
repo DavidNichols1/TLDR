@@ -6,7 +6,8 @@
 //  sign-in (email and code), the name step, the home pager on each page,
 //  the inbox (full, empty and loading) with its New chat and Join sheets,
 //  the Breck chat (loading, opened from the copy kept on the phone with no
-//  server, and a jump to a cited message), its info sheet, and the app icon.
+//  server, a jump to a cited message, and someone joining: JoinedPreview.swift),
+//  its info sheet, and the app icon.
 //  The info sheet is shown full screen. The inbox screens are the pager's
 //  Chats page, as in the app, so `home` and `inbox` are the same screen.
 //
@@ -31,6 +32,7 @@ struct CorePreviewScreen: View {
         case chatLoading = "chat-loading"
         case chatKept = "chat-kept"
         case chatJump = "chat-jump"
+        case chatJoined = "chat-joined"
         case info
         case icon
     }
@@ -58,6 +60,7 @@ struct CorePreviewScreen: View {
         switch Screen(rawValue: name) {
         case .chatLoading: _chatModel = State(initialValue: PreviewData.emptyChatModel(holds: true))
         case .chatKept: _chatModel = State(initialValue: PreviewData.keptChatModel())
+        case .chatJoined: _chatModel = State(initialValue: PreviewData.joinedChatModel())
         default: _chatModel = State(initialValue: PreviewData.chatModel())
         }
         // The Instagram and Snapchat pages open their synthetic test threads
@@ -91,7 +94,7 @@ struct CorePreviewScreen: View {
                     .sheet(isPresented: .constant(true)) {
                         JoinChatSheet(code: $draft) {}
                     }
-            case .chat, .chatLoading, .chatKept:
+            case .chat, .chatLoading, .chatKept, .chatJoined:
                 NavigationStack {
                     ChatView(model: chatModel)
                 }

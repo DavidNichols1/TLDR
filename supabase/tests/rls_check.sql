@@ -28,7 +28,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 insert into results select 'outsider cannot see chat before joining', (select count(*) from public.chats) = 0;
 insert into results select 'join with messy code',
   (select j.id from ctx, lateral public.join_chat(lower(substr(ctx.invite_code,1,3)) || ' ' || substr(ctx.invite_code,4)) j) = (select id from ctx);
-insert into results select 'joiner sees history', (select count(*) from public.messages) = 1;
+insert into results select 'joiner sees history', (select count(*) from public.messages where kind = 'text') = 1;
 insert into results select 'joiner sees alice profile', (select count(*) from public.profiles) = 2;
 insert into results select 'new member: whole history unread', (select unread_count from public.my_chats()) = 1;
 insert into public.messages (chat_id, body) select id, '  hi from bob  ' from ctx;
@@ -129,7 +129,7 @@ select public.block_person('00000000-0000-0000-0000-0000000000a1');
 insert into results select 'blocked: her messages hidden',
   (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000a1') = 0;
 insert into results select 'blocked: his own still there',
-  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2') = 1;
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2' and kind = 'text') = 1;
 insert into results select 'blocked: unread leaves her out', (select unread_count from public.my_chats()) = 0;
 insert into results select 'blocked: inbox line skips her',
   (select last_message_preview = 'hi from bob' and last_message_sender_name = 'bob' from public.my_chats());
@@ -145,7 +145,7 @@ do $$ begin
 exception when insufficient_privilege then insert into results values ('blocks written only through the RPCs', true); end $$;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
 insert into results select 'blocked person still sees the blocker',
-  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2') = 1;
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000b2' and kind = 'text') = 1;
 insert into results select 'nobody sees who blocked them', (select count(*) from public.blocks) = 0;
 reset role;
 insert into results select 'block drops saved catch-ups that read her',
@@ -154,7 +154,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
 select public.unblock_person('00000000-0000-0000-0000-0000000000a1');
 insert into results select 'unblocked: her messages are back',
-  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000a1') = 2;
+  (select count(*) from public.messages where sender = '00000000-0000-0000-0000-0000000000a1' and kind = 'text') = 2;
 
 -- Report (0007): Bob reports Alice's message (twice: the second is dropped)
 -- and Alice herself. Nobody can read reports back, report themselves or set
@@ -378,6 +378,99 @@ insert into results select 'chat with people adds your people', (select member_c
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
 insert into results select 'added person has the chat',
   (select count(*) from public.my_chats() where id = (select id from with_people2)) = 1;
+reset role;
+
+-- "Maya joined" (0009): starting, joining and being added each leave one
+-- line, written by the server as the person who joined. It isn't unread or
+-- the inbox line, doesn't move the joiner's cursor or touch the send limit,
+-- moves when they rejoin, and nobody can write one. Fay joins Alice's Ski club.
+insert into auth.users (id, email, aud, role, instance_id)
+values ('00000000-0000-0000-0000-0000000000e5', 'fay@test.ketchup', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+insert into results select 'joins: a chat with your people has a line for each',
+  (select count(*) = 2 from public.messages
+    where chat_id = (select id from with_people2) and kind = 'joined'
+      and sender in ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b2'));
+insert into results select 'joins: none for the people it left out',
+  (select count(*) = 1 from public.messages where chat_id = (select id from with_people) and kind = 'joined');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+create temp table ski as select * from public.create_chat('Ski club');
+insert into public.messages (chat_id, body) select id, 'first!' from ski;
+insert into results select 'joins: starting a chat says you joined',
+  (select count(*) = 1 from public.messages
+    where chat_id = (select id from ski) and kind = 'joined' and sender = auth.uid() and body = 'joined');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000e5","role":"authenticated"}', true);
+select public.join_chat(invite_code) from ski;
+select public.join_chat(invite_code) from ski;  -- already in: nothing new
+insert into results select 'joins: joining says so, once',
+  (select count(*) = 1 from public.messages where kind = 'joined' and sender = auth.uid());
+insert into results select 'joins: a new member still has the whole history unread',
+  (select unread_count from public.my_chats() where id = (select id from ski)) = 1;
+reset role;
+update public.chat_members set last_read_at = now() - interval '1 minute'
+ where chat_id = (select id from ski) and user_id = '00000000-0000-0000-0000-0000000000a1';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'joins: not unread for anyone else',
+  (select unread_count from public.my_chats() where id = (select id from ski)) = 0;
+insert into results select 'joins: never the inbox line',
+  (select last_message_preview = 'first!' and last_message_sender_name = 'alice'
+     from public.my_chats() where id = (select id from ski));
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000e5","role":"authenticated"}', true);
+do $$ begin
+  insert into public.messages (chat_id, body, kind) select id, 'joined', 'joined' from ski;
+  insert into results values ('joins: members cannot post a join line', false);
+exception when insufficient_privilege then insert into results values ('joins: members cannot post a join line', true); end $$;
+do $$ begin
+  perform public.post_joined(id, '00000000-0000-0000-0000-0000000000b2') from ski;
+  insert into results values ('joins: nobody can write one for someone else', false);
+exception when insufficient_privilege then insert into results values ('joins: nobody can write one for someone else', true); end $$;
+-- The policy on its own, as if kind were ever grantable (rolled back).
+reset role;
+grant insert (kind) on public.messages to authenticated;
+set local role authenticated;
+do $$ begin
+  insert into public.messages (chat_id, body, kind) select id, 'joined', 'joined' from ski;
+  insert into results values ('joins: the insert policy takes text only', false);
+exception when insufficient_privilege then
+  insert into results values ('joins: the insert policy takes text only', sqlerrm like '%row-level security%'); end $$;
+reset role;
+revoke insert (kind) on public.messages from authenticated;
+set local role authenticated;
+-- Her line doesn't count toward the send limit (20 in 10 seconds): all 20
+-- sends go and the 21st waits. With 20 just sent, a rejoin still writes her
+-- line, moved to now: still one, a new row.
+do $$ declare sent int := 0; begin
+  for i in 1..21 loop
+    begin
+      insert into public.messages (chat_id, body) select id, 'snow report ' || i from ski;
+      sent := sent + 1;
+    exception when others then exit;
+    end;
+  end loop;
+  insert into results values ('joins: a join line never counts toward the send limit', sent = 20);
+end $$;
+create temp table fay_line as select id from public.messages where kind = 'joined' and sender = auth.uid();
+select public.leave_chat(id) from ski;
+do $$ begin
+  perform public.join_chat(invite_code) from ski;
+  insert into results values ('joins: a join never trips the send limit', true);
+exception when others then insert into results values ('joins: a join never trips the send limit', false); end $$;
+insert into results select 'joins: rejoining moves the line (one, a new row)',
+  (select count(*) = 1 and bool_and(id <> (select id from fay_line))
+     from public.messages where kind = 'joined' and sender = auth.uid());
+-- Alice blocks Fay, whose message is the inbox line: it falls back past
+-- every join line to Alice's newest text, and Fay's line hides like her messages.
+reset role;
+update public.messages set created_at = now() - interval '5 minutes'
+ where chat_id = (select id from ski) and kind = 'text';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+select public.block_person('00000000-0000-0000-0000-0000000000e5');
+insert into results select 'joins: a block''s fallback inbox line skips join lines',
+  (select last_message_preview = 'first!' from public.my_chats() where id = (select id from ski));
+insert into results select 'joins: a blocked person''s line hides too',
+  (select count(*) = 0 from public.messages where sender = '00000000-0000-0000-0000-0000000000e5');
 reset role;
 
 select * from results;

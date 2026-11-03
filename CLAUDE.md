@@ -40,6 +40,30 @@ the technical recipe. README.md is the judge-facing overview.
 - `enforce_message_hygiene` forces `messages.created_at = now()` on insert; the seed
   backdates with an update afterwards.
 
+## "Maya joined" (migration 0009)
+- `0009_joins.sql`, one part, applied live as `0009_joins`. `join_chat`, `create_chat` and
+  `create_chat_with` write a `messages` row with `kind = 'joined'` (body "joined", sent as
+  the person who joined) through `post_joined()`, which clients can't call. Clients can't
+  set `kind` (no column grant), and `messages_insert_member` takes only `kind = 'text'`.
+- A join line is never unread (`my_chats`, catch-up, both apps), never the inbox line
+  (`apply_message` skips it, and so do `my_chats`' block fallback and `delete_account`),
+  never moves the joiner's read cursor, and never counts toward or trips the send limit.
+  One per person per chat: rejoining replaces the old line; joining a chat you're already
+  in writes nothing. Nothing was backfilled. A block hides it like a message.
+- The apps and catch-up read messages with `select=*`, so either side of 0009 works.
+  catch-up puts a join in the transcript as `[Maya joined]` with no ref: never cited, never
+  in `message_count`. Apps from before 0009 show it as a plain "joined" bubble.
+- Apps: iOS `Message.isJoin`, `JoinedLine` (Chat/ThreadDivider.swift) and `ChatView.rows`;
+  Android `Message.isJoin`, `JoinedLine` and `threadRows` (ui/chat/ThreadPieces.kt). The
+  "N new" line goes above a join line that's after your cursor, but the count leaves it out.
+  Previews: iOS `-screen chat-joined`, Android `--es screen chat-joined` (Rowan, made up,
+  joins Breck and says hi).
+- Checks: the RLS suite's `joins:` section (95 of 95 with 0009 applied inside the rolled-back
+  transaction, Nov 3, 2026), `deno test supabase/functions/_shared/` (12), and the speed
+  check (the busy account's inbox 2.60 ms before, 2.59 ms after).
+- Order: apply the migration, then redeploy `catch-up` (and `catch-up-text`, since
+  `_shared` changed). Between the two, the old catch-up reads a join as a message.
+
 ## iOS (`ios/Ketchup.xcodeproj`, scheme `Ketchup`, bundle `com.vibetemp.ketchup`, team GBXTAWLQK5)
 - Build into default DerivedData (never under ~/Desktop):
   `cd ios && xcodebuild -project Ketchup.xcodeproj -scheme Ketchup -destination 'id=<sim udid>' build`
@@ -140,7 +164,9 @@ the technical recipe. README.md is the judge-facing overview.
 ## Demo seed
 `scripts/seed-demo/README.md`. 302-message "Breck Weekend 🎿" chat from 5 test accounts;
 the viewer sets display name **David**, joins with the printed invite code, and has
-302 unread. `--rearm` resets David to all-unread between video takes. `--photos` (opt-in,
+302 unread (once 0009 is applied, joining also leaves a "David joined" line; the seed keeps
+it out of the inbox line and its counts, and moves one stranded mid-chat by `--retime` to
+the chat's start). `--rearm` resets David to all-unread between video takes. `--photos` (opt-in,
 safe to re-run) adds two made-up photos on the last day, so a catch-up can cite one: 304 unread.
 
 ## Settings and people (migration 0007)
@@ -264,7 +290,7 @@ Code: `ios/Ketchup/Photos/` (`Avatar`, `AvatarCropper`, `ProfilePhotos` with
   attached retries once without them. The log line gains `photos` (how many attached).
   Measured Nov 3, 2026, on the 302-message demo chat with 2 made-up photos: about 640
   prompt tokens a photo, no added time (17.1 s to 16.0 s); the brief cited the door-code
-  photo. `deno test supabase/functions/_shared/` must pass (6 tests). `_shared` changed,
+  photo. `deno test supabase/functions/_shared/` must pass (12 tests since 0009). `_shared` changed,
   so after merge redeploy both `catch-up` and `catch-up-text`.
 - Source chips: `RefContext.photo` returns a message's small copy, and `RefChip` draws it
   where the sender's dot goes (`ChatView.refContext` passes it).

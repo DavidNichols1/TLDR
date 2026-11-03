@@ -193,7 +193,8 @@ class KetchupApi(val client: SupabaseClient) {
     internal data class WireMessage(val sender: String, val text: String, val at: String? = null)
 
     companion object {
-        private const val MESSAGE_COLUMNS = "id,chat_id,sender,body,created_at,image_path,image_width,image_height"
+        /** Every column: `kind` (a "Maya joined" line) exists only once migration 0009 is applied, and this build has to work on either side of it. */
+        private const val MESSAGE_COLUMNS = "*"
 
         @Volatile
         private var instance: KetchupApi? = null

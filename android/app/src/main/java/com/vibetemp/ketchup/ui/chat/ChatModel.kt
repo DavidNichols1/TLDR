@@ -250,7 +250,7 @@ class ChatModel(
         if (server <= latest(cursorAtOpen, readThrough)) return
         readThrough = server
         val cursor = latest(cursorAtOpen, readThrough)
-        val unread = _state.value.messages.count { it.createdAt > cursor && it.sender != myId && !it.pending }
+        val unread = _state.value.messages.count { it.createdAt > cursor && it.sender != myId && !it.pending && !it.isJoin }
         _state.update { it.copy(unreadCount = min(it.unreadCount, unread)) }
     }
 
@@ -262,7 +262,9 @@ class ChatModel(
         val cursor = latest(cursorAtOpen, readThrough)
         _state.update { s ->
             val unread = s.messages.filter { it.createdAt > cursor && it.sender != myId && !it.pending }
-            val count = if (exact) unread.size else max(s.unreadCount, unread.size)
+            // A "Maya joined" line after your cursor is where the new part starts, but it isn't counted.
+            val messages = unread.count { !it.isJoin }
+            val count = if (exact) messages else max(s.unreadCount, messages)
             s.copy(
                 unreadCount = count,
                 unreadAtOpen = count,

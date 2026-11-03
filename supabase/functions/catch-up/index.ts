@@ -9,12 +9,13 @@
 //    already-read context. ask: the recent history.
 // 3. Sends a ref-tagged transcript to Muse Spark, with the newest photos
 //    in it as images, asks for strict JSON, validates it, maps refs back to
-//    message ids, and saves it to ai_briefs.
+//    message ids, and saves it to ai_briefs. A "Maya joined" line (0009) is
+//    in the transcript as context, with no ref: never counted or cited.
 // A repeat over the same window is served from ai_briefs, and identical
 // requests that arrive together share one Muse Spark call (_shared/once.ts).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { buildTranscript, type ChatMessage } from "../_shared/transcript.ts";
+import { buildTranscript, type ChatMessage, isJoin, joinNote } from "../_shared/transcript.ts";
 import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
 import { museChat, MuseError, MuseNotConfigured } from "../_shared/muse.ts";
 import { loadPhotos, photoImages, photoNote, type Photos, withoutPhotos } from "../_shared/photos.ts";
@@ -28,6 +29,9 @@ const MAX_UNREAD = 600;   // newest unread messages a catch-up covers
 const CONTEXT = 25;       // already-read messages shown for context
 const ASK_WINDOW = 800;   // recent messages "Ask the chat" searches
 const HOURLY_LIMIT = 60;  // briefs per person per hour
+// Every column: rows have a kind only once 0009 is applied, and this has to
+// work on either side of it. A "Maya joined" line is context, not a message.
+const COLUMNS = "*";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -97,35 +101,39 @@ Deno.serve(async (req) => {
 
   if (mode === "catch_up") {
     const { data: unread, error } = await asUser
-      .from("messages").select("id, sender, body, created_at, image_path")
+      .from("messages").select(COLUMNS)
       .eq("chat_id", chatId).gt("created_at", lastRead)
       .order("created_at", { ascending: false }).limit(MAX_UNREAD);
     if (error) return json(500, { error: "Couldn't load messages" });
     fresh = (unread ?? []).reverse();
-    if (fresh.length === 0) {
+    // Only join lines since the cursor: nothing to catch up on.
+    if (!fresh.some((m) => !isJoin(m))) {
       return json(200, { kind: "catch_up", empty: true, message_count: 0 });
     }
 
     const { data: before } = await asUser
-      .from("messages").select("id, sender, body, created_at, image_path")
+      .from("messages").select(COLUMNS)
       .eq("chat_id", chatId).lte("created_at", lastRead)
       .order("created_at", { ascending: false }).limit(CONTEXT);
     context = (before ?? []).reverse();
   } else {
     const { data: history, error } = await asUser
-      .from("messages").select("id, sender, body, created_at, image_path")
+      .from("messages").select(COLUMNS)
       .eq("chat_id", chatId)
       .order("created_at", { ascending: false }).limit(ASK_WINDOW);
     if (error) return json(500, { error: "Couldn't load messages" });
     fresh = (history ?? []).reverse();
-    if (fresh.length === 0) {
+    if (!fresh.some((m) => !isJoin(m))) {
       return json(200, { kind: "ask", result: { answer: "There are no messages in this chat yet.", found: false, refs: [] } });
     }
   }
 
+  // What the brief covers and counts: the messages, not the join lines.
+  const said = fresh.filter((m) => !isJoin(m));
+
   // Made before (or being made right now) for this exact window? Use that.
-  const since = mode === "catch_up" ? lastRead : fresh[0].created_at;
-  const until = fresh[fresh.length - 1].created_at;
+  const since = mode === "catch_up" ? lastRead : said[0].created_at;
+  const until = said[said.length - 1].created_at;
   const brief = await once(admin, { user: me, chat: chatId, kind: mode, since, until, question: mode === "ask" ? question : null });
   if ("cached" in brief) return json(200, { kind: mode, cached: true, brief_id: brief.cached.id, ...brief.cached });
 
@@ -141,10 +149,10 @@ Deno.serve(async (req) => {
   const prompt = (attached: Photos) => {
     const transcript = buildTranscript(context, fresh, names, timeZone, attached.numbers);
     const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\nMembers: ${[...names.values()].join(", ")}\n` +
-      photoNote(attached, windowHasPhotos);
+      photoNote(attached, windowHasPhotos) + joinNote([...context, ...fresh]);
     const user = mode === "ask"
       ? `${header}\nTranscript:\n${transcript.text}\n\nQuestion from ${readerName}: ${question}`
-      : `${header}Unread messages: ${fresh.length}\n\nTranscript:\n${transcript.text}`;
+      : `${header}Unread messages: ${said.length}\n\nTranscript:\n${transcript.text}`;
     return { transcript, user, images: photoImages(attached, transcript, fresh, names) };
   };
 
@@ -160,7 +168,7 @@ Deno.serve(async (req) => {
         temperature: 0.2,
         maxTokens: 6000, // counts reasoning tokens too
       });
-      console.log(JSON.stringify({ mode, attempt, messages: fresh.length, photos: request.images.length, ...reply.usage }));
+      console.log(JSON.stringify({ mode, attempt, messages: said.length, photos: request.images.length, ...reply.usage }));
       try {
         const parsed = parseModelJSON(reply.text);
         const cleaned = mode === "ask" ? cleanAnswer(parsed, request.transcript.refs) : cleanCatchUp(parsed, request.transcript.refs);
@@ -197,7 +205,7 @@ Deno.serve(async (req) => {
   }
   const latency = Date.now() - started;
 
-  const saved = await brief.claim.save({ message_count: fresh.length, model, result, latency_ms: latency });
+  const saved = await brief.claim.save({ message_count: said.length, model, result, latency_ms: latency });
 
   return json(200, {
     kind: mode,
@@ -206,7 +214,7 @@ Deno.serve(async (req) => {
     created_at: saved?.created_at ?? now.toISOString(),
     result,
     model,
-    message_count: fresh.length,
+    message_count: said.length,
     since,
     until,
     latency_ms: latency,

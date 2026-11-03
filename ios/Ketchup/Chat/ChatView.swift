@@ -2,10 +2,10 @@
 //  ChatView.swift
 //  Ketchup
 //
-//  One group chat: bubbles with sender names and day separators, the
-//  pinned Muse Spark bar, and the sheets it opens. A ref chip in a sheet
-//  closes it and scrolls here to the cited message, where a mustard marker
-//  sweeps behind the bubble for a moment.
+//  One group chat: bubbles with sender names, day separators and "Maya
+//  joined" lines, the pinned Muse Spark bar, and the sheets it opens. A ref
+//  chip in a sheet closes it and scrolls here to the cited message, where a
+//  mustard marker sweeps behind the bubble for a moment.
 //
 //  When and why the read cursor moves is explained at the top of
 //  ChatModel.swift; this view only reports scrolling and leaving.
@@ -119,7 +119,7 @@ struct ChatView: View {
                 }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if model.loaded && !model.messages.isEmpty {
+            if model.loaded && hasMessages {
                 CatchUpBar(unread: model.unreadCount,
                            hasBrief: model.catchUp.value != nil,
                            hasKept: model.hasKeptCatchUp,
@@ -295,7 +295,7 @@ struct ChatView: View {
             }
         } else if !model.loaded {
             ThreadSkeleton()
-        } else if model.messages.isEmpty {
+        } else if !hasMessages {
             let code = Text(model.chat.inviteCode).font(.mono(.body, weight: .semibold)).foregroundStyle(Theme.ink)
             ThreadNote(title: "Quiet in here",
                        message: Text("Say hi, or share invite code \(code) so friends can join.")) {
@@ -309,6 +309,12 @@ struct ChatView: View {
         return count == 1 ? "1 person" : "\(count) people"
     }
 
+    /// Something someone said. A new chat with only "You joined" in it is
+    /// still quiet, so it gets the empty note and no Catch me up bar.
+    private var hasMessages: Bool {
+        model.messages.contains { !$0.isJoin }
+    }
+
     @ViewBuilder
     private func rowView(_ row: Row) -> some View {
         switch row {
@@ -316,6 +322,9 @@ struct ChatView: View {
             ThreadDivider(text: day.daySeparator)
         case .unread(let count):
             UnreadDivider(count: count)
+        case .joined(let m):
+            let name = model.name(of: m.sender)
+            JoinedLine(name: name, color: m.sender == model.myId ? Theme.ink : Theme.personColor(name: name))
         case .message(let m, let newRun, let endsRun):
             let mine = m.sender == model.myId
             let name = model.name(of: m.sender)
@@ -369,6 +378,8 @@ struct ChatView: View {
     private enum Row: Identifiable {
         case day(Date)
         case unread(Int)
+        /// "Maya joined" (migration 0009).
+        case joined(Message)
         /// `newRun`: first of a run from one sender; `endsRun`: last of it.
         case message(Message, newRun: Bool, endsRun: Bool)
 
@@ -376,6 +387,7 @@ struct ChatView: View {
             switch self {
             case .day(let d): "day-\(Int(d.timeIntervalSince1970))"
             case .unread: ChatView.unreadId
+            case .joined(let m): m.id.uuidString
             case .message(let m, _, _): m.id.uuidString
             }
         }
@@ -385,17 +397,30 @@ struct ChatView: View {
         var out: [Row] = []
         var lastDay: Date?
         var lastSender: UUID?
+        var unreadDue = false
         let cal = Calendar.current
+        // One line per person, as the server keeps it: when someone leaves and
+        // comes back while the chat is open, only their newest line shows.
+        let newestJoin = Dictionary(model.messages.filter(\.isJoin).map { ($0.sender, $0.id) }) { _, newer in newer }
         for m in model.messages {
+            if m.id == model.firstUnreadId { unreadDue = true }
+            if m.isJoin, newestJoin[m.sender] != m.id { continue }
             let day = cal.startOfDay(for: m.createdAt)
             if day != lastDay {
                 out.append(.day(day))
                 lastDay = day
                 lastSender = nil
             }
-            if m.id == model.firstUnreadId {
+            if unreadDue {
                 out.append(.unread(model.unreadAtOpen))
+                unreadDue = false
                 lastSender = nil
+            }
+            // A join line sits between runs: the next bubble starts a new one.
+            if m.isJoin {
+                out.append(.joined(m))
+                lastSender = nil
+                continue
             }
             let continues = m.sender == lastSender
             // The bubble before this one is from the same sender, so its run goes on.
