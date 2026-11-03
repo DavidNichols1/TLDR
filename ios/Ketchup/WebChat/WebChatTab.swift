@@ -33,6 +33,7 @@ private struct WebChatPage: View {
     @State private var browser: WebChatBrowser?
     @State private var reading = false
     @State private var session: WebCatchUp?
+    @State private var showSaved = false
     @State private var failure: Failure?
     @State private var notice: String?
     @AppStorage private var introSeen: Bool
@@ -103,6 +104,7 @@ private struct WebChatPage: View {
         .onAppear(perform: start)
         .onChange(of: browser?.url) { _, _ in failure = nil }
         .sheet(item: $session) { WebChatSheet(session: $0) }
+        .sheet(isPresented: $showSaved) { SavedBriefsSheet(place: .web(source.id), title: source.name) }
         .alert("Done", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -183,6 +185,7 @@ private struct WebChatPage: View {
     private func menu(_ browser: WebChatBrowser) -> some View {
         Menu {
             Button("\(source.name) inbox", systemImage: "tray") { browser.openStart() }
+            Button("Earlier catch-ups", systemImage: "clock.arrow.circlepath") { showSaved = true }
             Button("Reload", systemImage: "arrow.clockwise") { browser.reload() }
             Button("How this works", systemImage: "info.circle") { introSeen = false }
             #if DEBUG
@@ -290,7 +293,7 @@ struct WebChatIntro: View {
                     VStack(alignment: .leading, spacing: 14) {
                         point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
                         point("hand.tap", "Open a chat, tap Catch me up, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
-                        point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. Nothing is saved.")
+                        point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Ketchup's server.")
                         if let note = source.note {
                             point("plus.magnifyingglass", note)
                         }

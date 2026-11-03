@@ -338,9 +338,10 @@ final class ChatModel {
         switch catchUp {
         case .loading:
             return  // a prefetch is running; it marks read when it lands
-        case .done where unseenBrief:
+        case .done(let response) where unseenBrief:
             markRead(at: unseenUntil)  // the prefetched brief is being read now
             unseenBrief = false
+            keepOnPhone(response)
         case .done where unreadCount == 0:
             return
         default:
@@ -364,6 +365,7 @@ final class ChatModel {
             // Caught up through the newest message the brief read.
             if userAsked {
                 markRead(at: response.untilDate)
+                keepOnPhone(response)
             } else {
                 unseenBrief = true
                 unseenUntil = response.untilDate
@@ -384,6 +386,7 @@ final class ChatModel {
                 answer = .failed(error)
             } else {
                 answer = .done(response)
+                keepOnPhone(response, question: q)
             }
         } catch {
             answer = .failed(AIErrors.message(for: error))

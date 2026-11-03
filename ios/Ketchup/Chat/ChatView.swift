@@ -41,7 +41,7 @@ struct ChatView: View {
     private static let unreadId = "unread-divider"
 
     enum ChatSheet: String, Identifiable {
-        case catchUp, ask, info
+        case catchUp, ask, saved, info
         var id: String { rawValue }
     }
 
@@ -131,6 +131,7 @@ struct ChatView: View {
                 Menu {
                     Button { sheet = .catchUp } label: { Label("Catch me up", systemImage: "drop") }
                     Button { sheet = .ask } label: { Label("Ask the chat", systemImage: "questionmark.bubble") }
+                    Button { sheet = .saved } label: { Label("Earlier catch-ups", systemImage: "clock.arrow.circlepath") }
                     Divider()
                     Button { sheet = .info } label: { Label("Members & invite", systemImage: "person.2") }
                 } label: {
@@ -146,6 +147,9 @@ struct ChatView: View {
                 CatchUpSheet(model: model, refs: refContext)
             case .ask:
                 AskSheet(model: model, refs: refContext)
+            case .saved:
+                SavedBriefsSheet(place: .chat(model.chat.id), title: model.chat.name,
+                                 livePreview: { model.preview($0) }, jump: refContext.jump)
             case .info:
                 ChatInfoSheet(model: model) {
                     leftChat = true
