@@ -237,6 +237,11 @@ flowchart LR
   reports through the API, and the server keeps a copy of the reported message so it
   can still be reviewed if it's deleted later. An edge function emails a heads-up with
   no names or message text in it.
+- **Your people, with no lookup.** You add people from a chat you share; there's no search
+  by email or phone, so nobody can find out who uses Ketchup, and your contacts are never
+  uploaded. Invite friends uses Apple's contact picker, so Ketchup gets only the one number
+  you pick, to open a Messages draft. A new chat with your people never adds anyone who
+  has blocked you, and doesn't say so.
 - **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
   Profile photos are in a public bucket, so the app loads them without a token, but
   nobody can list it. You can only upload into and delete from your own folder (10 an
@@ -245,12 +250,13 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 70-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 79-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
   Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
   inbox lines, dropped catch-ups, one way), reports (unreadable, never your own, never
-  from outside a chat), profile photos (own folder only, no listing, the hourly cap),
+  from outside a chat), your people (private, only from a shared chat, new chats skip
+  whoever blocked you), profile photos (own folder only, no listing, the hourly cap),
   chat photos (members only, uploaded first, own chat only, only the sender deletes)
   and deleting an account. It runs in one transaction and rolls back.
 
@@ -337,8 +343,12 @@ Settings opens from your initial at the top left of Chats
 - **Sign out, or delete your account for good** (see Security above). A page says what
   goes and what stays, then asks once more.
 - **Profiles, Block and Report.** Tap a name or photo in a chat, or a member in Chat
-  info, for their profile: the chats you share, Block and Report. Long press someone's
-  message to report it. Settings → Blocked people has Unblock.
+  info, for their profile: the chats you share, Add to your people, Block and Report.
+  Long press someone's message to report it. Settings → Blocked people has Unblock.
+- **Your people and Invite friends.** Settings → Your people lists who you've added. New
+  chat lets you add them straight in, no code needed. Invite friends (Settings, or the
+  inbox's +) sends a chat's invite code: Text a friend opens a Messages draft to someone
+  you pick, or share it anywhere.
 
 ## Built during the event
 

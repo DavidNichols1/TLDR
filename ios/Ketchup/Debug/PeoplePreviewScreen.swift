@@ -7,7 +7,9 @@
 //  scroll there), Settings as the inbox opens it (a sheet), Change your
 //  name, Delete account, a profile (and the same person blocked), Report
 //  a message (and the thank-you), Blocked people, Chat info with a
-//  blocked member, and a profile or a report opened from the thread. The people are the demo chat's made-up friends. Offline
+//  blocked member, a profile or a report opened from the thread, Your
+//  people (and empty), a profile that's one of your people, New chat with
+//  people picked, and Invite friends. The people are the demo chat's made-up friends. Offline
 //  like every preview: signing out, deleting, blocking and reporting touch
 //  nothing.
 //
@@ -29,6 +31,11 @@ struct PeoplePreviewScreen: View {
         case infoBlocked = "info-blocked"
         case chatProfile = "chat-profile"
         case chatReport = "chat-report"
+        case people
+        case peopleEmpty = "people-empty"
+        case profileContact = "profile-contact"
+        case newChatPeople = "new-chat-people"
+        case invite
     }
 
     static var names: [String] { Screen.allCases.map(\.rawValue) }
@@ -40,6 +47,8 @@ struct PeoplePreviewScreen: View {
     let name: String
     @State private var app = PreviewData.app()
     @State private var chatModel = PreviewData.chatModel()
+    @State private var newName = "Ski trip dinner"
+    @State private var newPeople: Set<UUID> = [PreviewData.maya, PreviewData.theo]
 
     init(name: String) {
         self.name = name
@@ -54,6 +63,10 @@ struct PeoplePreviewScreen: View {
             PeopleStore.shared.preview(blocked: [Self.blocked(.jordan, daysAgo: 1), Self.blocked(.sam, daysAgo: 6)])
         case .profileBlocked, .infoBlocked:
             PeopleStore.shared.preview(blocked: [Self.blocked(.jordan, daysAgo: 1)])
+        case .people, .newChatPeople, .settings:
+            PeopleStore.shared.preview(blocked: [], contacts: Self.contacts)
+        case .profileContact:
+            PeopleStore.shared.preview(blocked: [], contacts: [Self.contact(PreviewData.jordan, "Jordan")])
         default:
             PeopleStore.shared.preview(blocked: [])
         }
@@ -86,6 +99,19 @@ struct PeoplePreviewScreen: View {
                 NavigationStack { ChatView(model: chatModel, showing: .profile(Self.person(.jordan))) }
             case .chatReport:
                 NavigationStack { ChatView(model: chatModel, showing: .report(Self.reported)) }
+            case .people, .peopleEmpty:
+                NavigationStack { PeopleView() }
+            case .profileContact:
+                NavigationStack {
+                    ProfileView(person: Self.person(.jordan), previewShared: [PreviewData.breck])
+                }
+            case .newChatPeople:
+                HomePager(previewing: .chats)
+                    .sheet(isPresented: .constant(true)) {
+                        NewChatSheet(name: $newName, people: Self.contacts.map(\.person), picked: $newPeople) {}
+                    }
+            case .invite:
+                NavigationStack { InviteView() }
             case nil:
                 PreviewIndex(unknown: name)
             }
@@ -108,6 +134,15 @@ struct PeoplePreviewScreen: View {
         let p = person(who)
         return BlockedPerson(id: p.id, displayName: p.name, avatarPath: nil,
                              blockedAt: .now.addingTimeInterval(-daysAgo * 86_400))
+    }
+
+    /// Three of the demo chat's friends, added from Breck.
+    private static var contacts: [Contact] {
+        [contact(PreviewData.maya, "Maya"), contact(PreviewData.priya, "Priya"), contact(PreviewData.theo, "Theo")]
+    }
+
+    private static func contact(_ id: UUID, _ name: String) -> Contact {
+        Contact(id: id, displayName: name, avatarPath: nil, addedAt: .now.addingTimeInterval(-86_400), sharedChats: 1)
     }
 
     /// One of Jordan's messages in the demo chat.

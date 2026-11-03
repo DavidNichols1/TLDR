@@ -50,6 +50,32 @@ extension KetchupAPI {
         return try JSON.decoder.decode([Row].self, from: data).map(\.chatId)
     }
 
+    // MARK: Your people
+
+    /// Only someone you share a chat with (the server checks).
+    static func addContact(_ person: UUID) async throws {
+        _ = try await Supabase.shared.rpc("add_contact", ["p_user": person.uuidString])
+    }
+
+    static func removeContact(_ person: UUID) async throws {
+        _ = try await Supabase.shared.rpc("remove_contact", ["p_user": person.uuidString])
+    }
+
+    /// Your people, by name.
+    static func myContacts() async throws -> [Contact] {
+        let data = try await Supabase.shared.rpc("my_contacts")
+        return try JSON.decoder.decode([Contact].self, from: data)
+    }
+
+    /// A new chat with some of your people in it from the start
+    /// (`create_chat_with`). Anyone who has blocked you is left out quietly.
+    static func createChat(name: String, with people: [UUID]) async throws -> UUID {
+        let data = try await Supabase.shared.rpc("create_chat_with",
+                                                  ["p_name": name, "p_people": people.map(\.uuidString)])
+        guard let id = try JSON.decoder.decode(ChatRow.self, from: data).id else { throw APIError.badResponse }
+        return id
+    }
+
     // MARK: Report
 
     /// Files a report. The server fills in who's reported and copies the
