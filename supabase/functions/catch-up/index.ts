@@ -7,14 +7,16 @@
 //    what they can see; a non-member gets nothing).
 // 2. catch_up: the unread messages since their read cursor, plus a little
 //    already-read context. ask: the recent history.
-// 3. Sends a ref-tagged transcript to Muse Spark, asks for strict JSON,
-//    validates it, maps refs back to message ids, and saves it to ai_briefs.
+// 3. Sends a ref-tagged transcript to Muse Spark, with the newest photos
+//    in it as images, asks for strict JSON, validates it, maps refs back to
+//    message ids, and saves it to ai_briefs.
 // A repeat catch-up over the same unread window is served from ai_briefs.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildTranscript, type ChatMessage } from "../_shared/transcript.ts";
 import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
-import { museChat, MuseNotConfigured } from "../_shared/muse.ts";
+import { museChat, MuseError, MuseNotConfigured } from "../_shared/muse.ts";
+import { loadPhotos, photoImages, photoNote, type Photos, withoutPhotos } from "../_shared/photos.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -128,45 +130,66 @@ Deno.serve(async (req) => {
     }
   }
 
-  const transcript = buildTranscript(context, fresh, names, timeZone);
+  // The newest unread photos (newest in the window, for Ask) go along as
+  // images, downloaded as the caller (_shared/photos.ts).
+  const photos = await loadPhotos(fresh, { url: SUPABASE_URL, apiKey: ANON_KEY, auth });
+  const windowHasPhotos = [...context, ...fresh].some((m) => m.image_path);
   const now = new Date();
   const nowLocal = now.toLocaleString("en-US", {
     timeZone, weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit",
     timeZoneName: "longOffset",
   });
-  // Photos show as "[photo]" lines; the model sees only their captions.
-  const photoNote = [...context, ...fresh].some((m) => m.image_path)
-    ? `Photos: "[photo]" marks a photo someone sent. You can't see it; any words after it are its caption.\n`
-    : "";
-  const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\nMembers: ${[...names.values()].join(", ")}\n${photoNote}`;
-  const userPrompt = mode === "ask"
-    ? `${header}\nTranscript:\n${transcript.text}\n\nQuestion from ${readerName}: ${question}`
-    : `${header}Unread messages: ${fresh.length}\n\nTranscript:\n${transcript.text}`;
+  const prompt = (attached: Photos) => {
+    const transcript = buildTranscript(context, fresh, names, timeZone, attached.numbers);
+    const header = `Reader: ${readerName}\nNow: ${nowLocal} (time zone ${timeZone})\nMembers: ${[...names.values()].join(", ")}\n` +
+      photoNote(attached, windowHasPhotos);
+    const user = mode === "ask"
+      ? `${header}\nTranscript:\n${transcript.text}\n\nQuestion from ${readerName}: ${question}`
+      : `${header}Unread messages: ${fresh.length}\n\nTranscript:\n${transcript.text}`;
+    return { transcript, user, images: photoImages(attached, transcript, fresh, names) };
+  };
 
-  const started = Date.now();
-  let model = "";
-  let result: unknown;
-  try {
+  const summarize = async (request: ReturnType<typeof prompt>) => {
     let lastError: unknown = null;
-    for (let attempt = 0; attempt < 2 && result === undefined; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const reply = await museChat({
         system: mode === "ask" ? ASK_SYSTEM : CATCH_UP_SYSTEM,
-        user: attempt === 0 ? userPrompt : `${userPrompt}\n\nReturn only the JSON object described, nothing else.`,
+        user: attempt === 0 ? request.user : `${request.user}\n\nReturn only the JSON object described, nothing else.`,
+        images: request.images,
         json: true,
         schema: mode === "ask" ? ASK_SCHEMA : CATCH_UP_SCHEMA,
         temperature: 0.2,
         maxTokens: 6000, // counts reasoning tokens too
       });
-      model = reply.model;
-      console.log(JSON.stringify({ mode, attempt, messages: fresh.length, ...reply.usage }));
+      console.log(JSON.stringify({ mode, attempt, messages: fresh.length, photos: request.images.length, ...reply.usage }));
       try {
         const parsed = parseModelJSON(reply.text);
-        result = mode === "ask" ? cleanAnswer(parsed, transcript.refs) : cleanCatchUp(parsed, transcript.refs);
+        const cleaned = mode === "ask" ? cleanAnswer(parsed, request.transcript.refs) : cleanCatchUp(parsed, request.transcript.refs);
+        return { model: reply.model, result: cleaned as unknown };
       } catch (e) {
         lastError = e;
       }
     }
-    if (result === undefined) throw lastError ?? new Error("No result");
+    throw lastError ?? new Error("No result");
+  };
+
+  const started = Date.now();
+  let model = "";
+  let result: unknown;
+  try {
+    let request = prompt(photos);
+    let outcome;
+    try {
+      outcome = await summarize(request);
+    } catch (e) {
+      // Meta can refuse a photo (content policy, unreadable): once more without them.
+      if (!(e instanceof MuseError) || e.status !== 400 || request.images.length === 0) throw e;
+      console.warn(JSON.stringify({ mode, photos_dropped: request.images.length, code: e.code }));
+      request = prompt(withoutPhotos(photos));
+      outcome = await summarize(request);
+    }
+    model = outcome.model;
+    result = outcome.result;
   } catch (e) {
     console.error("muse error", e);
     if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });

@@ -52,21 +52,26 @@ function line(ref: string, stamp: string | null, who: string, body: string): str
   return `[${ref}] ${stamp === null ? "" : `${stamp} · `}${who}: ${clipped.replace(/\s*\n\s*/g, " / ")}`;
 }
 
-/** What a message says in the transcript: a photo is "[photo]", then its caption. */
-function messageText(m: ChatMessage): string {
+/** What a message says in the transcript: a photo is "[photo]", or
+ *  "[photo 2]" when it's attached as photo 2, then its caption. */
+function messageText(m: ChatMessage, photoNumber?: number): string {
   if (!m.image_path) return m.body;
-  return m.body ? `[photo] ${m.body}` : "[photo]";
+  const tag = photoNumber === undefined ? "[photo]" : `[photo ${photoNumber}]`;
+  return m.body ? `${tag} ${m.body}` : tag;
 }
 
 /**
  * context: messages the reader has already seen (shown so the model knows
  * what "that" refers to, but never summarized); fresh: the unread ones.
+ * photoNumbers: message id → its number among the photos attached to the
+ * request (_shared/photos.ts).
  */
 export function buildTranscript(
   context: ChatMessage[],
   fresh: ChatMessage[],
   names: Map<string, string>,
   timeZone: string,
+  photoNumbers: Map<string, number> = new Map(),
 ): Transcript {
   const refs = new Map<string, string>();
   const lines: string[] = [];
@@ -75,7 +80,8 @@ export function buildTranscript(
     n += 1;
     const ref = `m${n}`;
     refs.set(ref, m.id);
-    lines.push(line(ref, localStamp(m.created_at, timeZone), names.get(m.sender) ?? "Someone", messageText(m)));
+    lines.push(line(ref, localStamp(m.created_at, timeZone), names.get(m.sender) ?? "Someone",
+      messageText(m, photoNumbers.get(m.id))));
   };
   if (context.length) {
     lines.push("=== ALREADY READ (context only, do not summarize) ===");

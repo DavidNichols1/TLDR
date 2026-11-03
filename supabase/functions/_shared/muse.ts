@@ -10,6 +10,8 @@
 //   max_completion_tokens counts reasoning + visible output
 //   reasoning_effort: minimal | low | medium | high | xhigh | max
 //   429 / 500 / 503 are retryable (honor Retry-After); other 4xx are not.
+//   images: {type: "image_url", image_url: {url}} parts in a user message,
+//   up to 50 a request; a data: URL works (no fetch from our storage)
 // Optional overrides: META_MODEL (default muse-spark-1.3), META_REASONING (default low).
 
 const ENDPOINT = "https://api.meta.ai/v1/chat/completions";
@@ -20,9 +22,20 @@ export interface JSONSchema {
   schema: Record<string, unknown>;
 }
 
+/** A photo for the model to see, after the user text (Chat Completions
+ *  `image_url` part). The label goes right before it, so photos can be told
+ *  apart and cited: "Photo 2: [m12] from Maya". */
+export interface MuseImage {
+  label: string;
+  /** "data:image/jpeg;base64,..." */
+  url: string;
+}
+
 export interface MuseRequest {
   system: string;
   user: string;
+  /** Photos shown with the user message; omit for text only. */
+  images?: MuseImage[];
   /** Ask the model for a JSON object back. */
   json?: boolean;
   /** Constrain the output to this schema (implies json). */
@@ -72,6 +85,19 @@ async function errorOf(res: Response): Promise<MuseError> {
   return new MuseError(`Meta Model API ${res.status}: ${message}`, res.status, code);
 }
 
+/** Plain text, or the text then each photo after its label. The API reads
+ *  images only in user messages. */
+function userContent(req: MuseRequest): string | Record<string, unknown>[] {
+  if (!req.images?.length) return req.user;
+  return [
+    { type: "text", text: req.user },
+    ...req.images.flatMap((image) => [
+      { type: "text", text: image.label },
+      { type: "image_url", image_url: { url: image.url } },
+    ]),
+  ];
+}
+
 export async function museChat(req: MuseRequest): Promise<MuseResponse> {
   const key = Deno.env.get("META_API_KEY");
   if (!key) throw new MuseNotConfigured("META_API_KEY is not set on this project");
@@ -80,7 +106,7 @@ export async function museChat(req: MuseRequest): Promise<MuseResponse> {
     model: Deno.env.get("META_MODEL") || "muse-spark-1.3",
     messages: [
       { role: "system", content: req.system },
-      { role: "user", content: req.user },
+      { role: "user", content: userContent(req) },
     ],
     reasoning_effort: Deno.env.get("META_REASONING") || "low",
     max_completion_tokens: req.maxTokens ?? 4000,
