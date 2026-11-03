@@ -91,6 +91,7 @@ struct ChatsListView: View {
                 Image(systemName: "person.crop.circle")
             }
         }
+        InstagramToolbarItem()  // experimental, not released: ios/Ketchup/Instagram/
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { showNew = true } label: { Label("New chat", systemImage: "square.and.pencil") }
