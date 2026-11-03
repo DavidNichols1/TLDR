@@ -183,9 +183,11 @@ flowchart LR
   repo.
 - **The service-role key is never in the app.** Only the edge function and the local
   demo seed script use it.
-- **Deleting your account deletes what you wrote.** Settings → Delete account first deletes your
-  profile photo and the photos you sent from storage, then calls
-  [`delete_account()`](supabase/migrations/0007_people.sql), one transaction. Your
+- **Deleting your account deletes what you wrote.** Settings → Delete account calls the
+  [`delete-account`](supabase/functions/delete-account/index.ts) edge function. It runs
+  [`delete_account()`](supabase/migrations/0007_people.sql) as you, one transaction, then
+  deletes the photos you uploaded with the service role. Rows go first, so a delete that
+  fails changes nothing, photos included. Your
   profile, memberships and every message you sent go, and so does a chat you were the
   last one in. Each chat you wrote in gets its inbox line recomputed, so no preview
   quotes you, and catch-ups friends saved that read your messages are deleted too: your
@@ -216,7 +218,7 @@ flowchart LR
   URLs) or upload into its folder (200 files an hour), only the sender can delete one,
   and a message can only point at a photo already uploaded to its own chat. Photos are
   re-encoded on the phone, so no location or other metadata leaves it.
-- **A 69-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
+- **A 70-check RLS test suite** ([`supabase/tests/rls_check.sql`](supabase/tests/rls_check.sql))
   plays members and an outsider. It covers spoofing the sender, self-adding to a
   chat, editing chats directly, outsider reads and posts, wrong-code counting, the
   Instagram and Snapchat catch-up's usage cap, blocking (hidden reads, unread counts,
@@ -302,7 +304,8 @@ Settings opens from your initial at the top left of Chats
 - **Change your name.** Friends see it in your chats, and Muse Spark uses it in catch-ups.
 - **Sign Instagram or Snapchat out of Ketchup.** Each row forgets that one site's sign-in
   and saved data in Ketchup's web views on this iPhone (cookies, storage, caches, service
-  workers). Your accounts there aren't touched.
+  workers). Your accounts there aren't touched. Signing out of Ketchup forgets both, so
+  the next person to sign in on that phone doesn't inherit them.
 - **Sign out, or delete your account for good** (see Security above). A page says what
   goes and what stays, then asks once more.
 - **Profiles, Block and Report.** Tap a name or photo in a chat, or a member in Chat

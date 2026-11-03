@@ -86,21 +86,32 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 ## Settings and people (migration 0007)
 Code: `ios/Ketchup/People/` (`SettingsView`, `AccountPages`, `SettingsPieces`, `Account.swift`,
 `ProfileView`, `ReportView`, `BlockedPeopleView`, `PeopleStore`, `PeopleModels`),
-`Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`, edge function `report-alert`. Settings opens from the inbox's top-left
+`Net/PeopleAPI.swift`, `WebChat/WebChatSignOut.swift`, edge functions `delete-account` and
+`report-alert`. Settings opens from the inbox's top-left
 photo (your initial until you add one) as a sheet; signing out waits for the sheet to close (`SettingsExit`, the sheet's
 `onDismiss` in `ChatsListView`), so it can't be left over sign-in.
 - `0007_people.sql` is one file applied live in parts, one `apply_migration` per slice, each
   named `0007_people_<part>` (so far `0007_people_account`, `0007_people_account_photos`,
-  `0007_people_blocks_reports`, `0007_people_reports_index`). Append, never rewrite: a fresh
-  project runs the whole file once.
-- `delete_account()` (security definer, `authenticated` only): deletes friends' saved
-  catch-ups that read the caller's messages, then the auth user (profile, memberships,
-  messages, own briefs cascade; a chat they were last in goes through `apply_member_change`),
-  then recomputes `last_message_*` on the chats they wrote in, with `apply_message`'s photo
-  rule ("📷 Photo"). Tested only by the RLS suite's "deleted account" checks (rolled back). A
-  live test deletes a real account: use a throwaway account, never a seed one. SQL can't
-  delete Storage files, so `AppModel.deleteAccount()` (People/Account.swift) calls
-  `ChatPhotos.deleteMine()` first.
+  `0007_people_blocks_reports`, `0007_people_reports_index`, `0007_people_delete_files`).
+  Append, never rewrite: a fresh project runs the whole file once.
+- Delete account is the `delete-account` edge function (verify_jwt on): it calls
+  `delete_account()` as the person (security definer, `authenticated` only), which deletes
+  friends' saved catch-ups that read their messages, then the auth user (profile,
+  memberships, messages, own briefs cascade; a chat they were last in goes through
+  `apply_member_change`), recomputes `last_message_*` on the chats they wrote in with
+  `apply_message`'s photo rule, and returns their files (`{"avatars": [...], "chat-media":
+  [...]}`). The function then deletes those with the service role. Rows first, so a failed
+  delete changes nothing; files server side, because once the rows are gone the person can't
+  read (so can't delete) their chat photos. Deploy:
+  `supabase functions deploy delete-account --project-ref cfqlnthmqwkhjbhylvgu --use-api`; an
+  unauthenticated POST must return 401. Logs: `"fn":"delete-account"`, counts only. Tested by
+  the RLS suite's "deleted account" checks (rolled back). A live test deletes a real account:
+  use a throwaway account, never a seed one (their messages are the demo chat) or David's.
+- While a delete is on its way, its page hides Back and Settings holds Done and swipe-down;
+  if the sheet is gone anyway when it finishes, ChatsListView signs out at once. Leaving
+  (Sign out or a deleted account) forgets the Instagram and Snapchat sign-ins in Ketchup
+  (`AppModel.leave`). Offline previews never touch the real website data: `leave` and the
+  web-chat rows skip it while previewing.
 - "Sign out of Instagram/Snapchat in Ketchup" removes the `WKWebsiteDataStore.default()`
   records whose name matches that source's `domains`, then posts `webChatForgotten` and the
   open page goes back to its start URL. The first check after a fresh install can take a few

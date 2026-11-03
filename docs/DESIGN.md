@@ -222,7 +222,8 @@ Settings (`ios/Ketchup/People/`) is a sheet from your initial at the top left of
 | About | A colophon on paper: the drop, the `Wordmark`, the version in a kicker, `MuseByline`, and the hackathon line. |
 
 - **Settings has no ketchup button.** Delete account is the one red row; its page has the one ketchup button, "Delete my account", and a system alert asks once more.
-- **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out".
+- **Say what happens.** The delete page lists what goes and what stays; the web-chat rows say "Nothing saved" or "Signed out"; Sign out says it forgets the Instagram and Snapchat sign-ins too.
+- **Nothing closes halfway.** While a delete works, its page has no Back and Settings' Done waits.
 
 ### Profiles, Block and Report
 
