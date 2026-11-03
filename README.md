@@ -194,7 +194,7 @@ flowchart LR
 - **Android app** ([`android/`](android)): Kotlin and Jetpack Compose on the same
   backend, with no networking libraries. The same kind of hand-written Supabase client
   (email-code auth, PostgREST, RPCs, edge functions) and its own small websocket client
-  for Realtime, over TLS with the system's trust store and a hostname check. 116 JVM
+  for Realtime, over TLS with the system's trust store and a hostname check. 123 JVM
   unit tests cover the Realtime protocol, paging, the brief and the reader's parser.
   See "Android, and the Instagram bubble" below.
 - **Database** ([`supabase/migrations/`](supabase/migrations)): profiles, chats, members,
@@ -382,7 +382,8 @@ no website inside Ketchup. You use the real Instagram app.
   only to Instagram and Snapchat. When a DM thread is open, a small Ketchup bubble floats
   over it (an accessibility overlay, so no draw-over permission). Tap it and pick the last
   30, 80 or 120 messages. It reads them off the screen, scrolling back for older ones and
-  dropping repeats, and tells your messages from theirs by which side they're on. Then it
+  dropping repeats, and tells your messages from theirs by which side they're on (on
+  Snapchat, by the name row above them). Then it
   sends the thread to the same [`catch-up-text`](supabase/functions/catch-up-text/index.ts)
   function as the iPhone, and the brief opens over Instagram. Back returns to the chat.
 - **It reads only when you tap, and only the chat you have open.** Nothing is kept on the
@@ -391,11 +392,16 @@ no website inside Ketchup. You use the real Instagram app.
   where, not Instagram's internal view names, which change.
 - **Where it stands.** On an emulator, against a made-up thread laid out like Instagram's,
   Last 30 read 30 of 30 in 2.2 seconds and Last 120 read all 88 messages in 10.3 seconds.
-  On November 3, 2026 it worked on a real phone on Android 16, in the real Instagram app:
-  the bubble read two short DM threads (2 messages, and 5 after scrolling back to the
-  start in 7.4 seconds) and Muse Spark caught up on both. A long thread hasn't been read
-  on the real app yet. Snapchat may not share its chat text with other apps at all, so it
-  may stay Instagram only.
+  On November 3, 2026 it worked on a real phone on Android 16 in both apps. In Instagram
+  the bubble read two short DM threads (2 messages, and 5 after scrolling back to the start
+  in 7.4 seconds). In Snapchat it read 20 messages back to the start of the chat in 6.9
+  seconds, with 4 replies, and Muse Spark caught up on all three.
+- **Snapchat needed its own mode.** A layout dump from the phone (view names, positions and
+  text lengths, never text) showed that every Snapchat message sits on the left under a
+  name row, so the reader takes each message's sender from the row above it instead of
+  from its side, and finds the chat by Snapchat's own view names. Still unchecked on a real
+  phone: a long Instagram thread, and whether Snapchat marks your own messages as yours
+  (none were counted as yours in that test).
 - **Same terms problem as the iPhone version, plus Google Play's.** Play only allows
   accessibility services for accessibility, so this is a sideloaded, experimental build.
   On Android 13 and later, a sideloaded app needs Allow restricted settings (App info,

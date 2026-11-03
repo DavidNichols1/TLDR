@@ -42,7 +42,7 @@
     <string name="reader_page_open">Open %1$s</string>
     <string name="reader_page_not_installed">%1$s isn\'t on this phone. Install it, sign in, then come back.</string>
     <string name="reader_page_snapchat_kicker">Heads up</string>
-    <string name="reader_page_snapchat_untested">Not tested on a real phone yet. Snapchat may not share chat text with other apps at all, so the bubble may find nothing there.</string>
+    <string name="reader_page_snapchat_untested">Tested on one phone so far. Snapchat changes its chat screen often, so after a Snapchat update the bubble may not show until Ketchup catches up.</string>
     <string name="reader_page_restricted_title">Installed Ketchup yourself?</string>
     <string name="reader_page_restricted_body">On Android 13 and later, Settings may grey out the switch for apps that didn\'t come from a store. Open Ketchup\'s App info, tap the ⋮ menu, choose Allow restricted settings, then turn the bubble on again.</string>
     <string name="reader_page_app_info">Open App info</string>

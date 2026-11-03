@@ -366,3 +366,12 @@ JBR as `JAVA_HOME` and `ANDROID_HOME=~/Library/Android/sdk`, `./gradlew :app:ass
 :app:testDebugUnitTest` (zero Kotlin warnings), AVDs `ketchup_chat`, `ketchup_brief`, `ketchup_reader`,
 offline previews with `adb shell am start -n com.vibetemp.ketchup/.MainActivity --es screen <name>`.
 It also has who owns which files (chat, brief, reader slices) and the frozen `data/BriefSource.kt` contract.
+
+**David's test phone** (moto g 2025, Android 16) connects over Wi-Fi debugging, no cable: once he turns
+on Developer options → Wireless debugging (paired with this Mac through Android Studio), `adb mdns
+services` lists it and `adb connect <ip:port>` (or adb's auto-connect) attaches it. It drops when the
+phone sleeps, so a background loop that waits for it, then installs, works well. Read only Ketchup's
+own log tags: `KetchupReader` (read counts, and why no thread was found), `KetchupReaderDump` (layout:
+view ids, bounds, text lengths, never text) and `KetchupNet` (network failures). Never take a
+screenshot or a `uiautomator dump` while Instagram or Snapchat is open (both include message text),
+and never turn the accessibility service on over adb on his phone; he turns it on himself.
