@@ -140,9 +140,10 @@ final class ChatModel {
         computeUnread(exact: exact)
         if paged { synced = true }
         keepOnDevice()
-        // A big backlog: start Muse Spark now so the tap feels instant. Once:
-        // poll() runs open() again until the first page is in.
-        if !prefetched, unreadCount >= Self.prefetchAt {
+        // A big backlog: start Muse Spark now so the tap feels instant. Once
+        // (poll() runs open() again until the first page is in), and only if
+        // a tap hasn't started it already: then they'd be the same request.
+        if !prefetched, case .idle = catchUp, unreadCount >= Self.prefetchAt {
             prefetched = true
             Task { await runCatchUp(prefetch: true) }
         }

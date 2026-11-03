@@ -239,7 +239,23 @@ enum StoreCheck {
                   "one deleted; clear cache kept \(afterClear) chats' saved; clear all left \(store().allSaved().count)")
         }
 
-        // 13. Launch clean-up: only the signed-in user's folder stays, and
+        // 13. Identical requests on their way share one answer (InFlight).
+        let reads = InFlight<Int>()
+        var ran = 0
+        async let one = try? reads.share("my_chats") { ran += 1; try await Task.sleep(for: .milliseconds(120)); return ran }
+        async let two = try? reads.share("my_chats") { ran += 1; try await Task.sleep(for: .milliseconds(120)); return ran }
+        let together = await [one, two]
+        let callsForPair = reads.started
+        let later = try? await reads.share("my_chats") { ran += 1; return ran }
+        struct Refused: Error {}
+        async let bad1: Int? = try? reads.share("members") { try await Task.sleep(for: .milliseconds(60)); throw Refused() }
+        async let bad2: Int? = try? reads.share("members") { ran += 100; return 0 }
+        let errors = await [bad1, bad2]
+        check("Identical requests share one call",
+              together == [1, 1] && callsForPair == 1 && later == 2 && errors == [nil, nil] && reads.started == 3 && reads.joined == 2,
+              "2 at once: \(callsForPair) call, same answer; a later one asks again; an error reaches both")
+
+        // 14. Launch clean-up: only the signed-in user's folder stays, and
         // with nobody signed in nothing is touched.
         let b = DeviceStore(root: root) { userB }
         b.saveInbox(inbox)
@@ -255,7 +271,7 @@ enum StoreCheck {
         check("Launch keeps only your folder", untouched == 2 && folders == [userA.uuidString.lowercased()],
               "signed out: \(untouched) folders kept; signed in: \(folders.count) left")
 
-        // 14. Signing out deletes everything.
+        // 15. Signing out deletes everything.
         tidier.saveInbox(inbox)
         tidier.wipe()
         await tidier.flush()

@@ -32,7 +32,7 @@ enum KetchupAPI {
     // MARK: Chats
 
     static func myChats() async throws -> [ChatSummary] {
-        let data = try await client.rpc("my_chats")
+        let data = try await client.rpc("my_chats", shares: true)
         return try JSON.decoder.decode([ChatSummary].self, from: data)
     }
 

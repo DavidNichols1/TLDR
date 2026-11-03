@@ -10,13 +10,15 @@
 // 3. Sends a ref-tagged transcript to Muse Spark, with the newest photos
 //    in it as images, asks for strict JSON, validates it, maps refs back to
 //    message ids, and saves it to ai_briefs.
-// A repeat catch-up over the same unread window is served from ai_briefs.
+// A repeat over the same window is served from ai_briefs, and identical
+// requests that arrive together share one Muse Spark call (_shared/once.ts).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildTranscript, type ChatMessage } from "../_shared/transcript.ts";
 import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
 import { museChat, MuseError, MuseNotConfigured } from "../_shared/muse.ts";
 import { loadPhotos, photoImages, photoNote, type Photos, withoutPhotos } from "../_shared/photos.ts";
+import { once } from "../_shared/once.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -103,15 +105,6 @@ Deno.serve(async (req) => {
     if (fresh.length === 0) {
       return json(200, { kind: "catch_up", empty: true, message_count: 0 });
     }
-    const until = fresh[fresh.length - 1].created_at;
-
-    // Same unread window as last time? Serve the saved brief.
-    const { data: cached } = await admin
-      .from("ai_briefs").select("id, result, model, message_count, since, until, latency_ms, created_at")
-      .eq("user_id", me).eq("chat_id", chatId).eq("kind", "catch_up")
-      .eq("since", lastRead).eq("until", until)
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (cached) return json(200, { kind: "catch_up", cached: true, brief_id: cached.id, ...cached });
 
     const { data: before } = await asUser
       .from("messages").select("id, sender, body, created_at, image_path")
@@ -129,6 +122,12 @@ Deno.serve(async (req) => {
       return json(200, { kind: "ask", result: { answer: "There are no messages in this chat yet.", found: false, refs: [] } });
     }
   }
+
+  // Made before (or being made right now) for this exact window? Use that.
+  const since = mode === "catch_up" ? lastRead : fresh[0].created_at;
+  const until = fresh[fresh.length - 1].created_at;
+  const brief = await once(admin, { user: me, chat: chatId, kind: mode, since, until, question: mode === "ask" ? question : null });
+  if ("cached" in brief) return json(200, { kind: mode, cached: true, brief_id: brief.cached.id, ...brief.cached });
 
   // The newest unread photos (newest in the window, for Ask) go along as
   // images, downloaded as the caller (_shared/photos.ts).
@@ -192,26 +191,13 @@ Deno.serve(async (req) => {
     result = outcome.result;
   } catch (e) {
     console.error("muse error", e);
+    await brief.claim.release();
     if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }
   const latency = Date.now() - started;
 
-  const since = mode === "catch_up" ? lastRead : fresh[0].created_at;
-  const until = fresh[fresh.length - 1].created_at;
-  const { data: saved, error: saveErr } = await admin.from("ai_briefs").insert({
-    chat_id: chatId,
-    user_id: me,
-    kind: mode,
-    question: mode === "ask" ? question : null,
-    since,
-    until,
-    message_count: fresh.length,
-    model,
-    result,
-    latency_ms: latency,
-  }).select("id, created_at").single();
-  if (saveErr) console.error("save error", saveErr);
+  const saved = await brief.claim.save({ message_count: fresh.length, model, result, latency_ms: latency });
 
   return json(200, {
     kind: mode,

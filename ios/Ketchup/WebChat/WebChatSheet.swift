@@ -53,6 +53,7 @@ final class WebCatchUp: Identifiable {
     }
 
     func run() async {
+        guard !brief.isLoading else { return }  // Try again, tapped twice
         brief = .loading
         do {
             let response = try await WebChatAPI.catchUp(thread, readerName: readerName)

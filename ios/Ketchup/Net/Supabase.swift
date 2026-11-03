@@ -141,15 +141,32 @@ final class Supabase {
 
     // MARK: PostgREST / RPC / functions
 
+    /// `shares`: an identical call already on its way answers this one too
+    /// (InFlight.swift). Reads share by default; writes never should.
     @discardableResult
     func rest(_ method: String, _ path: String,
               query: [URLQueryItem] = [],
               body: Data? = nil,
-              prefer: String? = nil) async throws -> Data {
+              prefer: String? = nil,
+              shares: Bool? = nil) async throws -> Data {
         #if DEBUG
         if PreviewData.isActive { throw Self.offline }
         #endif
-        guard session != nil else { throw APIError.notSignedIn }
+        guard let user = session?.userId else { throw APIError.notSignedIn }
+        guard shares ?? (method == "GET") else {
+            return try await send(method, path, query: query, body: body, prefer: prefer)
+        }
+        let key = [user.uuidString, method, path, query.map { "\($0.name)=\($0.value ?? "")" }.joined(separator: "&"),
+                   body.map { String(decoding: $0, as: UTF8.self) } ?? ""].joined(separator: "|")
+        return try await reads.share(key) {
+            try await self.send(method, path, query: query, body: body, prefer: prefer)
+        }
+    }
+
+    /// Reads on their way, by user, path, query and body.
+    let reads = InFlight<Data>()
+
+    private func send(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, prefer: String?) async throws -> Data {
         try await refreshIfNeeded()
 
         var components = URLComponents(url: Config.supabaseURL.appendingPathComponent(path),
@@ -173,8 +190,8 @@ final class Supabase {
         return data
     }
 
-    func rpc(_ name: String, _ args: [String: Any] = [:]) async throws -> Data {
-        try await rest("POST", "/rest/v1/rpc/\(name)", body: JSONSerialization.data(withJSONObject: args))
+    func rpc(_ name: String, _ args: [String: Any] = [:], shares: Bool = false) async throws -> Data {
+        try await rest("POST", "/rest/v1/rpc/\(name)", body: JSONSerialization.data(withJSONObject: args), shares: shares)
     }
 
     func function(_ name: String, _ args: [String: Any]) async throws -> Data {

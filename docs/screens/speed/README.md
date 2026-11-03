@@ -21,4 +21,4 @@ Skeletons, a chat opened on its kept copy with no server, saved catch-ups, Setti
 | `saved-quote` | A source shown as it was kept |
 | `saved-all` | Every chat's saved catch-ups (Breck and the Instagram test thread) in its Settings bar, with Delete all |
 | `settings-phone` | Settings' "On this iPhone": Saved catch-ups and Clear cache (a preview has nothing cached) |
-| `store-check` | `-screen store-check`: 14 of 14 passed, 1 skipped (data protection needs a phone) |
+| `store-check` | `-screen store-check`: 15 of 15 passed, 1 skipped (data protection needs a phone) |
