@@ -274,6 +274,15 @@ struct WebQuoteCard: View {
 
     private var name: String { message.isMe ? "You" : message.sender }
 
+    private var text: some View {
+        Text(verbatim: message.text)
+            .font(.body)
+            .foregroundStyle(Theme.ink)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
@@ -294,13 +303,10 @@ struct WebQuoteCard: View {
                     .foregroundStyle(Theme.ink)
                     .buttonStyle(.pressable)
             }
-            ScrollView {
-                Text(verbatim: message.text)
-                    .font(.body)
-                    .foregroundStyle(Theme.ink)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
+            // A short message just sits there; a long one scrolls.
+            ViewThatFits(in: .vertical) {
+                text
+                ScrollView { text }
             }
             Text("From your \(source.name) chat. Not saved.")
                 .font(.footnote)

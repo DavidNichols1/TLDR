@@ -191,18 +191,18 @@ deno run --allow-net --allow-env --allow-read scripts/seed-demo/seed.ts
 Nobody moves their group chat to a new app. So this experiment tries the same catch-up
 on a chat people already have: an Instagram DM thread.
 
-- **How it works.** Instagram's own website opens inside the app. You sign in on
-  Instagram's page and open a DM thread. Tap **Catch me up on this chat** and Ketchup
-  reads the conversation that's on the page, then runs the same Muse Spark catch-up as
-  its own chats through a second edge function,
+- **How it works.** Instagram's own website opens inside the app, on its own page of the
+  home screen. You sign in on Instagram's page and open a DM thread. Tap **Catch me up**,
+  pick the last 30, 80 or 120 messages (the page doesn't say what's unread), and Ketchup
+  reads that much of the conversation off the page. Then it runs the same Muse Spark
+  catch-up as its own chats through a second edge function,
   [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
-  transcript, prompts, JSON schemas and validation. Each item quotes the messages behind
-  it.
+  transcript, prompts, JSON schemas and validation, laid out with the same brief, tickets,
+  diner check and Ask the chat. Each source chip shows the whole message it quotes.
 - **It reads only the thread you have open, in your own signed-in session.** Ketchup
   never sees your Instagram password or cookies. The reader
   ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js)) runs
-  only when you tap the button on a DM thread, and you pick how far back: the last 30, 80
-  or 120 messages (the page doesn't say what's unread). It goes by page structure (roles,
+  only when you pick how much to read on a DM thread. It goes by page structure (roles,
   labels, layout), not Instagram's class names. Instagram only fills in the messages near
   the screen, so it steps up through the thread, then puts the scroll back.
 - **Nothing is stored.** No saved catch-up, and no message text in the logs (counts and
@@ -212,6 +212,14 @@ on a chat people already have: an Instagram DM thread.
   and the messages, your friends' included, go to Muse Spark to summarize. So it's not
   in the released app, and it won't ship unless Meta is fine with it. Ketchup's own chat
   doesn't depend on it.
+- **Built to take another app.** The browser, the page and the catch-up sheet are shared
+  ([`ios/Ketchup/WebChat/`](ios/Ketchup/WebChat)); a `WebChatSource` says what differs
+  (name, start page, allowed sites, thread URL, reader script, user agent).
+- **Snapchat doesn't work, on purpose.** Snapchat for Web won't run in a phone's web view:
+  with a phone's browser it says to use a computer, and with a desktop browser setting it
+  still lands on "Download Snapchat", because the page sees a touch screen and a phone-wide
+  window. Getting past that would mean faking a computer from inside Snapchat's own pages,
+  sign-in included, and Ketchup doesn't inject anything into a page. Its page says so.
 
 ## Built during the event
 

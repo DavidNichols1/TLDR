@@ -60,9 +60,22 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 302 unread. `--rearm` resets David to all-unread between video takes.
 
 ## Instagram catch-up (experimental, not released)
-Code: `ios/Ketchup/Instagram/` (web view, `InstagramThreadReader.js`, result view), edge
-function `catch-up-text`, migration `0004_text_brief_usage`. The only call site outside that
-folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has the summary.
+Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
+`WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` holds Instagram's reader and outline
+scripts, its fixtures, and `InstagramEntry.swift` (the inbox's camera button, which shows
+`WebChatTab(source: .instagram)` full screen until the home becomes a pager with a page per
+source). Edge function `catch-up-text`, migration `0004_text_brief_usage`. README has the summary.
+- The UI reuses `AI/` (CatchUpContent, SkimmingView, AIErrorCard, NotepadField, AnswerCard).
+  `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
+  message instead of jumping.
+- Snapchat: `WebChatSource.snapchat` is marked unavailable and its page says why. Checked
+  Nov 3, 2026: web.snapchat.com sends a phone's user agent to "use a computer", and a desktop
+  user agent plus desktop content mode still lands on the mobile "Download Snapchat" page
+  (the page sees `maxTouchPoints` 5 and a 402 px window). Getting past it means injecting a
+  script into every Snapchat page, sign-in included; don't, unless David decides otherwise.
+- Adding a source: a `WebChatSource` (id is catch-up-text's `source`, also allowed in
+  `SOURCES` there and in the `text_brief_usage` source check, which needs a migration), a
+  reader script that returns the same JSON, fixtures plus `.expected.json`, and harness runs.
 - Rules: read only the DM thread the user has open, only on tap. Never inject scripts, read
   cookies or run anything on login pages. Store nothing: no `ai_briefs` rows, and no message
   text, names or model output in logs (counts and token usage only). Real tests use a separate
@@ -79,10 +92,12 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
 - Deploy: `supabase functions deploy catch-up-text --project-ref cfqlnthmqwkhjbhylvgu --use-api`,
   and redeploy `catch-up` after any `_shared` change. `list_edge_functions` → `verify_jwt: true`
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.
-- Simulator (Debug build, signed in to Ketchup): inbox toolbar camera button → `…` menu →
-  "Test thread (fixture)" → "Catch me up on this chat". Launching with
-  `-KetchupInstagramFixture YES` opens the fixture instead of instagram.com. The Xcode console
-  prints counts only: `[instagram] read N messages, …`.
+- Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` (the page
+  on the synthetic thread), `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote`,
+  `web-snapchat`. Signed in: the inbox camera button (later the pager page) → `…` → Testing →
+  a test thread → Catch me up. `-KetchupInstagramFixture YES` opens the fixture instead of
+  instagram.com. The console prints counts only: `[instagram] read N messages, …`. Tap the
+  menu once and wait: a second tap where the button was lands on "Last 120".
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
   `-destination 'id=<udid>' -allowProvisioningUpdates`, then
   `xcrun devicectl device install app --device <udid> <DerivedData>/Build/Products/Debug-iphoneos/Ketchup.app`.
@@ -91,7 +106,9 @@ folder is `InstagramToolbarItem()` in `Views/ChatsListView.swift`. README has th
   exactly 120 (found 122, stop "enough", 6 loads, 56 steps, 9 s of reading). The log line's
   `reader` object explains a short count: `stop` says why it ended, `units` vs `found` shows
   pieces that weren't messages, `dupes` shows rows read twice. Replies carry their quote
-  (Instagram draws it without `dir="auto"`, in a half-faded line with a 4px bar).
+  (Instagram draws it without `dir="auto"`, in a half-faded line with a 4px bar). The DEBUG
+  "Save page outline (no text)" writes `tmp/instagram-outline.txt`; pull it with
+  `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.vibetemp.ketchup --source tmp/instagram-outline.txt --destination <scratchpad file>`.
 - Live check: `query_logs`, source `function_logs`, lines with `"fn":"catch-up-text"` carry
   `{source, mode, attempt, messages, prompt, completion, reasoning}` and nothing else. Usage:
   `select mode, message_count, created_at from text_brief_usage order by created_at desc limit 5`.
