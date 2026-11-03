@@ -46,6 +46,7 @@ struct InstagramCatchUpScreen: View {
     @State private var step: Step = .idle
     @State private var result: IGCatchUpResult?
     @State private var error: String?
+    @State private var notice: String?
     @AppStorage("instagram.introSeen") private var introSeen = false
 
     private enum Step: Equatable { case idle, reading, thinking(Int) }
@@ -78,6 +79,11 @@ struct InstagramCatchUpScreen: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(error ?? "")
+        }
+        .alert("Done", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(notice ?? "")
         }
     }
 
@@ -152,6 +158,16 @@ struct InstagramCatchUpScreen: View {
                 Button("How this works", systemImage: "info.circle") { introSeen = false }
                 #if DEBUG
                 Button("Test thread (fixture)", systemImage: "testtube.2") { browser?.openFixture() }
+                Button("Save page outline (no text)", systemImage: "list.bullet.indent") {
+                    Task {
+                        do {
+                            let file = try await browser?.savePageOutline()
+                            notice = "Saved the redacted outline to \(file?.lastPathComponent ?? "?") in the app's tmp folder."
+                        } catch {
+                            self.error = InstagramError.message(for: error)
+                        }
+                    }
+                }
                 #endif
             } label: {
                 Image(systemName: "ellipsis.circle")

@@ -82,7 +82,9 @@ enum IGRef {
             var out: [String: Any] = [:]
             for (key, v) in object {
                 if key == "refs", let list = v as? [Any] {
-                    out[key] = list.compactMap { ($0 as? NSNumber)?.intValue }.map { id($0).uuidString }
+                    out[key] = list.compactMap { ($0 as? NSNumber)?.intValue }
+                        .filter { (0..<(1 << 40)).contains($0) }
+                        .map { id($0).uuidString }
                 } else {
                     out[key] = rewrite(v)
                 }

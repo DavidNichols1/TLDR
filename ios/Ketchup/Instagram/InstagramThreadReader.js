@@ -145,7 +145,11 @@ function findRoot() {
 
 function findScroller(root) {
   for (let n = root; n && n !== document.documentElement; n = n.parentElement) if (scrollable(n)) return n;
-  return [...root.querySelectorAll("*")].find(scrollable) || null;
+  const inner = [...root.querySelectorAll("*")].find(scrollable);
+  if (inner) return inner;
+  // Some layouts scroll the whole page instead of a list.
+  const page = document.scrollingElement;
+  return page && page.scrollHeight > window.innerHeight + 8 ? page : null;
 }
 
 function threadTitle(root, scroller) {
@@ -153,7 +157,7 @@ function threadTitle(root, scroller) {
   const m = label.match(/conversation with (.+)$/i);
   if (m && m[1].trim()) return m[1].trim();
   // The header above the message list: its biggest, boldest text.
-  const top = (scroller || root).getBoundingClientRect().top;
+  const top = (scroller && scroller !== document.scrollingElement ? scroller : root).getBoundingClientRect().top;
   let best = null, bestScore = 0;
   for (const el of document.querySelectorAll('h1, h2, [role="heading"], span[dir="auto"], div[dir="auto"]')) {
     if (root.contains(el) || el.closest('[contenteditable="true"], [role="textbox"]')) continue;

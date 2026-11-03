@@ -46,6 +46,9 @@ final class InstagramBrowser {
         webView.navigationDelegate = policy
         webView.uiDelegate = policy
         webView.allowsBackForwardNavigationGestures = true
+        #if DEBUG
+        webView.isInspectable = true  // Safari's Develop menu, for tuning the reader
+        #endif
         // Instagram changes pages with pushState, which only KVO on `url` sees.
         observations = [
             webView.observe(\.url, options: [.initial, .new]) { [weak self] web, _ in
@@ -99,6 +102,19 @@ final class InstagramBrowser {
         guard let file = Bundle.main.url(forResource: "ig-thread-fixture", withExtension: "html"),
               let html = try? String(contentsOf: file, encoding: .utf8) else { return }
         webView.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com/direct/t/ketchup-test-fixture/"))
+    }
+
+    /// For tuning the reader against the real site: a redacted outline of
+    /// the page (structure, styles, positions; text only as lengths), saved
+    /// to the app's temporary folder. Returns the file.
+    func savePageOutline() async throws -> URL {
+        guard InstagramNavigationPolicy.isInstagram(url ?? Self.inbox),
+              let file = Bundle.main.url(forResource: "InstagramPageOutline", withExtension: "js"),
+              let script = try? String(contentsOf: file, encoding: .utf8) else { throw InstagramError.readerMissing }
+        let outline = try await webView.callAsyncJavaScript(script, arguments: [:], in: nil, contentWorld: .defaultClient) as? String ?? ""
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("ig-outline.txt")
+        try outline.write(to: out, atomically: true, encoding: .utf8)
+        return out
     }
     #endif
 }
