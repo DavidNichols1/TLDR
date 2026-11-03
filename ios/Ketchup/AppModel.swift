@@ -113,6 +113,7 @@ final class AppModel {
     /// (Photos/ProfilePhotos.swift does the saving).
     func setAvatarPath(_ path: String?) {
         me?.avatarPath = path
+        keepOnDevice()
     }
 
     func refreshChats() async {
