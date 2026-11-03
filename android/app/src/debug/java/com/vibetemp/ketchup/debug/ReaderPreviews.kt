@@ -31,6 +31,7 @@ import com.vibetemp.ketchup.reader.ReaderConsent
 import com.vibetemp.ketchup.reader.ReaderPage
 import com.vibetemp.ketchup.reader.ReaderPageContent
 import com.vibetemp.ketchup.reader.ReaderPanel
+import com.vibetemp.ketchup.reader.SnapchatNameScreen
 import com.vibetemp.ketchup.ui.brief.BriefActivity
 import com.vibetemp.ketchup.ui.design.CapsuleButton
 import com.vibetemp.ketchup.ui.design.Kicker
@@ -44,6 +45,8 @@ import com.vibetemp.ketchup.ui.theme.person
 //   reader-snapchat-page    the same for Snapchat, with its "not tested on a real phone" note
 //   reader-page-on          the Instagram page with the bubble on and Instagram installed
 //   reader-consent          the disclosure before Android's accessibility settings
+//   reader-snap-name        "Your name on Snapchat", asked once before the first Snapchat read
+//   reader-snapchat-page-named  the Snapchat page with that name saved, and Change
 //   reader-panel            the bubble and each state of its panel, over an Instagram-white page
 //   reader-fixture          opens the synthetic Instagram thread the service reads on an emulator
 //   reader-instagram        the synthetic thread as catch-up-text will see it
@@ -59,6 +62,15 @@ val ReaderPreviews: Map<String, @Composable () -> Unit> = mapOf(
         )
     },
     "reader-consent" to { ReaderConsent(onAgree = {}, onNotNow = {}, modifier = Modifier.safeDrawingPadding()) },
+    "reader-snap-name" to { SnapchatNameScreen(initial = "Dave N", onSave = {}, onCancel = {}) },
+    "reader-snapchat-page-named" to {
+        ReaderPageContent(
+            TextSource.SNAPCHAT, on = true, installed = true,
+            onTurnOn = {}, onTurnOff = {}, onOpenApp = {}, onAppInfo = {},
+            modifier = Modifier.safeDrawingPadding(),
+            snapchatName = "Dave N",
+        )
+    },
     "reader-panel" to { PanelStates() },
     "reader-fixture" to { FixtureLauncher() },
     "reader-instagram" to { InstagramThreadSample() },

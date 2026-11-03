@@ -29,6 +29,15 @@
     <string name="reader_problem_nothing">Couldn\'t find any messages here. Scroll to the newest message and try again.</string>
     <string name="reader_problem_unreadable">The chat changed while Ketchup was reading it. Scroll to the newest message and try again.</string>
 
+    <!-- Your name on Snapchat, asked once (SnapchatNameActivity) -->
+    <string name="reader_name_kicker">Snapchat</string>
+    <string name="reader_name_title">Your name on Snapchat</string>
+    <string name="reader_name_body">Snapchat shows everyone\'s messages on the left, under the sender\'s name. Type yours as Snapchat shows it, so Ketchup can tell your messages from your friends\'.</string>
+    <string name="reader_name_field">Your name on Snapchat</string>
+    <string name="reader_name_note">It stays on this phone and is never sent anywhere. Change it any time on Ketchup\'s Snapchat page.</string>
+    <string name="reader_name_save">Save</string>
+    <string name="reader_name_cancel">Not now</string>
+
     <!-- The home pager's Instagram and Snapchat pages -->
     <string name="reader_page_kicker">Experimental</string>
     <string name="reader_page_title">Catch up on your %1$s chats</string>
@@ -43,6 +52,10 @@
     <string name="reader_page_not_installed">%1$s isn\'t on this phone. Install it, sign in, then come back.</string>
     <string name="reader_page_snapchat_kicker">Heads up</string>
     <string name="reader_page_snapchat_untested">Tested on one phone so far. Snapchat changes its chat screen often, so after a Snapchat update the bubble may not show until Ketchup catches up.</string>
+    <string name="reader_page_snap_name">Your name on Snapchat: %1$s</string>
+    <string name="reader_page_snap_name_unset">Your name on Snapchat isn\'t set yet. The bubble asks the first time you tap it.</string>
+    <string name="reader_page_snap_name_change">Change</string>
+    <string name="reader_page_snap_name_set">Set it</string>
     <string name="reader_page_restricted_title">Installed Ketchup yourself?</string>
     <string name="reader_page_restricted_body">On Android 13 and later, Settings may grey out the switch for apps that didn\'t come from a store. Open Ketchup\'s App info, tap the ⋮ menu, choose Allow restricted settings, then turn the bubble on again.</string>
     <string name="reader_page_app_info">Open App info</string>

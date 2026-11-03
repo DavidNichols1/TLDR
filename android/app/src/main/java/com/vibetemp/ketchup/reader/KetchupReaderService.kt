@@ -22,7 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import java.util.IdentityHashMap
 
 /**
@@ -125,6 +124,11 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
             return
         }
         overlay.showBubble(found.layout, found.source)
+        // Back from "Your name on Snapchat" with a name saved: the panel opens, ready to read.
+        if (pickAfterName && found.source == TextSource.SNAPCHAT && !overlay.isPanelShowing && ReaderMemory.snapchatName(this) != null) {
+            pickAfterName = false
+            overlay.showPanel(PanelState.Pick)
+        }
         watch()
     }
 
@@ -179,16 +183,24 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         }
         if (overlay.justClosed) return
         val on = current ?: return
-        if (on.source == TextSource.SNAPCHAT && !on.fixture) learnReaderName()
-        overlay.showPanel(
-            when {
-                !ReaderSetup.hasConsent(this) -> PanelState.Setup
-                // The debug fixture is offline: it needs no account.
-                !on.fixture && KetchupApi.get(this).session.value == null -> PanelState.SignIn
-                else -> PanelState.Pick
-            },
-        )
+        val state = when {
+            !ReaderSetup.hasConsent(this) -> PanelState.Setup
+            // The debug fixture is offline: it needs no account.
+            !on.fixture && KetchupApi.get(this).session.value == null -> PanelState.SignIn
+            else -> PanelState.Pick
+        }
+        // Snapchat draws everyone's messages on the left: the first time, ask the person's name there.
+        if (state == PanelState.Pick && on.source == TextSource.SNAPCHAT && ReaderMemory.snapchatName(this) == null) {
+            pickAfterName = true
+            SnapchatNameActivity.start(this)
+            return
+        }
+        overlay.showPanel(state)
     }
+
+    /** "Your name on Snapchat" is open: when it saves, the panel opens back in Snapchat. */
+    @Volatile
+    private var pickAfterName = false
 
     override fun onBubbleLongPress() {
         // Debug builds: log the screen's structure (class names, ids, bounds, lengths; never text).
@@ -210,18 +222,6 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         stopRequested = true
     }
 
-    /** The reader's Ketchup name (in memory only): Snapchat may label their own runs with it instead of "ME". */
-    @Volatile
-    private var readerName: String? = null
-
-    private fun learnReaderName() {
-        if (readerName != null) return
-        scope.launch {
-            readerName = runCatching { withTimeout(NAME_TIMEOUT_MS) { KetchupApi.get(this@KetchupReaderService).myProfile()?.displayName } }
-                .getOrNull()?.trim()?.ifEmpty { null }
-        }
-    }
-
     override fun onPick(last: Int) {
         if (readJob?.isActive == true) return
         val on = current ?: return
@@ -231,7 +231,8 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         stopRequested = false
         readJob = scope.launch {
             try {
-                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), readerName = readerName)
+                val snapchatName = if (on.source == TextSource.SNAPCHAT) ReaderMemory.snapchatName(this@KetchupReaderService) else null
+                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), snapchatName = snapchatName)
                 val result = reader.read(last, { overlay.showPanel(PanelState.Reading(it)) }, { stopRequested })
                 when (result) {
                     is ThreadReader.Result.Read -> handOff(result.thread, on)
@@ -317,7 +318,6 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         private const val CHECK_DELAY_MS = 250L
         private const val WATCH_MS = 1_000L
         private const val POLL_MS = 40L
-        private const val NAME_TIMEOUT_MS = 3_000L
 
         /** The list counts as settled after this long without an event. */
         private const val QUIET_MS = 220L

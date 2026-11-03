@@ -57,8 +57,8 @@ class ThreadReader(
     private val screen: ReaderScreen,
     private val now: () -> ZonedDateTime = { ZonedDateTime.now(ZoneId.systemDefault()) },
     private val random: Random = Random.Default,
-    /** The reader's Ketchup name, when known: Snapchat may label their own runs with it instead of "ME". */
-    private val readerName: String? = null,
+    /** Snapchat: the reader's name there (they type it once). A header saying it, or "ME", is theirs. */
+    private val snapchatName: String? = null,
 ) {
     sealed interface Result {
         data class Read(val thread: TextThread) : Result
@@ -86,7 +86,7 @@ class ThreadReader(
         stitcher.add(first)
         val title = first.title
         fun walk() = if (source == TextSource.SNAPCHAT) {
-            SnapchatWalk.walk(stitcher.pieces, title, readerName, now())
+            SnapchatWalk.walk(stitcher.pieces, title, snapchatName, now())
         } else {
             ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
         }

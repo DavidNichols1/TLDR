@@ -43,6 +43,15 @@
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- "Your name on Snapchat", asked once by the reader (reader slice). Its own
+             task, like the brief, so from the bubble Back and Save return to Snapchat. -->
+        <activity
+            android:name=".reader.SnapchatNameActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Reads the open Instagram or Snapchat DM thread (reader slice).
              Only the system can bind it (BIND_ACCESSIBILITY_SERVICE). -->
         <service

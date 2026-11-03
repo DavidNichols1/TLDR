@@ -8,10 +8,12 @@ import java.time.ZonedDateTime
 /**
  * Turns Snapchat's pieces, top to bottom, into messages ([SnapchatRows]
  * read them). Everything sits on the left, so a message's sender is the
- * last header above it: "ME" (any case), or the reader's Ketchup name,
- * means the reader's own. A header's time, on the last date row above it,
- * dates its run, the way the iOS Snapchat reader does (`stampOn`). A
- * reply's quoted sender is resolved the same way.
+ * last header above it. A header that says "ME", or the reader's name on
+ * Snapchat (they type it once, [ReaderMemory]), case and extra spaces
+ * aside, means the reader's own; nothing else does. A header's time, on
+ * the last date row above it, dates its run, the way the iOS Snapchat
+ * reader does (`stampOn`). A reply's quoted sender is resolved the same
+ * way.
  *
  * A reply cut in two by the edge between two pages shows up as its quote
  * alone (its words were cut off) right above its words with the rest of
@@ -24,9 +26,9 @@ import java.time.ZonedDateTime
  */
 internal object SnapchatWalk {
 
-    fun walk(pieces: List<Placed>, title: String, readerName: String?, now: ZonedDateTime): Walk {
-        val me = setOfNotNull("me", readerName?.trim()?.lowercase()?.ifEmpty { null })
-        fun isMe(name: String?) = name != null && name.trim().lowercase() in me
+    fun walk(pieces: List<Placed>, title: String, snapchatName: String?, now: ZonedDateTime): Walk {
+        val me = setOfNotNull("me", snapchatName?.let(::norm)?.ifEmpty { null })
+        fun isMe(name: String?) = name != null && norm(name) in me
 
         val units = pieces.sortedWith(compareBy<Placed>({ it.top }, { it.seq }))
         val out = mutableListOf<TextMessage>()
@@ -84,6 +86,9 @@ internal object SnapchatWalk {
         val messages = out.map { if (it.isMine || it.sender.isNotEmpty()) it else it.copy(sender = fallback) }
         return Walk(messages, isGroup, headers, stamps, skipped, empty, media, unnamedBefore)
     }
+
+    /** A name as the rule compares it: case and extra spaces aside. */
+    internal fun norm(s: String): String = s.trim().replace(Regex("\\s+"), " ").lowercase()
 
     /** A run's time: its header's time on the last date row's day (iOS `stampOn`). ISO 8601, or null. */
     private fun stampOn(day: LocalDate?, time: String?, now: ZonedDateTime): String? {

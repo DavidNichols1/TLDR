@@ -23,9 +23,9 @@ class SnapchatReaderTest {
     // Tuesday, November 3, 2026, 10:30 AM in Denver (MST).
     private val now = ZonedDateTime.of(2026, 11, 3, 10, 30, 0, 0, ZoneId.of("America/Denver"))
 
-    private fun read(fake: FakeSnapThread, last: Int, fraction: Float = 0.92f, readerName: String? = null): TextThread {
+    private fun read(fake: FakeSnapThread, last: Int, fraction: Float = 0.92f, snapchatName: String? = null): TextThread {
         val screen = FakeScreen(fake.thread, pageFraction = fraction, snapchat = true)
-        val result = runBlocking { ThreadReader(TextSource.SNAPCHAT, screen, { now }, Random(1), readerName).read(last) }
+        val result = runBlocking { ThreadReader(TextSource.SNAPCHAT, screen, { now }, Random(1), snapchatName).read(last) }
         return (result as ThreadReader.Result.Read).thread
     }
 
@@ -81,7 +81,7 @@ class SnapchatReaderTest {
             message("the ridge one")
             header("Imani", "8:03 AM", "2026-11-03T15:03:00Z")
             message("only if there's coffee after")
-            // Snapchat may label the reader's run with their name: Ketchup knows it.
+            // Snapchat may label the reader's run with their name there: they saved it once.
             header("David", "8:04 AM", "2026-11-03T15:04:00Z", isMine = true)
             message("I'll bring the thermos")
             header("Kai", "8:06 AM", "2026-11-03T15:06:00Z")
@@ -89,7 +89,7 @@ class SnapchatReaderTest {
             header("ME", "8:07 AM", "2026-11-03T15:07:00Z")
             message("perfect")
         }
-        assertMessages(fake.thread.expected, read(fake, 30, readerName = "David").messages)
+        assertMessages(fake.thread.expected, read(fake, 30, snapchatName = "David").messages)
         // Without the name, only "ME" runs are the reader's.
         val anonymous = read(fake, 30)
         assertEquals("David", anonymous.messages[3].sender)
@@ -164,6 +164,25 @@ class SnapchatReaderTest {
             assertMessages(all, whole.messages, "all at $fraction")
             assertEquals("start", whole.stats?.stop)
         }
+    }
+
+    @Test
+    fun theSavedNameOrMeIsMineAndNothingElse() {
+        val fake = FakeSnapThread("Trail Crew").apply {
+            header("Theo", "8:01 AM", "2026-11-03T15:01:00Z")
+            message("who's driving")
+            // The name as Snapchat shows it; the saved one differs in case and spaces.
+            header("Dave N", "8:02 AM", "2026-11-03T15:02:00Z", isMine = true)
+            message("I can")
+            // A friend who happens to have the reader's Ketchup name: not theirs.
+            header("David", "8:03 AM", "2026-11-03T15:03:00Z", isMine = false)
+            message("me too")
+            header("me", "8:04 AM", "2026-11-03T15:04:00Z")
+            message("leaving at 6")
+        }
+        assertMessages(fake.thread.expected, read(fake, 30, snapchatName = "  dave   N ").messages)
+        // With no saved name, only "ME" (any case) is the reader's.
+        assertEquals(listOf(false, false, false, true), read(fake, 30).messages.map { it.isMine })
     }
 
     @Test

@@ -53,10 +53,12 @@ fun ReaderPage(source: TextSource, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var on by remember { mutableStateOf(ReaderSetup.isServiceOn(context)) }
     var installed by remember { mutableStateOf(ReaderSetup.launchIntent(context, source) != null) }
+    var snapchatName by remember { mutableStateOf(ReaderMemory.snapchatName(context)) }
     var consenting by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         on = ReaderSetup.isServiceOn(context)
         installed = ReaderSetup.launchIntent(context, source) != null
+        snapchatName = ReaderMemory.snapchatName(context)
     }
     BackHandler(enabled = consenting) { consenting = false }
     Box(modifier.fillMaxSize()) {
@@ -78,6 +80,8 @@ fun ReaderPage(source: TextSource, modifier: Modifier = Modifier) {
                 onTurnOff = { openSettings(context) },
                 onOpenApp = { ReaderSetup.launchIntent(context, source)?.let(context::startActivity) },
                 onAppInfo = { start(context, ReaderSetup.appInfo(context)) },
+                snapchatName = snapchatName,
+                onSnapchatName = { SnapchatNameActivity.start(context) },
             )
         }
     }
@@ -94,6 +98,9 @@ fun ReaderPageContent(
     onOpenApp: () -> Unit,
     onAppInfo: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Snapchat: the person's name there, as they saved it (null: not yet). */
+    snapchatName: String? = null,
+    onSnapchatName: () -> Unit = {},
 ) {
     val colors = KetchupTheme.colors
     Column(
@@ -147,6 +154,20 @@ fun ReaderPageContent(
         }
 
         if (source == TextSource.SNAPCHAT) {
+            // Snapchat shows everyone's messages on the left: the reader knows the person's own by this name.
+            Column(Modifier.paperCard(padding = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    if (snapchatName != null) stringResource(R.string.reader_page_snap_name, snapchatName) else stringResource(R.string.reader_page_snap_name_unset),
+                    style = KetchupTheme.type.subheadline,
+                    color = colors.ink,
+                )
+                CapsuleButton(
+                    stringResource(if (snapchatName != null) R.string.reader_page_snap_name_change else R.string.reader_page_snap_name_set),
+                    onClick = onSnapchatName,
+                    fill = ButtonFill.Outline,
+                    compact = true,
+                )
+            }
             Column(Modifier.paperCard(padding = 14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Kicker(stringResource(R.string.reader_page_snapchat_kicker), color = colors.ketchupText)
                 Text(stringResource(R.string.reader_page_snapchat_untested), style = KetchupTheme.type.subheadline, color = colors.ink)
