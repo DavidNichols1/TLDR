@@ -153,3 +153,45 @@ export function cleanAnswer(raw: Record<string, unknown>, refs: Map<string, stri
   const ids = resolveRefs(raw.refs, refs, 5);
   return { answer, found: raw.found !== false && ids.length > 0, refs: ids };
 }
+
+// ---------------------------------------------------------------------------
+// The same shapes as JSON Schemas, sent as response_format so Muse Spark's
+// decoding is constrained to them. Validation above still runs: the schema
+// guarantees shape, not that refs exist or dates are real.
+
+const S = { type: "string" };
+const NULLABLE_S = { type: ["string", "null"] };
+const REFS = { type: "array", items: S };
+const obj = (properties: Record<string, unknown>) => ({
+  type: "object",
+  properties,
+  required: Object.keys(properties),
+  additionalProperties: false,
+});
+const arr = (items: unknown) => ({ type: "array", items });
+
+export const CATCH_UP_SCHEMA = {
+  name: "catch_up",
+  schema: obj({
+    tldr: S,
+    highlights: arr(obj({ text: S, refs: REFS })),
+    plans: arr(obj({
+      title: S,
+      starts_at: NULLABLE_S,
+      ends_at: NULLABLE_S,
+      all_day: { type: "boolean" },
+      location: NULLABLE_S,
+      status: { type: "string", enum: ["confirmed", "proposed"] },
+      who: arr(S),
+      refs: REFS,
+    })),
+    open_questions: arr(obj({ question: S, asked_by: S, refs: REFS })),
+    owes: arr(obj({ who: S, owes_whom: NULLABLE_S, what: S, refs: REFS })),
+    for_you: arr(obj({ text: S, refs: REFS })),
+  }),
+};
+
+export const ASK_SCHEMA = {
+  name: "ask_answer",
+  schema: obj({ answer: S, found: { type: "boolean" }, refs: REFS }),
+};

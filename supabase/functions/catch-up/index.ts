@@ -13,7 +13,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildTranscript, type ChatMessage } from "../_shared/transcript.ts";
-import { ASK_SYSTEM, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
+import { ASK_SCHEMA, ASK_SYSTEM, CATCH_UP_SCHEMA, CATCH_UP_SYSTEM, cleanAnswer, cleanCatchUp, parseModelJSON } from "../_shared/brief.ts";
 import { museChat, MuseNotConfigured } from "../_shared/muse.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -149,8 +149,9 @@ Deno.serve(async (req) => {
         system: mode === "ask" ? ASK_SYSTEM : CATCH_UP_SYSTEM,
         user: attempt === 0 ? userPrompt : `${userPrompt}\n\nReturn only the JSON object described, nothing else.`,
         json: true,
+        schema: mode === "ask" ? ASK_SCHEMA : CATCH_UP_SCHEMA,
         temperature: 0.2,
-        maxTokens: 1800,
+        maxTokens: 6000, // counts reasoning tokens too
       });
       model = reply.model;
       try {
