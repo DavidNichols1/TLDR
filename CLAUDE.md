@@ -62,9 +62,9 @@ the viewer sets display name **David**, joins with the printed invite code, and 
 ## Instagram catch-up (experimental, not released)
 Code: `ios/Ketchup/WebChat/` is shared (`WebChatSource`, `WebChatBrowser`, `WebChatTab`,
 `WebChatSheet`, `WebChatAPI`); `ios/Ketchup/Instagram/` holds Instagram's reader and outline
-scripts, its fixtures, and `InstagramEntry.swift` (the inbox's camera button, which shows
-`WebChatTab(source: .instagram)` full screen until the home becomes a pager with a page per
-source). Edge function `catch-up-text`, migration `0004_text_brief_usage`. README has the summary.
+scripts and its fixtures. The way in is the signed-in home's Instagram page: `HomePage.all` in
+`Views/HomePager.swift` lists the pages, and `.web(source)` hosts `WebChatTab(source:)`.
+Edge function `catch-up-text`, migration `0004_text_brief_usage`. README has the summary.
 - The UI reuses `AI/` (CatchUpContent, SkimmingView, AIErrorCard, NotepadField, AnswerCard).
   `RefContext.hint` (default "Shows it in the chat") is the one seam: web chips show the whole
   message instead of jumping.
@@ -94,8 +94,8 @@ source). Edge function `catch-up-text`, migration `0004_text_brief_usage`. READM
   on both; an unauthenticated POST to each must return 401. The RLS suite covers the cap.
 - Simulator, offline (no sign-in, no network, no Muse Spark): `-screen web-instagram` (the page
   on the synthetic thread), `web-intro`, `web-reading`, `web-brief`, `web-error`, `web-quote`,
-  `web-snapchat`. Signed in: the inbox camera button (later the pager page) → `…` → Testing →
-  a test thread → Catch me up. `-KetchupInstagramFixture YES` opens the fixture instead of
+  `web-snapchat`. Signed in: swipe to the Instagram page (or tap Instagram at the top) → `…` →
+  Testing → a test thread → Catch me up. `-KetchupInstagramFixture YES` opens the fixture instead of
   instagram.com. The console prints counts only: `[instagram] read N messages, …`. Tap the
   menu once and wait: a second tap where the button was lands on "Last 120".
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
