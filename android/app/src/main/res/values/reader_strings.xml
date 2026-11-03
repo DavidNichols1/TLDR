@@ -25,9 +25,6 @@
     <string name="reader_panel_problem_title">Couldn\'t read this chat</string>
     <string name="reader_panel_try_again">Try again</string>
     <string name="reader_panel_nothing_kept">Nothing from the chat was kept.</string>
-    <string name="reader_panel_who_title">Which one is you?</string>
-    <string name="reader_panel_who_body">Snapchat doesn\'t say which of these is you. Pick yours and Ketchup will remember it on this phone.</string>
-    <string name="reader_panel_who_none">None of these</string>
     <string name="reader_problem_not_thread">Open a chat first, then tap the bubble.</string>
     <string name="reader_problem_nothing">Couldn\'t find any messages here. Scroll to the newest message and try again.</string>
     <string name="reader_problem_unreadable">The chat changed while Ketchup was reading it. Scroll to the newest message and try again.</string>

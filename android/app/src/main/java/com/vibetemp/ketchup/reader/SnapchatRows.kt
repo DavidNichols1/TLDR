@@ -15,9 +15,8 @@ import kotlin.math.min
  * - Every message sits on the left, indented past its run's colored bar,
  *   so who sent it comes from the run's header, not from where it sits.
  * - A header row: the sender's name with a time to its right ("12:05 PM"),
- *   two text leaves side by side on one line, or the name alone at a
- *   header's left edge (further left than messages). "ME" alone is always
- *   a header. Whose run is the reader's, the walk decides ([SnapchatWalk]).
+ *   two text leaves side by side on one line. The reader's own runs say
+ *   "ME" (the walk decides, [SnapchatWalk]).
  * - A reply: `QuotedMessageView` holds the quoted sender and a time on its
  *   first line and the quoted text under them; the reply's own words sit
  *   beside it (in `plugin_content_holder`).
@@ -80,15 +79,12 @@ internal class SnapchatRows(private val list: Bounds, private val density: Float
             }
             val only = own.singleOrNull()
             if (only != null && !only.media && '\n' !in only.text) {
-                // "ME" on its own line is the reader's header with no time, never a date: unless it
-                // sits where messages sit on this page (someone answering "me").
-                val me = only.text.trim().equals("me", ignoreCase = true) && (atHeaderEdge(only) || (nameLeft == null && textLeft == null))
-                if (!me && (centered(only.bounds) || (only.text == only.text.uppercase() && isStamp(only.text)))) {
+                if (centered(only.bounds) || (only.text == only.text.uppercase() && isStamp(only.text))) {
                     // A date row ("TODAY") or a notice: the walk keeps the date and drops the rest.
                     out += piece(row.index, isMessage = false, text = only.text, media = false, box = only.bounds)
                     continue
                 }
-                if (me || (only.text.length <= 40 && atHeaderEdge(only))) {
+                if (only.text.length <= 40 && atHeaderEdge(only)) {
                     out += piece(row.index, isMessage = false, text = only.text, media = false, box = only.bounds, header = true)
                     continue
                 }

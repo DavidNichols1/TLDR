@@ -55,9 +55,6 @@ sealed interface PanelState {
     data object Setup : PanelState
 
     data class Problem(@param:StringRes val message: Int, val last: Int?) : PanelState
-
-    /** Snapchat didn't say which run is the reader's: they pick their name (most messages first), or none. */
-    data class WhoAreYou(val names: List<String>) : PanelState
 }
 
 /** The floating bubble: a ketchup circle with the drop, over the thread. */
@@ -94,7 +91,6 @@ fun ReaderPanel(
     onClose: () -> Unit,
     onOpenApp: () -> Unit,
     modifier: Modifier = Modifier,
-    onWho: (String?) -> Unit = {},
 ) {
     val colors = KetchupTheme.colors
     val shape = RoundedCornerShape(20.dp)
@@ -167,15 +163,6 @@ fun ReaderPanel(
                 Body(stringResource(R.string.reader_panel_setup_body))
                 CapsuleButton(stringResource(R.string.reader_panel_open_app), onClick = onOpenApp, compact = true)
             }
-            is PanelState.WhoAreYou -> {
-                Body(stringResource(R.string.reader_panel_who_body))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.names.take(MAX_NAMES).forEach { name ->
-                        CapsuleButton(name, onClick = { onWho(name) }, fill = ButtonFill.Ink, compact = true)
-                    }
-                    CapsuleButton(stringResource(R.string.reader_panel_who_none), onClick = { onWho(null) }, fill = ButtonFill.Outline, compact = true)
-                }
-            }
             is PanelState.Problem -> {
                 Body(stringResource(state.message))
                 Note(stringResource(R.string.reader_panel_nothing_kept))
@@ -197,11 +184,7 @@ private fun titleFor(state: PanelState): Int = when (state) {
     PanelState.SignIn -> R.string.reader_panel_signin_title
     PanelState.Setup -> R.string.reader_panel_setup_title
     is PanelState.Problem -> R.string.reader_panel_problem_title
-    is PanelState.WhoAreYou -> R.string.reader_panel_who_title
 }
-
-/** The most names "Which one is you?" offers (the people with the most messages). */
-private const val MAX_NAMES = 6
 
 @Composable
 private fun Body(text: String) {
