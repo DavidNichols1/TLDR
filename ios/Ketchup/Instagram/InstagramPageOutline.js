@@ -41,14 +41,19 @@ const walk = (el, depth) => {
   if (tag === "img") attrs.push(`alt=${JSON.stringify(mask(el.getAttribute("alt") || ""))}`);
   const bg = cs.backgroundImage !== "none" ? "gradient" : (cs.backgroundColor && !/rgba\([^)]*,\s*0\)$|transparent/.test(cs.backgroundColor) ? cs.backgroundColor : "");
   const radius = Math.round(parseFloat(cs.borderTopLeftRadius) || 0);
+  const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
   const style = [bg && `bg=${bg}`, radius && `r=${radius}`, cs.opacity !== "1" && `op=${cs.opacity}`,
+    borderLeft > 0 && `bl=${borderLeft}px`,
     /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 8 &&
       `scroll(${el.scrollHeight}/${el.clientHeight}, top ${Math.round(el.scrollTop)}, anchor ${cs.overflowAnchor || "?"})`,
     cs.flexDirection === "column-reverse" && "column-reverse"].filter(Boolean);
   const own = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim()).map((n) => n.nodeValue.trim()).join(" ");
   const range = document.createRange();
   range.selectNodeContents(el);
-  const text = own ? (isTime(own, range.getBoundingClientRect()) ? ` time=${JSON.stringify(own)}` : ` text(${own.length},${kind(own)},fs=${cs.fontSize},fw=${cs.fontWeight})`) : "";
+  // A reply's header ("Maya replied to you") is marked, never shown, so the quote under it can be found.
+  const replyMark = /\b(replied|replying) to\b/i.test(own) ? " reply-label" : "";
+  const text = own ? (isTime(own, range.getBoundingClientRect()) ? ` time=${JSON.stringify(own)}`
+    : ` text(${own.length},${kind(own)},fs=${cs.fontSize},fw=${cs.fontWeight},color=${cs.color})${replyMark}`) : "";
   const interesting = attrs.length || style.length || text || ["img", "video", "audio", "svg", "a", "canvas", "h1", "h2", "h3", "h4", "h5", "h6"].includes(tag);
   if (interesting) lines.push(`${"  ".repeat(Math.min(depth, 40))}${tag} ${attrs.join(" ")} ${style.join(" ")} [${pos(el.getBoundingClientRect())}]${text}`.replace(/\s+\[/, " ["));
   if (tag === "svg") return;
