@@ -30,6 +30,8 @@ enum Storage {
 
     /// Profile photos. Public: anyone with a path can load it, nobody can list.
     nonisolated static let avatars = "avatars"
+    /// Photos sent in chats. Private: only the chat's members, by signed URL.
+    nonisolated static let chatMedia = "chat-media"
 
     /// A file in a public bucket, straight from its fixed URL (no token).
     nonisolated static func publicURL(_ object: StorageObject) -> URL {

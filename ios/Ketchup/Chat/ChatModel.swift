@@ -200,6 +200,19 @@ final class ChatModel {
         Task { await deliver(id) }
     }
 
+    /// A photo, with a caption or none. The bubble shows it at once from the
+    /// image cache; its files upload before the row goes in (Photos/ChatPhotos.swift).
+    func send(_ photo: PreparedPhoto, caption: String) {
+        let id = UUID()
+        let message = Message(id: id, chatId: chat.id, sender: myId, body: caption, createdAt: .now, pending: true,
+                              imagePath: ChatPhotos.path(chat: chat.id, message: id),
+                              imageWidth: photo.width, imageHeight: photo.height)
+        PhotoUploads.shared.hold(photo, for: message)
+        messages.append(message)
+        caughtUp()
+        Task { await deliver(id) }
+    }
+
     func retry(_ id: UUID) {
         guard let i = messages.firstIndex(where: { $0.id == id }) else { return }
         messages[i].failed = false
@@ -224,15 +237,22 @@ final class ChatModel {
         }
     }
 
-    /// The insert. An offline preview confirms the bubble itself.
+    /// The insert, after a photo's upload. An offline preview confirms the bubble itself.
     private func post(_ message: Message) async throws -> Message {
+        if message.imagePath != nil {
+            try await PhotoUploads.shared.upload(for: message, previewing: isPreview)
+        }
         #if DEBUG
         if isPreview {
             try await Task.sleep(for: .milliseconds(400))
+            PhotoUploads.shared.finished(message.id)
             return message
         }
         #endif
-        return try await KetchupAPI.send(id: message.id, chat: chat.id, body: message.body)
+        let image = message.imagePath.map { (path: $0, width: message.imageWidth ?? 1, height: message.imageHeight ?? 1) }
+        let row = try await KetchupAPI.send(id: message.id, chat: chat.id, body: message.body, image: image)
+        PhotoUploads.shared.finished(message.id)
+        return row
     }
 
     // MARK: - Read cursor
@@ -339,7 +359,7 @@ final class ChatModel {
     /// Sender and opening words of a message, for ref chips.
     func preview(_ id: UUID) -> (name: String, text: String)? {
         guard let m = messages.first(where: { $0.id == id }) else { return nil }
-        let text = m.body.replacingOccurrences(of: "\n", with: " ")
+        let text = m.previewText.replacingOccurrences(of: "\n", with: " ")
         return (name(of: m.sender), text.count > 28 ? String(text.prefix(28)) + "…" : text)
     }
 }

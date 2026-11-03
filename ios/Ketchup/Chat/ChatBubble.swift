@@ -92,7 +92,7 @@ struct ChatBubble: View {
 /// The jump-to-message highlight: one mustard marker pass behind the bubble,
 /// reaching a little past it on every side. With Reduce Motion it's a plain
 /// tint that fades in and out.
-private struct JumpMark: View {
+struct JumpMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress: CGFloat = 0
 

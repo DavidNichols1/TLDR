@@ -193,7 +193,7 @@ extension SkimLine {
         return messages[first...].prefix(limit).map { message in
             let name = model.name(of: message.sender)
             return SkimLine(name: name,
-                            text: message.body.replacingOccurrences(of: "\n", with: " "),
+                            text: message.previewText.replacingOccurrences(of: "\n", with: " "),
                             color: RefChip.color(for: name))
         }
     }

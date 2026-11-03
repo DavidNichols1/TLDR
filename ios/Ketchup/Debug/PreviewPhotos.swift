@@ -3,9 +3,9 @@
 //  Ketchup
 //
 //  Made-up photos for offline previews, drawn on the fly: a symbol on a
-//  person's color for profile photos, a mountain scene for the cropper.
-//  Never real people. In preview mode RemoteImages asks here instead of the
-//  network.
+//  person's color for profile photos, a mountain scene for the cropper, and
+//  a cabin, the mountains and a dog for chat photos. Never real people. In
+//  preview mode RemoteImages asks here instead of the network.
 //
 
 #if DEBUG
@@ -21,10 +21,37 @@ nonisolated enum PreviewPhotos {
 
     /// The bytes for a preview path; nil for anything else.
     static func data(for object: StorageObject) -> Data? {
-        guard object.bucket == Storage.avatars, object.path.hasPrefix("preview/") else { return nil }
-        let name = object.path.dropFirst("preview/".count).replacingOccurrences(of: ".jpg", with: "")
+        guard object.path.hasPrefix("preview/") else { return nil }
+        var name = object.path.dropFirst("preview/".count).replacingOccurrences(of: ".jpg", with: "")
+        if object.bucket == Storage.chatMedia {
+            let small = name.hasSuffix("_small")
+            if small { name = String(name.dropLast("_small".count)) }
+            guard let scene = scene(name) else { return nil }
+            return (small ? resized(scene, longSide: 768) : scene).jpegData(compressionQuality: 0.8)
+        }
         guard let art = art(for: name) else { return nil }
         return portrait(symbol: art.symbol, background: art.background).jpegData(compressionQuality: 0.85)
+    }
+
+    /// A chat photo's path in previews ("preview/cabin.jpg") and its size.
+    static func chatPhoto(_ name: String) -> (path: String, width: Int, height: Int)? {
+        guard let image = scene(name) else { return nil }
+        return ("preview/\(name).jpg", Int(image.size.width), Int(image.size.height))
+    }
+
+    /// A made-up photo ready to send, as if just picked.
+    static func prepared(_ name: String) -> PreparedPhoto? {
+        scene(name)?.jpegData(compressionQuality: 0.9).flatMap(PhotoPrep.prepared)
+    }
+
+    /// The made-up chat photos: "cabin", "mountains" and "pickles" (the dog).
+    private static func scene(_ name: String) -> UIImage? {
+        switch name {
+        case "cabin": cabin()
+        case "mountains": landscape()
+        case "pickles": dog()
+        default: nil
+        }
     }
 
     /// The photo the cropper preview frames: a made-up mountain day.
@@ -44,6 +71,67 @@ nonisolated enum PreviewPhotos {
                 tree(at: CGPoint(x: x, y: 1010))
             }
         }
+    }
+
+    /// A snowy cabin at dusk with its windows lit, 1200 x 1500.
+    private static func cabin() -> UIImage {
+        let size = CGSize(width: 1200, height: 1500)
+        return render(size) { ctx in
+            let cg = ctx.cgContext
+            UIColor(hex: 0x2C4A86).setFill()
+            cg.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: 0xFFF8EE, alpha: 0.85).setFill()
+            for (x, y) in [(140, 160), (420, 90), (760, 210), (1010, 120), (300, 330), (930, 380)] {
+                cg.fillEllipse(in: CGRect(x: x, y: y, width: 9, height: 9))
+            }
+            mountain(peak: CGPoint(x: 330, y: 520), base: 1060, width: 1100, color: 0x4F5B66)
+            mountain(peak: CGPoint(x: 940, y: 600), base: 1060, width: 900, color: 0x3A302A)
+            UIColor(hex: 0xE4ECEF).setFill()
+            cg.fill(CGRect(x: 0, y: 1040, width: size.width, height: 460))
+            // The cabin: walls, a door, two lit windows, a roof with snow on it.
+            UIColor(hex: 0x74452A).setFill()
+            cg.fill(CGRect(x: 330, y: 860, width: 540, height: 360))
+            UIColor(hex: 0x3A2418).setFill()
+            cg.fill(CGRect(x: 560, y: 1020, width: 110, height: 200))
+            UIColor(hex: 0xF3B33D).setFill()
+            cg.fill(CGRect(x: 395, y: 930, width: 110, height: 100))
+            cg.fill(CGRect(x: 705, y: 930, width: 110, height: 100))
+            let roof = UIBezierPath()
+            roof.move(to: CGPoint(x: 290, y: 880))
+            roof.addLine(to: CGPoint(x: 600, y: 640))
+            roof.addLine(to: CGPoint(x: 910, y: 880))
+            roof.close()
+            UIColor(hex: 0xFFFDF8).setFill()
+            roof.fill()
+            UIColor(hex: 0x3C6B2F).setFill()
+            for x in stride(from: 70.0, to: 1200, by: 260) where !(250...950).contains(x) {
+                tree(at: CGPoint(x: x, y: 1120))
+            }
+        }
+    }
+
+    /// A dog on the snow, 1500 x 1125.
+    private static func dog() -> UIImage {
+        let size = CGSize(width: 1500, height: 1125)
+        return render(size) { ctx in
+            let cg = ctx.cgContext
+            UIColor(hex: 0xC9DDE8).setFill()
+            cg.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: 0xE4ECEF).setFill()
+            cg.fill(CGRect(x: 0, y: 760, width: size.width, height: 365))
+            let config = UIImage.SymbolConfiguration(pointSize: 560, weight: .regular)
+            if let glyph = UIImage(systemName: "dog.fill", withConfiguration: config)?
+                .withTintColor(UIColor(hex: 0x9A6110), renderingMode: .alwaysOriginal) {
+                glyph.draw(in: CGRect(x: (size.width - glyph.size.width) / 2, y: 900 - glyph.size.height,
+                                      width: glyph.size.width, height: glyph.size.height))
+            }
+        }
+    }
+
+    private static func resized(_ image: UIImage, longSide: CGFloat) -> UIImage {
+        let scale = longSide / max(image.size.width, image.size.height)
+        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        return render(size) { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
 
     // MARK: Drawing
