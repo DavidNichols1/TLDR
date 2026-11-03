@@ -324,6 +324,28 @@ function unitsIn(row, g) {
     }
   }
 
+  // A reply's quoted message is drawn without dir="auto": a plain div in a
+  // faded bubble under the "replied to" header. In a row with that header,
+  // a painted bubble whose text nothing above covers becomes a text leaf
+  // too. Innermost first, and reaction pills (about 22px tall) are left out.
+  if (leaves.some((l) => l.kind === "text" && REPLY_LABEL.test(l.text))) {
+    const covered = leaves.map((l) => l.bubble || l.el).filter(Boolean);
+    for (const el of [...row.querySelectorAll("div, span")].reverse()) {
+      if (el.closest('[dir="auto"]') || el.querySelector('[dir="auto"]') || skipZone(el) || isReaction(el)) continue;
+      if (covered.some((c) => c === el || c.contains(el) || el.contains(c))) continue;
+      const cs = getComputedStyle(el);
+      if (radius(cs) < 6 || !paints(cs)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.height <= 26 || r.width > box.width * 0.92) continue;
+      const text = textOf(el);
+      if (!text) continue;
+      const holder = [el, ...el.querySelectorAll("*")].find((n) =>
+        [...n.childNodes].some((c) => c.nodeType === Node.TEXT_NODE && c.nodeValue.trim())) || el;
+      leaves.push({ kind: "text", el, text, r: textRect(el), bubble: el, size: parseFloat(getComputedStyle(holder).fontSize) || 15 });
+      covered.push(el);
+    }
+  }
+
   // Everything inside one bubble is one message.
   const units = [];
   const byBubble = new Map();

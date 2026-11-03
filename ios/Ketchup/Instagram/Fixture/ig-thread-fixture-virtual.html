@@ -347,9 +347,13 @@ body { overflow: hidden; color: rgb(245, 245, 245); font-family: -apple-system, 
     reactSpacer: sx(RESET, 'display:block; width:8px; height:6px'),
     edited: sx(RESET, GRAY12, 'align-self:flex-start; margin-top:2px; margin-left:47px'),
     replyHead: sx(RESET, GRAY12, 'align-self:flex-start; margin-left:43px; margin-bottom:4px; white-space:nowrap'),
-    quoteLine: sx(RESET, 'display:flex; flex-direction:row; padding-left:35px; margin-bottom:2px'),
-    quote: sx(RESET, THEIRS, 'display:block; max-width:236px; padding-top:6px; padding-bottom:12px; padding-left:12px; padding-right:12px; border-radius:18px; opacity:0.6; cursor:pointer'),
-    quoteText: sx(RESET, 'display:block; font-size:13px; line-height:17px; color:rgb(245,245,245); white-space:pre-wrap; overflow-wrap:anywhere'),
+    // As on the real page (Nov 3, 2026 outline): the quote is a half-faded line with a 4px bar,
+    // then button > none > presentation bubble > a plain div of 14px text with NO dir="auto".
+    quoteLine: sx(RESET, 'display:flex; flex-direction:row; align-items:stretch; padding-left:35px; margin-bottom:8px; opacity:0.5'),
+    quoteBar: sx(RESET, THEIRS, 'display:block; width:4px; border-radius:2px; margin-right:8px'),
+    quoteBtn: sx(RESET, 'display:block; max-width:236px; cursor:pointer'),
+    quote: sx(RESET, 'display:block; padding-top:8px; padding-bottom:8px; padding-left:12px; padding-right:12px; border-radius:18px; background-color:rgb(37,41,46)'),
+    quoteText: sx(RESET, 'display:block; font-size:14px; line-height:19px; color:rgb(245,245,245); white-space:pre-wrap; overflow-wrap:anywhere'),
     sepWrap: sx(RESET, 'display:block; padding-top:26px; padding-bottom:16px'),
     sepText: sx(RESET, GRAY12, 'width:100%; text-align:center'),
     noticeWrap: sx(RESET, 'display:block; padding-top:12px; padding-bottom:8px'),
@@ -560,8 +564,12 @@ body { overflow: hidden; color: rgb(245, 245, 245); font-family: -apple-system, 
     const kids = [];
     if (it.k === 'reply') {
       kids.push(el('span', B.replyHead, { dir: 'auto' }, PEOPLE[it.by].name + ' replied to ' + PEOPLE[it.to].name));
-      kids.push(el('div', B.quoteLine, null,
-        el('div', B.quote, { role: 'button', tabindex: '0' }, el('span', B.quoteText, { dir: 'auto' }, it.q))));
+      kids.push(el('div', B.quoteLine, null, [
+        el('div', B.quoteBar, null),
+        el('div', B.quoteBtn, { role: 'button', tabindex: '0' },
+          el('div', B.none, { role: 'none' },
+            el('div', B.quote, { role: 'presentation' }, el('div', B.quoteText, null, it.q)))),
+      ]));
     } else if (!mine && first) {
       kids.push(el('span', B.label, { dir: 'auto' }, PEOPLE[it.by].name));
     }
