@@ -17,6 +17,8 @@ internal object ReaderDebug {
 
     fun noThread(source: TextSource, diagnosis: String) = Unit
 
+    fun snapRead(line: String) = Unit
+
     fun onConnected(service: AccessibilityService) = Unit
 
     fun onDisconnected(service: AccessibilityService) = Unit

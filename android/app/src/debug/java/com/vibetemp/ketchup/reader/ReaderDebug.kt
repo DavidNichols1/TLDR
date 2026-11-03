@@ -61,6 +61,11 @@ internal object ReaderDebug {
         Log.i(KetchupReaderService.TAG, "no thread on $line")
     }
 
+    /** After a Snapchat read: its header labels as lengths and flags, and how "mine" was found (SnapchatWalk.describe). */
+    fun snapRead(line: String) {
+        Log.i(KetchupReaderService.TAG, line)
+    }
+
     fun onConnected(service: AccessibilityService) {
         val r = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {

@@ -73,6 +73,7 @@ private fun PanelStates() {
         "Not signed in" to PanelState.SignIn,
         "Not set up" to PanelState.Setup,
         "Nothing found" to PanelState.Problem(R.string.reader_problem_nothing, 30),
+        "Which one is you" to PanelState.WhoAreYou(listOf("Theo", "Dave N", "Imani")),
     )
     Column(
         Modifier

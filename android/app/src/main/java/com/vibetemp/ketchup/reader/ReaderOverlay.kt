@@ -49,6 +49,9 @@ internal class ReaderOverlay(private val service: AccessibilityService, private 
         fun onStop()
         fun onClosePanel()
         fun onOpenApp()
+
+        /** The answer to "Which one is you?": a name, or null for "None of these". */
+        fun onWho(name: String?)
     }
 
     private val wm = service.getSystemService(WindowManager::class.java)
@@ -131,6 +134,7 @@ internal class ReaderOverlay(private val service: AccessibilityService, private 
                         onClose = actions::onClosePanel,
                         onOpenApp = actions::onOpenApp,
                         modifier = Modifier.padding(4.dp),
+                        onWho = actions::onWho,
                     )
                 },
             )

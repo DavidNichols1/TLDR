@@ -57,11 +57,12 @@ class ThreadReader(
     private val screen: ReaderScreen,
     private val now: () -> ZonedDateTime = { ZonedDateTime.now(ZoneId.systemDefault()) },
     private val random: Random = Random.Default,
-    /** The reader's Ketchup name, when known: Snapchat may label their own runs with it instead of "ME". */
-    private val readerName: String? = null,
+    /** Snapchat: the reader's Ketchup name and a Snapchat name learned before, for finding their own messages. */
+    private val snapchatNames: SnapchatWalk.Names = SnapchatWalk.Names(),
 ) {
     sealed interface Result {
-        data class Read(val thread: TextThread) : Result
+        /** [snap]: on Snapchat, how the reader's own messages were found (for the debug log and "Which one is you?"). */
+        data class Read(val thread: TextThread, val snap: SnapchatWalk.Decision? = null) : Result
 
         /** No message list on screen. */
         data object NotAThread : Result
@@ -86,7 +87,7 @@ class ThreadReader(
         stitcher.add(first)
         val title = first.title
         fun walk() = if (source == TextSource.SNAPCHAT) {
-            SnapchatWalk.walk(stitcher.pieces, title, readerName, now())
+            SnapchatWalk.walk(stitcher.pieces, title, snapchatNames, now())
         } else {
             ThreadWalk.walk(stitcher.pieces, stitcher::group, title, density, now())
         }
@@ -197,7 +198,7 @@ class ThreadReader(
             empty = result.empty,
             dupes = stitcher.dupes,
         )
-        return Result.Read(TextThread(source, title, result.messages.takeLast(wanted), stats))
+        return Result.Read(TextThread(source, title, result.messages.takeLast(wanted), stats), result.snap)
     }
 
     companion object {

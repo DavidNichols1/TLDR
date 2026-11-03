@@ -34,28 +34,30 @@ class FakeSnapThread(title: String, density: Float = 2.625f) {
     /** A centered notice ("Kai saved a message in Chat"): never a message. */
     fun notice(text: String) = centered(text)
 
-    /** A run's header: the sender's name and a time. "ME" (or [isMine]) is the reader's own run. */
-    fun header(name: String, time: String, iso: String?, isMine: Boolean = name.equals("ME", ignoreCase = true)) {
+    /**
+     * A run's header: the sender's name and a time ([time] null: the name
+     * alone, one leaf). "ME" (or [isMine]) is the reader's own run.
+     */
+    fun header(name: String, time: String?, iso: String?, isMine: Boolean = name.equals("ME", ignoreCase = true)) {
         sender = name
         mine = isMine
         at = iso
         val h = px(20)
         val nameW = px(8 + name.length * 7)
         thread.rows += FakeThread.Row(h) { top ->
-            SnapshotNode(
-                bounds = Bounds(0, top, w, top + h),
-                className = "android.widget.LinearLayout",
-                children = listOf(
-                    SnapshotNode(
-                        bounds = Bounds(px(8), top, px(8) + nameW, top + h), className = "android.view.View",
-                        children = listOf(leaf(name, Bounds(px(8), top, px(8) + nameW, top + h))),
-                    ),
-                    SnapshotNode(
-                        bounds = Bounds(px(8) + nameW, top + 1, w - px(10), top + h), className = "android.view.View",
-                        children = listOf(leaf(time, Bounds(px(8) + nameW, top + 1, w - px(10), top + h))),
-                    ),
+            val kids = mutableListOf(
+                SnapshotNode(
+                    bounds = Bounds(px(8), top, px(8) + nameW, top + h), className = "android.view.View",
+                    children = listOf(leaf(name, Bounds(px(8), top, px(8) + nameW, top + h))),
                 ),
             )
+            if (time != null) {
+                kids += SnapshotNode(
+                    bounds = Bounds(px(8) + nameW, top + 1, w - px(10), top + h), className = "android.view.View",
+                    children = listOf(leaf(time, Bounds(px(8) + nameW, top + 1, w - px(10), top + h))),
+                )
+            }
+            SnapshotNode(bounds = Bounds(0, top, w, top + h), className = "android.widget.LinearLayout", children = kids)
         }
     }
 

@@ -198,6 +198,8 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
 
     override fun onClosePanel() {
         if (readJob?.isActive == true) return
+        // Closing "Which one is you?" drops that read: nothing is handed over.
+        asking = null
         overlay?.hidePanel()
     }
 
@@ -222,6 +224,43 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         }
     }
 
+    /** A Snapchat read waiting on "Which one is you?". */
+    private class Asking(val thread: TextThread, val on: OnScreen)
+
+    private var asking: Asking? = null
+
+    override fun onWho(name: String?) {
+        val pending = asking ?: return
+        asking = null
+        val thread = if (name == null) {
+            pending.thread
+        } else {
+            ReaderMemory.rememberSnapchatName(this, name)
+            SnapchatWalk.relabel(pending.thread, name)
+        }
+        if (ReaderDebug.ENABLED) ReaderDebug.snapRead("snap mine: ${if (name == null) "none of these" else "asked"}, ${thread.messages.count { it.isMine }} mine")
+        handOff(thread, pending.on)
+    }
+
+    /**
+     * A Snapchat read's last step before the brief: logs how the reader's
+     * own messages were found (debug builds, never text), remembers a name
+     * the read learned, and asks "Which one is you?" when no rule found them
+     * among two or more people. False when it's asking.
+     */
+    private fun settleSnapchat(result: ThreadReader.Result.Read, on: OnScreen, overlay: ReaderOverlay): Boolean {
+        val decision = result.snap ?: return true
+        val ask = SnapchatWalk.askAmong(result.thread, decision)
+        if (ReaderDebug.ENABLED) {
+            ReaderDebug.snapRead(SnapchatWalk.describe(decision) + if (ask.isEmpty()) "" else ", asking among ${ask.size}")
+        }
+        decision.learned?.let { ReaderMemory.rememberSnapchatName(this, it) }
+        if (ask.isEmpty()) return true
+        asking = Asking(result.thread, on)
+        overlay.showPanel(PanelState.WhoAreYou(ask))
+        return false
+    }
+
     override fun onPick(last: Int) {
         if (readJob?.isActive == true) return
         val on = current ?: return
@@ -229,12 +268,14 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
         overlay.showPanel(PanelState.Reading(ReadProgress(0, last)))
         readingWindow = on.windowId
         stopRequested = false
+        asking = null
+        val names = if (on.source == TextSource.SNAPCHAT) SnapchatWalk.Names(readerName, ReaderMemory.snapchatName(this)) else SnapchatWalk.Names()
         readJob = scope.launch {
             try {
-                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), readerName = readerName)
+                val reader = ThreadReader(on.source, LiveScreen(on.windowId, on.source), snapchatNames = names)
                 val result = reader.read(last, { overlay.showPanel(PanelState.Reading(it)) }, { stopRequested })
                 when (result) {
-                    is ThreadReader.Result.Read -> handOff(result.thread, on)
+                    is ThreadReader.Result.Read -> if (settleSnapchat(result, on, overlay)) handOff(result.thread, on)
                     ThreadReader.Result.NotAThread -> overlay.showPanel(PanelState.Problem(R.string.reader_problem_not_thread, null))
                     ThreadReader.Result.NothingFound -> overlay.showPanel(PanelState.Problem(R.string.reader_problem_nothing, last))
                     ThreadReader.Result.Stopped -> {

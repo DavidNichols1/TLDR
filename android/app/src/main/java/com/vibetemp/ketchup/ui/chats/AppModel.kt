@@ -16,6 +16,7 @@ import com.vibetemp.ketchup.data.Profile
 import com.vibetemp.ketchup.data.realtime.ChatRealtime
 import com.vibetemp.ketchup.data.realtime.LiveMessages
 import com.vibetemp.ketchup.data.realtime.NotLive
+import com.vibetemp.ketchup.reader.ReaderMemory
 import com.vibetemp.ketchup.ui.chat.ChatBackend
 import com.vibetemp.ketchup.ui.chat.ChatModel
 import com.vibetemp.ketchup.ui.chat.LiveChatBackend
@@ -41,6 +42,7 @@ class AppModel private constructor(
     private val previewUser: String?,
 ) {
     private val resources = context.applicationContext.resources
+    private val appContext = context.applicationContext
     private val prefs: SharedPreferences? =
         if (api == null) null else context.applicationContext.getSharedPreferences("ketchup.app", Context.MODE_PRIVATE)
 
@@ -186,6 +188,8 @@ class AppModel private constructor(
         openChats.values.forEach { it.realtime.stop() }
         openChats.clear()
         api?.signOut()
+        // The reader's one memory: the Snapchat name it learned is this account's.
+        ReaderMemory.forget(appContext)
     }
 
     // MARK: The inbox
