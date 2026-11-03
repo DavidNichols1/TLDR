@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -76,7 +78,9 @@ fun Home(app: AppModel, start: HomeStart = HomeStart()) {
     val holder = rememberSaveableStateHolder()
     val reduceMotion = KetchupTheme.reduceMotion
     fun pop() {
-        if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex)
+        if (stack.isEmpty()) return
+        // Forget the screen's saved state too, so opening it again starts fresh.
+        holder.removeState(stack.removeAt(stack.lastIndex))
     }
     // A chat restored after the process died needs the inbox to find it.
     LaunchedEffect(Unit) { if (!app.chatsLoaded) app.refreshChats() }
@@ -108,7 +112,11 @@ fun Home(app: AppModel, start: HomeStart = HomeStart()) {
                     inboxSheet = start.sheet,
                 )
                 route.startsWith("chat:") -> {
-                    val chat = app.chat(route.removePrefix("chat:"))
+                    // The inbox's row, or the last one seen: a chat you just left slides out as itself.
+                    val current = app.chat(route.removePrefix("chat:"))
+                    val last = remember(route) { mutableStateOf(current) }
+                    if (current != null) last.value = current
+                    val chat = current ?: last.value
                     if (chat != null) ChatScreen(app, chat, onBack = ::pop, start = start.chat) else NotFound()
                 }
                 route == SETTINGS -> SettingsScreen(app, onBack = ::pop, onEditName = { stack.add(EDIT_NAME) })

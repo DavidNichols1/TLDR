@@ -107,7 +107,7 @@
     </plurals>
     <string name="chat_menu_catch_up">Catch me up</string>
     <string name="chat_menu_ask">Ask the chat</string>
-    <string name="chat_menu_info">Members and invite</string>
+    <string name="chat_menu_info">Members &amp; invite</string>
     <string name="chat_catch_up">Catch me up</string>
     <string name="chat_new_count">%1$s new</string>
     <plurals name="chat_new_messages_spoken">

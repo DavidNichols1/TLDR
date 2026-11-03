@@ -128,8 +128,9 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
     var highlighted by remember { mutableStateOf<String?>(null) }
     // Messages to jump to (a brief's cited message); one at a time, in order.
     val jumps = remember { Channel<String>(Channel.CONFLATED) }
-    var positioned by remember { mutableStateOf(false) }
-    var userScrolled by remember { mutableStateOf(false) }
+    // Saved, so a rotation keeps the thread where it was instead of placing it again.
+    var positioned by rememberSaveable { mutableStateOf(false) }
+    var userScrolled by rememberSaveable { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     var showInfo by rememberSaveable { mutableStateOf(start.info) }
@@ -225,13 +226,18 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         if (!atBottom || !positioned) return@LaunchedEffect
         if (userScrolled) model.reachedBottomByScrolling() else model.sawBottom = true
     }
-    // A new bubble at the bottom: follow it if it's mine or you were at the bottom.
+    // A new bubble at the bottom: follow it if it's mine, or if you were at the
+    // bottom (the row that was newest is still the lowest one you can see).
     val newest = state.messages.lastOrNull()
+    var lastNewest by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(newest?.id) {
         val last = newest ?: return@LaunchedEffect
+        val previous = lastNewest
+        lastNewest = last.id
         val minePending = last.sender == model.myId && (last.pending || last.failed)
         if (!positioned && !minePending) return@LaunchedEffect
-        if (last.sender == model.myId || list.firstVisibleItemIndex <= 1) list.animateScrollToItem(0)
+        val was = previous?.let { id -> rows.indexOfFirst { it.key == id } }?.coerceAtLeast(0) ?: 0
+        if (last.sender == model.myId || list.firstVisibleItemIndex <= was) list.animateScrollToItem(0)
     }
     // Older pages as you scroll up.
     val nearTop by remember {
@@ -340,6 +346,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showInfo = false },
+            modifier = Modifier.statusBarsPadding(),
             sheetState = sheet,
             containerColor = colors.cream,
             contentColor = colors.ink,
