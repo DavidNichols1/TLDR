@@ -12,7 +12,8 @@
 //    it isn't on disk yet.
 //  - One download per photo however many rows ask, in its own task, so a
 //    row that scrolls away doesn't cancel it. Two retries on a network error
-//    or a 5xx; a photo that failed isn't asked for again for 20 seconds.
+//    or a 5xx; a photo that failed isn't asked for again for 20 seconds, and
+//    one still on screen asks again after that.
 //  - ImageIO decodes off the main thread, at the drawn size.
 //  - The disk copy is trimmed past 150 MB, least recently used first, and
 //    emptied on sign-out.
@@ -54,11 +55,16 @@ struct RemoteImage<Content: View, Placeholder: View>: View {
         }
         .task(id: key) {
             guard let object, let key, RemoteImages.shared.cached(key) == nil else { return }
-            if let image = await RemoteImages.shared.image(object, pixels: pixels) {
-                loaded = (key, image)
-                failedKey = nil
-            } else {
+            // A photo that couldn't load (offline, say) tries again while it's
+            // on screen, each time after the pipeline's 20 s pause; 8 tries.
+            for _ in 0..<8 where !Task.isCancelled {
+                if let image = await RemoteImages.shared.image(object, pixels: pixels) {
+                    loaded = (key, image)
+                    failedKey = nil
+                    return
+                }
                 failedKey = key
+                try? await Task.sleep(for: .seconds(21))
             }
         }
     }
