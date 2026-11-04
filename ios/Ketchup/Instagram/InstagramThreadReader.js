@@ -10,6 +10,8 @@
 // thread (instagram.com/direct/t/...). It checks that again itself and does
 // nothing anywhere else, so it never touches login pages. It never clicks,
 // types or sends anything, and never reads cookies, storage or the network.
+// With `follow` set ("Until I stop scrolling", near the end) it doesn't
+// scroll either: the person does, and it reads what they scroll past.
 // Instagram only fills in the rows near the screen (the rest are empty
 // placeholders), so it steps up through the thread a screen at a time,
 // reading rows as Instagram fills them in. At the top of what's loaded
@@ -406,18 +408,25 @@ function unitsIn(row, g) {
 function collect(ctx) {
   const box = ctx.root.getBoundingClientRect();
   const mid = box.left + box.width / 2;
+  const bottom = ctx.list.getBoundingClientRect().bottom;
   const g = {
     box,
-    base: ctx.list.getBoundingClientRect().bottom,
+    // Following, positions are in the first look's terms (see drift).
+    base: ctx.follow ? bottom - ctx.follow.shift : bottom,
     centered: (r) => Math.abs(r.left + r.width / 2 - mid) <= Math.max(20, box.width * 0.06) && r.width < box.width * 0.9,
     sideOf: (r) => (r.left - box.left > box.right - r.right ? "me" : "them"),
     plainText: ctx.plainText,
     order: () => ctx.order++,
   };
+  // Following, only rows the person has had on screen count.
+  const view = ctx.follow ? viewOf(ctx.follow.scroller) : null;
   for (const row of rowsOf(ctx.list)) {
     if (ctx.rows.has(row) || !filled(row)) continue;
+    if (view && !shows(row.getBoundingClientRect(), view)) continue;
     const units = unitsIn(row, g);
-    if (units.length) ctx.rows.set(row, units);
+    if (!units.length) continue;
+    ctx.rows.set(row, units);
+    if (ctx.follow) ctx.follow.bottoms.set(row, g.base - row.getBoundingClientRect().bottom);
   }
 }
 
@@ -592,6 +601,153 @@ function walk(all) {
 
 const BUDGET_MS = 45000;
 
+/** The thread as Ketchup sends it: senders named, the newest MAX kept, and
+ *  how the read went (counts only). `read` holds the ways in which a Last N
+ *  read and a follow differ. */
+function threadResult(ctx, title, read) {
+  const { messages, stats } = walk(allUnits(ctx));
+  const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
+  // Only group threads show name labels. A thread with none and only one
+  // other person in it is 1:1: that person is named after the thread.
+  const isGroup = stats.labels > 0 || named.size >= 2;
+  for (const m of messages) {
+    if (m.isMe) continue;
+    if (!isGroup && title) m.sender = title;
+    else if (!m.sender) m.sender = "Someone";
+  }
+  const truncated = messages.length > MAX;
+  const kept = messages.slice(-MAX).map((m) => {
+    const o = { sender: m.sender, text: m.text, isMe: m.isMe, at: m.at };
+    if (DEBUG) o.atLabel = m.atLabel;
+    return o;
+  });
+
+  return JSON.stringify({
+    ok: true,
+    title,
+    isGroup,
+    messages: kept,
+    truncated,
+    // Counts only, safe to log.
+    stats: { root: read.how, stop: read.stop, scrolls: read.loads, steps: read.steps, gaps: read.gaps,
+             reachedStart: read.reachedStart, reversed: read.reversed, placeholders: read.placeholders, rows: ctx.rows.size,
+             units: messageCount(ctx), found: messages.length, named: named.size, separators: stats.separators,
+             labels: stats.labels, avatars: stats.avatars, media: stats.media, skipped: stats.skipped,
+             empty: stats.empty, dupes: stats.dupes, ms: Date.now() - read.started },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// "Until I stop scrolling": the person scrolls, and this only reads.
+//
+// Ketchup runs this script about four times a second with `follow` set.
+// "start" reads the rows filled in now, each "look" reads the rows filled in
+// since (the ones the person scrolled to), "finish" hands back the thread
+// the way a Last N read does, with `stop` as the reason, and "stop" forgets
+// it all. It never scrolls, never waits, and sets no timers or listeners, so
+// between two calls nothing of it runs. What it has read waits in this
+// isolated world's own global object, which the page can't see, until
+// "finish" or "stop" deletes it (or the page goes away with it). The rows
+// line up the way a Last N read's do: by place, measured up from the
+// bottom of the list, so a row read twice is still one message.
+
+/** Following: the stretch of the window the thread shows in. */
+function viewOf(scroller) {
+  if (!scroller || scroller === document.scrollingElement) return { top: 0, bottom: window.innerHeight };
+  const r = scroller.getBoundingClientRect();
+  return { top: Math.max(0, r.top), bottom: Math.min(window.innerHeight, r.bottom) };
+}
+/** On screen enough to have been seen: half of it, or 20px of a tall one. */
+const shows = (r, view) => r.height > 0 && Math.min(r.bottom, view.bottom) - Math.max(r.top, view.top) >= Math.min(20, r.height / 2);
+
+/** Following: how far the rows already read sit above where they were read
+ *  (a new message or the typing dots at the bottom push them all up). The
+ *  middle value over the most recently read rows still in the list; later
+ *  rows are then measured in the first look's terms. */
+function drift(ctx) {
+  const bottom = ctx.list.getBoundingClientRect().bottom;
+  const moved = [];
+  for (const [row, at] of [...ctx.follow.bottoms].slice(-60)) {
+    if (row.parentElement !== ctx.list) continue;
+    const r = row.getBoundingClientRect();
+    if (r.height > 0) moved.push(bottom - r.bottom - at);
+  }
+  if (!moved.length) return ctx.follow.shift;
+  moved.sort((a, b) => a - b);
+  return moved[moved.length >> 1];
+}
+
+/** Following: rows inside the stretch read that were never read, because
+ *  Instagram never filled them in while they were on screen (the view
+ *  jumped past them as older messages came in). Following can't go back
+ *  for them the way a Last N read does, so it only counts them. */
+function unread(ctx) {
+  const bottom = ctx.list.getBoundingClientRect().bottom;
+  const rows = rowsOf(ctx.list).map((row) => ({ row, r: row.getBoundingClientRect() })).filter(({ r }) => r.height > 0);
+  let hi = -Infinity, lo = Infinity;
+  for (const { row, r } of rows) {
+    if (!ctx.rows.has(row)) continue;
+    hi = Math.max(hi, bottom - r.top);
+    lo = Math.min(lo, bottom - r.bottom);
+  }
+  return rows.filter(({ row, r }) => !ctx.rows.has(row) && !filled(row) && bottom - r.bottom >= lo - 1 && bottom - r.top <= hi + 1)
+    .length;
+}
+
+const FOLLOW = typeof follow === "string" ? follow : null;
+if (FOLLOW !== null) {
+  const KEY = "ketchupFollow";
+  if (FOLLOW === "stop") {
+    delete globalThis[KEY];
+    return JSON.stringify({ ok: true });
+  }
+  try {
+    let f = globalThis[KEY];
+    if (FOLLOW === "start") {
+      const { root, how } = findRoot();
+      const scroller = findScroller(root);
+      const list = findList(root);
+      f = {
+        path: location.pathname, how, looks: 0, started,
+        title: threadTitle(root, scroller),
+        placeholders: rowsOf(list).filter((row) => !filled(row)).length,
+        reversed: !!scroller && (scroller.scrollTop < 0 || getComputedStyle(scroller).flexDirection === "column-reverse"),
+        ctx: { root, list, rows: new Map(), order: 0, plainText: !root.querySelector('[dir="auto"]'),
+               follow: { scroller, shift: 0, bottoms: new Map() } },
+      };
+      globalThis[KEY] = f;
+    } else if (!f) {
+      return JSON.stringify({ ok: false, error: "gone" }); // the page was replaced, and what was read with it
+    }
+    if (f.path !== location.pathname) {
+      delete globalThis[KEY];
+      return JSON.stringify({ ok: false, error: "thread_changed" });
+    }
+    const ctx = f.ctx;
+    // Instagram may swap the whole list out on the same thread: find it again.
+    if (!ctx.list.isConnected) {
+      ctx.root = findRoot().root;
+      ctx.list = findList(ctx.root);
+    }
+    if (ctx.follow.scroller && !ctx.follow.scroller.isConnected) ctx.follow.scroller = findScroller(ctx.root);
+    ctx.follow.shift = drift(ctx);
+    collect(ctx);
+    f.looks++;
+    if (FOLLOW !== "finish") {
+      return JSON.stringify({ ok: true, found: walk(allUnits(ctx)).messages.length, looks: f.looks });
+    }
+    delete globalThis[KEY];
+    const title = threadTitle(ctx.root, ctx.follow.scroller) || f.title;
+    return threadResult(ctx, title, {
+      how: f.how, stop: typeof stop === "string" ? stop : "enough", loads: 0, steps: f.looks, gaps: unread(ctx),
+      reachedStart: false, reversed: f.reversed, placeholders: f.placeholders, started: f.started,
+    });
+  } catch (e) {
+    delete globalThis[KEY];
+    return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });
+  }
+}
+
 try {
   const { root, how } = findRoot();
   const scroller = findScroller(root);
@@ -639,35 +795,7 @@ try {
     scroller.scrollTop = reversed ? -fromBottom : scroller.scrollHeight - scroller.clientHeight - fromBottom;
   }
 
-  const { messages, stats } = walk(allUnits(ctx));
-  const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
-  // Only group threads show name labels. A thread with none and only one
-  // other person in it is 1:1: that person is named after the thread.
-  const isGroup = stats.labels > 0 || named.size >= 2;
-  for (const m of messages) {
-    if (m.isMe) continue;
-    if (!isGroup && title) m.sender = title;
-    else if (!m.sender) m.sender = "Someone";
-  }
-  const truncated = messages.length > MAX;
-  const kept = messages.slice(-MAX).map((m) => {
-    const o = { sender: m.sender, text: m.text, isMe: m.isMe, at: m.at };
-    if (DEBUG) o.atLabel = m.atLabel;
-    return o;
-  });
-
-  return JSON.stringify({
-    ok: true,
-    title,
-    isGroup,
-    messages: kept,
-    truncated,
-    // Counts only, safe to log.
-    stats: { root: how, stop, scrolls: loads, steps, gaps, reachedStart, reversed, placeholders, rows: ctx.rows.size,
-             units: messageCount(ctx), found: messages.length, named: named.size, separators: stats.separators,
-             labels: stats.labels, avatars: stats.avatars, media: stats.media, skipped: stats.skipped,
-             empty: stats.empty, dupes: stats.dupes, ms: Date.now() - started },
-  });
+  return threadResult(ctx, title, { how, stop, loads, steps, gaps, reachedStart, reversed, placeholders, started });
 } catch (e) {
   return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });
 }

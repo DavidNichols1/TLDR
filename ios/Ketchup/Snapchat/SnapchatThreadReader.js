@@ -14,6 +14,8 @@
 // storage or the network. Snapchat loads older messages when the top of the
 // chat is reached, the way it does for a person; the reader lets that
 // happen at most `maxScrolls` times, then puts the scroll position back.
+// With `follow` set ("Until I stop scrolling", near the end) it doesn't
+// scroll either: the person does, and it reads what they scroll past.
 //
 // Snapchat's class names are generated and change, so nothing here relies
 // on them. It goes by the page's structure: the chat is a scrolling list of
@@ -241,8 +243,9 @@ function messageOf(item) {
   return { text, media, quote: Boolean(quote) };
 }
 
-/** Everything on the page, oldest first, with counts. */
-function readAll(list) {
+/** Everything on the page, oldest first, with counts. With `only`, just
+ *  the messages it says yes to (following: the ones seen on screen). */
+function readAll(list, only) {
   const messages = [];
   const stats = { rows: 0, units: 0, separators: 0, runs: 0, notices: 0, skipped: 0, empty: 0, media: 0, quotes: 0 };
   let day = null, dayLabel = null;
@@ -271,6 +274,7 @@ function readAll(list) {
       const atLabel = [dayLabel, timeLabel].filter(Boolean).join(", ") || null;
       for (let item = first; item; item = item.nextElementSibling) {
         if (item !== first && item.querySelector("header")) break; // the next sender's run
+        if (only && !only(item)) continue;
         stats.units++;
         const msg = messageOf(item);
         if (!msg) { stats.skipped++; continue; }
@@ -282,6 +286,137 @@ function readAll(list) {
     }
   }
   return { messages, stats };
+}
+
+/** The chat as Ketchup sends it: senders named, the newest MAX kept, and
+ *  how the read went (counts only). `read` holds the ways in which a Last N
+ *  read and a follow differ. */
+function threadResult(messages, stats, title, read) {
+  const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
+  const isGroup = named.size >= 2;
+  for (const m of messages) if (!m.isMe && !m.sender) m.sender = isGroup || !title ? "Someone" : title;
+  const truncated = messages.length > MAX;
+  const kept = messages.slice(-MAX).map((m) => {
+    const o = { sender: m.sender, text: m.text, isMe: m.isMe, at: m.at };
+    if (DEBUG) o.atLabel = m.atLabel;
+    return o;
+  });
+
+  return JSON.stringify({
+    ok: true,
+    title,
+    isGroup,
+    messages: kept,
+    truncated,
+    // Counts only, safe to log.
+    stats: { root: "scroller", stop: read.stop, scrolls: read.loads, steps: read.steps, gaps: 0, reachedStart: read.reachedStart,
+             placeholders: 0, rows: stats.rows, units: stats.units, found: messages.length, named: named.size,
+             separators: stats.separators, runs: stats.runs, notices: stats.notices, media: stats.media, quotes: stats.quotes,
+             skipped: stats.skipped, empty: stats.empty, dupes: read.dupes, ms: Date.now() - read.started },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// "Until I stop scrolling": the person scrolls, and this only reads.
+//
+// Ketchup runs this script about four times a second with `follow` set.
+// "start" reads the chat as loaded now, each "look" reads it again (the
+// person's scrolling makes Snapchat load older messages), "finish" hands
+// back the chat the way a Last N read does, with `stop` as the reason, and
+// "stop" forgets it all. It never scrolls, never waits, and sets no timers
+// or listeners, so between two calls nothing of it runs. What it has read
+// waits in this isolated world's own global object, which the page can't
+// see, until "finish" or "stop" deletes it (or the page goes away with it).
+
+/** Lays a fresh read of the list over what was read before, oldest first.
+ *  Snapchat keeps every loaded message in the list, so a fresh read
+ *  normally holds all of the earlier one; if rows ever leave the list, the
+ *  two still line up on the messages they share, and each message stays
+ *  once. Where they overlap the fresh read wins (a photo that has loaded
+ *  since, say). Returns the messages and how many were read again. */
+function merge(seq, fresh) {
+  if (!seq.length || !fresh.length) return { seq: seq.length ? seq : fresh, again: 0 };
+  const key = (m) => `${m.isMe ? 1 : 0}\u0001${m.sender}\u0001${m.text}`;
+  const where = new Map();
+  seq.forEach((m, j) => {
+    const k = key(m);
+    if (!where.has(k)) where.set(k, []);
+    where.get(k).push(j);
+  });
+  // Every pair that says the same thing votes for an offset d: fresh[i] is seq[i + d].
+  const votes = new Map();
+  fresh.forEach((m, i) => {
+    for (const j of where.get(key(m)) || []) votes.set(j - i, (votes.get(j - i) || 0) + 1);
+  });
+  let best = null;
+  for (const [d, n] of votes) {
+    const overlap = Math.min(fresh.length, seq.length - d) - Math.max(0, -d);
+    if (n * 2 < overlap) continue; // they mostly disagree there
+    if (!best || n > best.n || (n === best.n && Math.abs(d) < Math.abs(best.d))) best = { d, n };
+  }
+  if (!best) {
+    // Nothing in common: the older one, by its times, goes first.
+    const t = (m) => (m && m.at ? Date.parse(m.at) : NaN);
+    return { seq: t(fresh[fresh.length - 1]) <= t(seq[0]) ? fresh.concat(seq) : seq.concat(fresh), again: 0 };
+  }
+  const d = best.d;
+  return { seq: seq.slice(0, Math.max(0, d)).concat(fresh, seq.slice(Math.max(0, d + fresh.length))), again: best.n };
+}
+
+const FOLLOW = typeof follow === "string" ? follow : null;
+if (FOLLOW !== null) {
+  const KEY = "ketchupFollow";
+  if (FOLLOW === "stop") {
+    delete globalThis[KEY];
+    return JSON.stringify({ ok: true });
+  }
+  try {
+    let f = globalThis[KEY];
+    if (FOLLOW === "start") {
+      const found = findList();
+      if (!found) return JSON.stringify({ ok: false, error: "read_failed", detail: "no-list" });
+      f = { path: location.pathname, list: found.list, scroller: found.scroller, title: titleOf(found.list), seen: new WeakSet(),
+            seq: [], stats: null, looks: 0, started };
+      globalThis[KEY] = f;
+    } else if (!f) {
+      return JSON.stringify({ ok: false, error: "gone" }); // the page was replaced, and what was read with it
+    }
+    if (f.path !== location.pathname) {
+      delete globalThis[KEY];
+      return JSON.stringify({ ok: false, error: "thread_changed" });
+    }
+    if (!f.list.isConnected) {
+      const found = findList();
+      if (!found) {
+        delete globalThis[KEY];
+        return JSON.stringify({ ok: false, error: "read_failed", detail: "no-list" });
+      }
+      f.list = found.list;
+      f.scroller = found.scroller;
+    }
+    // Only messages the person has had on screen count.
+    const box = f.scroller.getBoundingClientRect();
+    const view = { top: Math.max(0, box.top), bottom: Math.min(window.innerHeight, box.bottom) };
+    const { messages, stats } = readAll(f.list, (item) => {
+      if (f.seen.has(item)) return true;
+      const r = item.getBoundingClientRect();
+      if (r.height === 0 || Math.min(r.bottom, view.bottom) - Math.max(r.top, view.top) < Math.min(20, r.height / 2)) return false;
+      f.seen.add(item);
+      return true;
+    });
+    f.seq = merge(f.seq, messages).seq;
+    f.stats = stats;
+    f.looks++;
+    if (FOLLOW !== "finish") return JSON.stringify({ ok: true, found: f.seq.length, looks: f.looks });
+    delete globalThis[KEY];
+    return threadResult(f.seq, f.stats, titleOf(f.list) || f.title, {
+      stop: typeof stop === "string" ? stop : "enough", loads: 0, steps: f.looks, reachedStart: false,
+      dupes: 0, started: f.started,
+    });
+  } catch (e) {
+    delete globalThis[KEY];
+    return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -315,28 +450,7 @@ try {
   if (steps) scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight - fromBottom;
 
   const { messages, stats } = readAll(list);
-  const named = new Set(messages.filter((m) => !m.isMe && m.sender).map((m) => m.sender));
-  const isGroup = named.size >= 2;
-  for (const m of messages) if (!m.isMe && !m.sender) m.sender = isGroup || !title ? "Someone" : title;
-  const truncated = messages.length > MAX;
-  const kept = messages.slice(-MAX).map((m) => {
-    const o = { sender: m.sender, text: m.text, isMe: m.isMe, at: m.at };
-    if (DEBUG) o.atLabel = m.atLabel;
-    return o;
-  });
-
-  return JSON.stringify({
-    ok: true,
-    title,
-    isGroup,
-    messages: kept,
-    truncated,
-    // Counts only, safe to log.
-    stats: { root: "scroller", stop, scrolls: loads, steps, gaps: 0, reachedStart, placeholders: 0, rows: stats.rows,
-             units: stats.units, found: messages.length, named: named.size, separators: stats.separators,
-             runs: stats.runs, notices: stats.notices, media: stats.media, quotes: stats.quotes,
-             skipped: stats.skipped, empty: stats.empty, dupes: 0, ms: Date.now() - started },
-  });
+  return threadResult(messages, stats, title, { stop, loads, steps, reachedStart, dupes: 0, started });
 } catch (e) {
   return JSON.stringify({ ok: false, error: "read_failed", detail: String(e && e.name || e) });
 }
