@@ -42,9 +42,17 @@ struct ListenButton: View {
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: !unlocked ? "lock.fill" : speaking ? "stop.fill" : "speaker.wave.2.fill")
+                    // The speaker is the widest of the three, so it holds the icon's room.
+                    Image(systemName: "speaker.wave.2.fill")
+                        .hidden()
+                        .overlay {
+                            Image(systemName: !unlocked ? "lock.fill" : speaking ? "stop.fill" : "speaker.wave.2.fill")
+                        }
                         .accessibilityHidden(true)
-                    Text(speaking ? "Stop" : "Listen")
+                    // Sized for "Listen" either way, so the button keeps its width.
+                    Text("Listen")
+                        .hidden()
+                        .overlay(alignment: .leading) { Text(speaking ? "Stop" : "Listen") }
                     if !unlocked {
                         Text("Pro")
                             .font(.mono(.caption2, weight: .bold))

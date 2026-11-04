@@ -24,6 +24,13 @@
 		<string>sc-cdn.net</string>
 		<string>sc-static.net</string>
 	</array>
+	<!-- The launch screen is the app's cream paper (Theme.cream), so a cold
+	launch doesn't flash white before the first screen. -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<!-- A chat photo's Share sheet can save it to the library (Photos/PhotoViewer.swift). -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Cetchup saves the chat photos you choose to your photo library.</string>
