@@ -74,6 +74,36 @@ the technical recipe. README.md is the judge-facing overview.
 - David signs in himself (email + 8-digit code; `Config.otpLength` must match Auth → Email OTP Length); never type his email or codes.
 - Sign-in needs `{{ .Token }}` in the Magic Link and Confirm signup email templates (set Nov 2, 2026). Email goes out through Resend SMTP from noreply@vibetemp.com (30/hour cap).
 
+## Reviewer login and the terms (migration 0011, written Nov 4, 2026, not applied yet)
+- **Password sign-in** is a secondary path for App Review's demo account: "Use a password instead"
+  under the sign-in button reveals a password field (iOS `SignInView`, `Supabase.signIn(email:password:)`;
+  Android `SignInScreen`, `SupabaseClient.signInWithPassword`). It posts
+  `/auth/v1/token?grant_type=password` and keeps the session exactly like the code
+  (`adoptSession`, same Keychain or prefs, same refresh). It never creates an account. A wrong pair
+  (400 `invalid_credentials`) reads "That email and password don't match." Nothing logs the email or password.
+- **The demo account (David):** Supabase dashboard → Authentication → Users → Add user → Create new
+  user, with an email and password and "Auto Confirm User" on. Give both to Apple in App Store
+  Connect (App Review Information → Sign-in required). They are never in the repo.
+- **Terms:** the sign-in screen says "By continuing, you agree to Cetchup's Terms of Service and
+  Privacy Policy" (links to https://cetchup.ai/terms and https://cetchup.ai/privacy, in Safari inside the
+  app on iOS, the browser on Android). Every sign-in calls `accept_terms(Config.termsVersion)`. Someone
+  signed in with no row, or an older version, gets a one-time full-screen sheet ("Cetchup's Terms and
+  Privacy Policy", Agree or Sign out) before the app. The check never traps anyone: offline, or before
+  0011 is applied, the app opens and the next launch asks again. Code: iOS `Terms/Terms.swift`
+  (`TermsStore`, `TermsLine`, `TermsSheet`), Android `data/TermsGate.kt`, `ui/auth/TermsScreen.kt`.
+- **Bumping the version:** set `Config.termsVersion` (iOS) and `Config.TERMS_VERSION` (Android) to the
+  new publication date, `YYYY-MM-DD` (versions compare as text; the table's check wants that shape).
+  Everyone then agrees once more. Who agreed to what:
+  `select version, count(*) from public.terms_acceptances group by 1 order by 1 desc;`
+- **Migration:** `0011_terms.sql`, one part: `terms_acceptances` (one row per person, select-own only,
+  no client writes, cascades with the auth user) and `accept_terms(p_version)` (security definer,
+  `search_path` pinned, upserts for `auth.uid()` at the server's time). Apply with `apply_migration`
+  name `0011_terms`, then `rls_check.sql`: 151 of 151 with 0011 inside the rolled-back transaction
+  (Nov 4, 2026; 19 new `terms:` checks).
+- **Previews:** iOS `-screen signin` (the line and the link), `signin-password`, `signin-password-error`,
+  `terms`, `terms-offline` (presses Agree; offline, so it shows the try-again state). Android the same
+  names with `--es screen`.
+
 ## Design system and offline previews
 - `docs/DESIGN.md` is the design system (a diner counter: cream, ink, ketchup, mustard, pickle).
   Colors, type and motion live in `Theme.swift`; shapes, buttons and labels in `ios/Ketchup/Design/`.
