@@ -214,7 +214,7 @@ export const DAYS: Burst[][] = [
       lines: [
         ["jordan", "uh have you guys seen the forecast"],
         ["jordan", "winter storm warning for the mountains Friday noon through early Saturday"],
-        ["jordan", "8–14 inches above 9,000 ft and the I-70 traction law is going to be on"],
+        ["jordan", "8-14 inches above 9,000 ft and the I-70 traction law is going to be on"],
         ["theo", "that's amazing for skiing and terrible for driving"],
         ["sam", "POWDER DAY"],
         ["jordan", "powder day for people who are already up there"],

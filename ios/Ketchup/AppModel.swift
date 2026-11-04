@@ -105,7 +105,7 @@ final class AppModel {
 
     func rename(to name: String) async throws {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (1...30).contains(trimmed.count) else { throw APIError.server("Names are 1–30 characters.") }
+        guard (1...30).contains(trimmed.count) else { throw APIError.server("Names are 1 to 30 characters.") }
         if previewUser == nil { try await KetchupAPI.setDisplayName(trimmed) }
         me?.displayName = trimmed
         confirmName()
