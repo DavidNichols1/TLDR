@@ -22,7 +22,7 @@
       "localizations" : [
 
       ],
-      "name" : "Ketchup",
+      "name" : "Cetchup",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -39,13 +39,13 @@
           "localizations" : [
             {
               "description" : "Muse Spark reads 400 messages a day for you.",
-              "displayName" : "Ketchup Plus",
+              "displayName" : "Cetchup Plus",
               "locale" : "en_US"
             }
           ],
           "productID" : "com.vibetemp.ketchup.plus.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Ketchup Plus Monthly",
+          "referenceName" : "Cetchup Plus Monthly",
           "subscriptionGroupID" : "C4A1E9D2-3B6F-4E8A-8D21-6F0B7C3E5A94",
           "type" : "RecurringSubscription",
           "winbackOffers" : [
@@ -67,13 +67,13 @@
           "localizations" : [
             {
               "description" : "Muse Spark reads 1,000 messages a day for you, and catch-ups read aloud.",
-              "displayName" : "Ketchup Pro",
+              "displayName" : "Cetchup Pro",
               "locale" : "en_US"
             }
           ],
           "productID" : "com.vibetemp.ketchup.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Ketchup Pro Monthly",
+          "referenceName" : "Cetchup Pro Monthly",
           "subscriptionGroupID" : "C4A1E9D2-3B6F-4E8A-8D21-6F0B7C3E5A94",
           "type" : "RecurringSubscription",
           "winbackOffers" : [

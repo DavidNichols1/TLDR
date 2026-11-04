@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Apple's privacy manifest: the "required reason" APIs Ketchup calls, and why.
+<!-- Apple's privacy manifest: the "required reason" APIs Cetchup calls, and why.
      App Store Connect checks this on every upload, TestFlight included. -->
 <plist version="1.0">
 <dict>
@@ -10,7 +10,7 @@
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
-		<!-- UserDefaults: the app's own small settings, like the last tab open, read only by Ketchup. -->
+		<!-- UserDefaults: the app's own small settings, like the last tab open, read only by Cetchup. -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
