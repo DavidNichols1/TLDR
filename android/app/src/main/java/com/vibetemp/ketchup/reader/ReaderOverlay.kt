@@ -146,6 +146,9 @@ internal class ReaderOverlay(private val service: AccessibilityService, private 
         own(view)
         val lp = overlayParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT).apply {
             flags = flags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            // The system's short dialog fade and scale, so the panel doesn't pop in and out.
+            // Window animations follow the animator scale, so Remove animations turns it off.
+            windowAnimations = android.R.style.Animation_Dialog
         }
         if (runCatching { wm.addView(view, lp) }.isSuccess) {
             panel = view
