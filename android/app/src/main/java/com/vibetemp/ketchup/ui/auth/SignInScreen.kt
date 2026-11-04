@@ -35,10 +35,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -47,11 +49,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.vibetemp.ketchup.R
 import com.vibetemp.ketchup.data.ApiException
+import com.vibetemp.ketchup.data.AuthSession
 import com.vibetemp.ketchup.data.Config
 import com.vibetemp.ketchup.data.KetchupApi
 import com.vibetemp.ketchup.ui.chat.ChatModel
@@ -62,29 +66,47 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Where the sign-in form starts (previews open the code step with a countdown running). */
-data class SignInStart(val email: String = "", val code: String = "", val atCode: Boolean = false, val cooldown: Int = 0)
+/**
+ * Where the sign-in form starts (previews open the code step with a countdown
+ * running, or the password path with or without its error).
+ */
+data class SignInStart(
+    val email: String = "",
+    val code: String = "",
+    val atCode: Boolean = false,
+    val cooldown: Int = 0,
+    val usePassword: Boolean = false,
+    val error: String? = null,
+)
 
 /**
  * Email, then the emailed code ([Config.OTP_LENGTH] digits), then in (iOS
  * `SignInView`). The account is made on the first code. Supabase sends one
  * code per address a minute, so Resend counts down instead of failing.
- * [api] is null in an offline preview: the buttons do nothing.
+ * "Use a password instead" is the secondary path, for an account that has a
+ * password (a reviewer's demo account): email and password, then in. The line
+ * under the button says continuing agrees to the Terms of Service and Privacy
+ * Policy; [onSignedIn] records that (AppModel.signedIn). [api] is null in an
+ * offline preview: the buttons do nothing.
  */
 @Composable
-fun SignInScreen(api: KetchupApi?, start: SignInStart = SignInStart()) {
+fun SignInScreen(api: KetchupApi?, start: SignInStart = SignInStart(), onSignedIn: (AuthSession) -> Unit = {}) {
     val colors = KetchupTheme.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var atCode by rememberSaveable { mutableStateOf(start.atCode) }
     var email by rememberSaveable { mutableStateOf(start.email) }
     var code by rememberSaveable { mutableStateOf(start.code) }
+    var usePassword by rememberSaveable { mutableStateOf(start.usePassword) }
+    // Never saveable: a password stays out of the saved instance state.
+    var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf(start.error) }
     var notice by remember { mutableStateOf<String?>(null) }
     var cooldown by rememberSaveable { mutableIntStateOf(start.cooldown) }
     val emailFocus = remember { FocusRequester() }
     val codeFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
 
     val trimmedEmail = email.trim()
     val validEmail = "@" in trimmedEmail && "." in trimmedEmail && trimmedEmail.length >= 5
@@ -97,8 +119,14 @@ fun SignInScreen(api: KetchupApi?, start: SignInStart = SignInStart()) {
             cooldown -= 1
         }
     }
-    LaunchedEffect(atCode) {
-        runCatching { if (atCode) codeFocus.requestFocus() else emailFocus.requestFocus() }
+    LaunchedEffect(atCode, usePassword) {
+        runCatching {
+            when {
+                atCode -> codeFocus.requestFocus()
+                usePassword && validEmail -> passwordFocus.requestFocus()
+                else -> emailFocus.requestFocus()
+            }
+        }
     }
 
     fun sendCode() {
@@ -137,12 +165,35 @@ fun SignInScreen(api: KetchupApi?, start: SignInStart = SignInStart()) {
         scope.launch {
             try {
                 // Success sets the session; the root moves on by itself.
-                live.verifyCode(email, code)
+                onSignedIn(live.verifyCode(email, code))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 error = ChatModel.readable(e)
                 code = ""
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun signInWithPassword() {
+        if (!validEmail || password.isEmpty() || busy) return
+        val live = api ?: return
+        email = trimmedEmail.lowercase()
+        busy = true
+        error = null
+        notice = null
+        scope.launch {
+            try {
+                // Same as the code: success sets the session and the root moves on.
+                onSignedIn(live.signInWithPassword(email, password))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = ChatModel.readable(e)
+                password = ""
+                runCatching { passwordFocus.requestFocus() }
             } finally {
                 busy = false
             }
@@ -180,11 +231,21 @@ fun SignInScreen(api: KetchupApi?, start: SignInStart = SignInStart()) {
                         EmailStep(
                             email = email,
                             onEmail = { email = it },
+                            usePassword = usePassword,
+                            password = password,
+                            onPassword = { password = it },
                             phrase = phrase,
-                            canSend = validEmail && cooldown == 0,
+                            canContinue = validEmail && (if (usePassword) password.isNotEmpty() else cooldown == 0),
                             busy = busy,
                             focus = emailFocus,
-                            onSend = ::sendCode,
+                            passwordFocus = passwordFocus,
+                            onContinue = if (usePassword) ::signInWithPassword else ::sendCode,
+                            onSwitch = {
+                                usePassword = !usePassword
+                                password = ""
+                                error = null
+                                notice = null
+                            },
                         )
                     } else {
                         CodeStep(
@@ -229,15 +290,25 @@ private fun codePhrase(): String {
     return stringResource(if (an) R.string.signin_code_phrase_an else R.string.signin_code_phrase_a, n)
 }
 
+/**
+ * The first step: your email, and with [usePassword] your password under it.
+ * The button emails a code or signs in; the line under it is the terms; the
+ * link under that switches between the two ways in.
+ */
 @Composable
 private fun EmailStep(
     email: String,
     onEmail: (String) -> Unit,
+    usePassword: Boolean,
+    password: String,
+    onPassword: (String) -> Unit,
     phrase: String,
-    canSend: Boolean,
+    canContinue: Boolean,
     busy: Boolean,
     focus: FocusRequester,
-    onSend: () -> Unit,
+    passwordFocus: FocusRequester,
+    onContinue: () -> Unit,
+    onSwitch: () -> Unit,
 ) {
     val colors = KetchupTheme.colors
     Column {
@@ -257,28 +328,62 @@ private fun EmailStep(
             value = email,
             onValueChange = onEmail,
             placeholder = stringResource(R.string.signin_email_placeholder),
-            modifier = Modifier.padding(top = 28.dp),
+            modifier = Modifier
+                .padding(top = 28.dp)
+                .semantics { contentType = ContentType.EmailAddress },
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
                 autoCorrectEnabled = false,
                 keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Go,
+                imeAction = if (usePassword) ImeAction.Next else ImeAction.Go,
             ),
-            keyboardActions = KeyboardActions(onGo = { onSend() }),
+            keyboardActions = KeyboardActions(
+                onNext = { runCatching { passwordFocus.requestFocus() } },
+                onGo = { onContinue() },
+            ),
             focusRequester = focus,
         )
+        if (usePassword) {
+            PaperField(
+                value = password,
+                onValueChange = onPassword,
+                placeholder = stringResource(R.string.signin_password_placeholder),
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .semantics { contentType = ContentType.Password },
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrectEnabled = false,
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Go,
+                ),
+                keyboardActions = KeyboardActions(onGo = { onContinue() }),
+                focusRequester = passwordFocus,
+                visualTransformation = PasswordVisualTransformation(),
+            )
+        }
         BusyCapsule(
-            stringResource(R.string.signin_send_code),
+            stringResource(if (usePassword) R.string.signin_sign_in else R.string.signin_send_code),
             busy = busy,
-            onClick = onSend,
-            enabled = canSend,
+            onClick = onContinue,
+            enabled = canContinue,
             modifier = Modifier.padding(top = 12.dp),
         )
-        Text(
-            stringResource(R.string.signin_code_note, phrase),
-            style = KetchupTheme.type.footnote,
-            color = colors.inkSoft,
-            modifier = Modifier.padding(top = 12.dp),
+        TermsNote(Modifier.padding(top = 12.dp))
+        if (!usePassword) {
+            Text(
+                stringResource(R.string.signin_code_note, phrase),
+                style = KetchupTheme.type.footnote,
+                color = colors.inkSoft,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        TextAction(
+            stringResource(if (usePassword) R.string.signin_use_code else R.string.signin_use_password),
+            colors.ink,
+            enabled = !busy,
+            onClick = onSwitch,
+            modifier = Modifier.padding(top = 10.dp),
         )
     }
 }

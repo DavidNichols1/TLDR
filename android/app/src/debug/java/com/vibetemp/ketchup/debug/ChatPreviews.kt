@@ -3,6 +3,7 @@ package com.vibetemp.ketchup.debug
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.vibetemp.ketchup.data.ApiException
 import com.vibetemp.ketchup.data.ChatSummary
 import com.vibetemp.ketchup.data.Member
 import com.vibetemp.ketchup.data.Message
@@ -10,6 +11,7 @@ import com.vibetemp.ketchup.data.Profile
 import com.vibetemp.ketchup.ui.auth.NameScreen
 import com.vibetemp.ketchup.ui.auth.SignInScreen
 import com.vibetemp.ketchup.ui.auth.SignInStart
+import com.vibetemp.ketchup.ui.auth.TermsScreen
 import com.vibetemp.ketchup.ui.chat.ChatBackend
 import com.vibetemp.ketchup.ui.chat.ChatStart
 import com.vibetemp.ketchup.ui.chats.AppModel
@@ -26,18 +28,27 @@ import java.time.Instant
 //
 //     adb shell am start -n com.vibetemp.ketchup/.MainActivity --es screen chat
 //
-// signin, signin-code, name, home (the pager on Chats), home-instagram,
-// home-snapchat, inbox-loading, inbox-empty, new-chat, join, chat (Breck,
-// 302 new), chat-loading, chat-jump (a brief's jump to Maya's "$540 total"),
-// chat-joined (Rowan joins Breck and says hi: "Rowan joined" under "1 new"),
-// info (Members and invite), settings, and chat-not-sent (a send that fails
-// and offers a retry). chat-breck is the old name for chat.
+// signin, signin-code, signin-password (the password path, empty) and
+// signin-password-error (a wrong password), terms (the terms screen before
+// the app) and terms-offline (Agree couldn't save), name, home
+// (the pager on Chats), home-instagram, home-snapchat, inbox-loading,
+// inbox-empty, new-chat, join, chat (Breck, 302 new), chat-loading,
+// chat-jump (a brief's jump to Maya's "$540 total"), chat-joined (Rowan
+// joins Breck and says hi: "Rowan joined" under "1 new"), info (Members and
+// invite), settings, and chat-not-sent (a send that fails and offers a
+// retry). chat-breck is the old name for chat.
 
 val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
     "signin" to { SignInScreen(api = null) },
     "signin-code" to {
         SignInScreen(api = null, start = SignInStart(email = AppModel.PREVIEW_EMAIL, code = "4821", atCode = true, cooldown = 42))
     },
+    "signin-password" to { SignInScreen(api = null, start = SignInStart(email = AppModel.PREVIEW_EMAIL, usePassword = true)) },
+    "signin-password-error" to {
+        SignInScreen(api = null, start = SignInStart(email = AppModel.PREVIEW_EMAIL, usePassword = true, error = wrongPassword()))
+    },
+    "terms" to { TermsScreen(rememberPreviewApp()) },
+    "terms-offline" to { TermsScreen(rememberPreviewApp(refuses = true), failedAtStart = true) },
     "name" to { NameScreen(rememberPreviewApp(name = "david")) },
     "home" to { Home(rememberPreviewApp(), HomeStart(page = HomePage.CHATS, remembers = false)) },
     "home-instagram" to { Home(rememberPreviewApp(), HomeStart(page = HomePage.INSTAGRAM, remembers = false)) },
@@ -59,6 +70,10 @@ val ChatPreviews: Map<String, @Composable () -> Unit> = mapOf(
 /** Maya's "so the Airbnb is now $540 total = $90 each", a message the catch-up cites, a good way up the thread. */
 private const val JUMP_TARGET = "6fe6a3cc-7a99-5aa3-a3dd-be8a6a18adb5"
 
+/** What the live project answers a wrong email or password with, read the app's own way. */
+private fun wrongPassword(): String? =
+    ApiException.from(400, """{"code":400,"error_code":"invalid_credentials","msg":"Invalid login credentials"}""").message
+
 /** The pager with Breck open over it, so Back goes to the inbox. [joined]: Rowan joins at the end ([JoinedBreck]). */
 @Composable
 private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = false, sendsFail: Boolean = false, joined: Boolean = false) {
@@ -69,7 +84,8 @@ private fun BreckChat(start: ChatStart = ChatStart(), holdsLoading: Boolean = fa
 /**
  * An offline app signed in as David with Breck on top of three quieter
  * chats (iOS `PreviewData.inbox`). [loading]: the inbox never answers.
- * [holdsLoading]: an opened chat never gets its first page.
+ * [holdsLoading]: an opened chat never gets its first page. [refuses]: the
+ * pretend server says no (the terms screen's Agree, as if offline).
  */
 @Composable
 private fun rememberPreviewApp(
@@ -79,13 +95,15 @@ private fun rememberPreviewApp(
     holdsLoading: Boolean = false,
     sendsFail: Boolean = false,
     joined: Boolean = false,
+    refuses: Boolean = false,
 ): AppModel {
     val context = LocalContext.current
     val data = previewData()
-    return remember(name, chats, loading, holdsLoading, sendsFail, joined) {
+    return remember(name, chats, loading, holdsLoading, sendsFail, joined, refuses) {
         val inbox = PreviewInbox(data, joined)
         AppModel.offline(context, Profile(PreviewData.ME, name), chats ?: inbox.chats, loading).apply {
             chatBackend = FixtureChatBackend(inbox.messages, inbox.members, holdsLoading, sendsFail)
+            previewRefuses = refuses
         }
     }
 }

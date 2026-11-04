@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,7 @@ import com.vibetemp.ketchup.ui.theme.KetchupTheme
 /**
  * A text field on paper: card fill and a hairline that turns ink while it
  * has focus. [leading] sits before the text (the name step's monogram).
+ * [visualTransformation] draws a password as dots.
  */
 @Composable
 fun PaperField(
@@ -71,6 +73,7 @@ fun PaperField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = true,
     focusRequester: FocusRequester? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     leading: (@Composable () -> Unit)? = null,
 ) {
     val colors = KetchupTheme.colors
@@ -87,6 +90,7 @@ fun PaperField(
         cursorBrush = SolidColor(colors.ketchupText),
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
+        visualTransformation = visualTransformation,
         singleLine = singleLine,
         decorationBox = { inner ->
             Row(

@@ -30,6 +30,10 @@ class KetchupApi(val client: SupabaseClient) {
     suspend fun verifyCode(email: String, code: String): AuthSession =
         client.verifyCode(email.trim(), code.filter(Char::isDigit))
 
+    /** The secondary sign-in, for an account with a password. The password goes as typed. */
+    suspend fun signInWithPassword(email: String, password: String): AuthSession =
+        client.signInWithPassword(email.trim(), password)
+
     suspend fun signOut() = client.signOut()
 
     // MARK: Profile

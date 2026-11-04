@@ -21,7 +21,7 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * A small hand-rolled Supabase client: Auth (email code), PostgREST, RPCs and
+ * A small hand-rolled Supabase client: Auth (email code or password), PostgREST, RPCs and
  * edge functions over HttpURLConnection, so the app has no networking
  * dependency. A port of iOS `Net/Supabase.swift`, with AurariaGO Android's
  * plumbing (a swappable [Transport] for JVM tests, a [Mutex] around refresh).
@@ -49,7 +49,7 @@ class SupabaseClient(
         store.save(value)
     }
 
-    // MARK: Auth (email code)
+    // MARK: Auth (email code, or a password)
 
     /** Emails a one-time code ([Config.OTP_LENGTH] digits). Creates the account on first sign-in. */
     suspend fun sendCode(email: String) {
@@ -57,10 +57,19 @@ class SupabaseClient(
     }
 
     /** Exchanges the emailed code for a session and keeps it. */
-    suspend fun verifyCode(email: String, code: String): AuthSession {
-        val body = auth("/auth/v1/verify", obj("type" to "email", "email" to email, "token" to code))
-        return parseSession(body).also(::setSession)
-    }
+    suspend fun verifyCode(email: String, code: String): AuthSession =
+        adoptSession(auth("/auth/v1/verify", obj("type" to "email", "email" to email, "token" to code)))
+
+    /**
+     * Signs in with an email and password (the secondary path, for an account
+     * that has a password, like a reviewer's demo account) and keeps the
+     * session exactly as [verifyCode] does: same storage, same refresh.
+     */
+    suspend fun signInWithPassword(email: String, password: String): AuthSession =
+        adoptSession(auth("/auth/v1/token?grant_type=password", obj("email" to email, "password" to password)))
+
+    /** A sign-in's answer becomes the session, kept in private storage. */
+    private fun adoptSession(body: String): AuthSession = parseSession(body).also(::setSession)
 
     /** Ends the session here, and on the server when it answers. */
     suspend fun signOut() {
@@ -280,6 +289,8 @@ class ApiException(message: String, val status: Int? = null, val code: String? =
         fun friendly(raw: String, status: Int): String {
             val lower = raw.lowercase()
             return when {
+                // A wrong email or password: 400 invalid_credentials, "Invalid login credentials".
+                "invalid login credentials" in lower -> "That email and password don't match."
                 "sending too fast" in lower -> "Slow down a little."
                 "token has expired" in lower || ("otp" in lower && "invalid" in lower) ->
                     "That code didn't work. Check it or send a new one."
