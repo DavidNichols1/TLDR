@@ -29,6 +29,10 @@ struct ChatView: View {
     @State private var atBottom = true
     /// The first scroll (to the unread divider or the bottom) is done.
     @State private var positioned = false
+    /// Opened with nothing kept on the phone: the thread stays hidden behind
+    /// the skeleton until it's placed, so it never shows the bottom first
+    /// and then jumps up to the unread divider.
+    @State private var placing = false
     @State private var leftChat = false
     @State private var notice: String?
     /// Photos: picking one, the one waiting to go, the one open full screen.
@@ -107,6 +111,7 @@ struct ChatView: View {
                     Task { await jump(to: id, proxy: proxy) }
                 }
                 .task {
+                    if !model.loaded { placing = true }
                     async let opened: Void = model.open()
                     // The copy the phone kept is already current: place it while the server answers.
                     if model.showsCurrentCopy { await place(proxy) }
@@ -243,6 +248,7 @@ struct ChatView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
         }
+        .opacity(placing ? 0 : 1)
         .background(Theme.cream)
         .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
@@ -293,7 +299,7 @@ struct ChatView: View {
                 Button("Try again") { Task { await model.open() } }
                     .buttonStyle(.outline(.compact))
             }
-        } else if !model.loaded {
+        } else if !model.loaded || placing {
             ThreadSkeleton()
         } else if !hasMessages {
             let code = Text(model.chat.inviteCode).font(.mono(.body, weight: .semibold)).foregroundStyle(Theme.ink)
@@ -458,13 +464,22 @@ struct ChatView: View {
     /// themselves (the kept copy while the server answered): leave them be.
     private func place(_ proxy: ScrollViewProxy) async {
         try? await Task.sleep(for: .milliseconds(60))
-        guard !userScrolled else { return }
+        guard !userScrolled else { return reveal() }
         if model.firstUnreadId != nil {
             proxy.scrollTo(Self.unreadId, anchor: .top)
         } else {
             proxy.scrollTo(Self.bottomId, anchor: .bottom)
         }
-        try? await Task.sleep(for: .milliseconds(350))
+        // One frame for the lazy rows to settle where the scroll put them.
+        try? await Task.sleep(for: .milliseconds(30))
+        reveal()
+        try? await Task.sleep(for: .milliseconds(320))
+    }
+
+    /// The thread is in place: the skeleton fades out and the thread in.
+    private func reveal() {
+        guard placing else { return }
+        withAnimation(Motion.fade) { placing = false }
     }
 
     private func jump(to id: UUID, proxy: ScrollViewProxy) async {
