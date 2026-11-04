@@ -37,12 +37,12 @@
     <string name="brief_caught_up">You\'re all caught up</string>
     <string name="brief_caught_up_body">Nothing new to ketchup on since you last read this chat. Looking for something? Try Ask the chat.</string>
     <string name="brief_thread_empty">No messages to read</string>
-    <string name="brief_thread_empty_body">Ketchup couldn\'t see any messages in this chat. Scroll to the newest message and try again.</string>
+    <string name="brief_thread_empty_body">Cetchup couldn\'t see any messages in this chat. Scroll to the newest message and try again.</string>
 
     <!-- Not signed in, or the source is gone -->
-    <string name="brief_signed_out">Sign in to Ketchup first</string>
-    <string name="brief_signed_out_body">Catch me up and Ask the chat run on your Ketchup account. Sign in, then tap Catch me up again.</string>
-    <string name="brief_open_ketchup">Open Ketchup</string>
+    <string name="brief_signed_out">Sign in to Cetchup first</string>
+    <string name="brief_signed_out_body">Catch me up and Ask the chat run on your Cetchup account. Sign in, then tap Catch me up again.</string>
+    <string name="brief_open_ketchup">Open Cetchup</string>
     <string name="brief_source_gone">That chat isn\'t open here anymore</string>
     <string name="brief_source_gone_body">Go back to it and tap Catch me up again.</string>
 

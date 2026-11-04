@@ -285,7 +285,7 @@ class ChatModelTest {
         val model = ChatModel(summary(unread = 3), me, server, this)
         model.open()
         assertFalse(model.state.value.loaded)
-        assertEquals("Couldn't reach Ketchup. Check your connection and try again.", model.state.value.loadError)
+        assertEquals("Couldn't reach Cetchup. Check your connection and try again.", model.state.value.loadError)
         down = false
         model.poll()
         assertTrue(model.state.value.synced)

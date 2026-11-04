@@ -149,7 +149,7 @@ private fun BriefPreview(
         session,
         onDone = { Toast.makeText(context, "Done closes the brief", Toast.LENGTH_SHORT).show() },
         onJump = { id -> Toast.makeText(context, "Jumps the chat to message ${id.take(8)}", Toast.LENGTH_SHORT).show() },
-        onOpenApp = { Toast.makeText(context, "Opens Ketchup", Toast.LENGTH_SHORT).show() },
+        onOpenApp = { Toast.makeText(context, "Opens Cetchup", Toast.LENGTH_SHORT).show() },
         initialSection = section,
         initialCited = cited,
         initiallyDone = done,

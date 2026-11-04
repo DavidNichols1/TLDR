@@ -33,7 +33,7 @@ class PlanCalendarTest {
         assertFalse(event.allDay)
         assertEquals("Maya's place", event.location)
         assertEquals(
-            "From “Breck Weekend 🎿” on Ketchup, found by Muse Spark.\nGoing: Maya, Priya, Theo, Jordan, Sam, David",
+            "From “Breck Weekend 🎿” on Cetchup, found by Muse Spark.\nGoing: Maya, Priya, Theo, Jordan, Sam, David",
             event.description,
         )
     }

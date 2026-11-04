@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The reader slice's strings: the accessibility service and its screens. No em dashes. -->
 <resources>
-    <string name="reader_service_label">Ketchup catch-up</string>
-    <string name="reader_service_description">When you ask, Ketchup reads the Instagram or Snapchat chat you have open and sends it to Muse Spark for a catch-up. It reads only that chat, only when you tap, and nothing is kept on Ketchup\'s server. It works only in the Instagram and Snapchat apps.</string>
+    <string name="reader_service_label">Cetchup catch-up</string>
+    <string name="reader_service_description">When you ask, Cetchup reads the Instagram or Snapchat chat you have open and sends it to Muse Spark for a catch-up. It reads only that chat, only when you tap, and nothing is kept on Cetchup\'s server. It works only in the Instagram and Snapchat apps.</string>
 
     <!-- The bubble and its panel, over the other app -->
-    <string name="reader_bubble_label">Catch me up with Ketchup</string>
-    <string name="reader_panel_kicker">Ketchup · %1$s</string>
+    <string name="reader_bubble_label">Catch me up with Cetchup</string>
+    <string name="reader_panel_kicker">Cetchup · %1$s</string>
     <string name="reader_panel_close">Close</string>
     <string name="reader_panel_pick_title">Catch me up</string>
     <string name="reader_panel_pick_body">Read the newest messages in this chat and catch up with Muse Spark.</string>
     <string name="reader_panel_last">Last %1$d</string>
     <string name="reader_panel_until_stop">Until I stop scrolling</string>
-    <string name="reader_panel_follow">Scroll up through the chat. Ketchup reads as you go and catches you up when you stop.</string>
+    <string name="reader_panel_follow">Scroll up through the chat. Cetchup reads as you go and catches you up when you stop.</string>
     <string name="reader_panel_finish_now">Catch me up now</string>
     <plurals name="reader_panel_found">
         <item quantity="one">%1$d message</item>
@@ -24,33 +24,33 @@
     <string name="reader_panel_scrolling">Scrolling back for older messages</string>
     <!-- Snapchat's list mostly ignores the reader's scroll, so the person scrolls and it reads as they go. -->
     <string name="reader_panel_pick_scroll">On Snapchat, you scroll: after you pick, scroll up slowly through the chat.</string>
-    <string name="reader_panel_scroll_yourself">Scroll up slowly through the chat. Ketchup reads as you go.</string>
+    <string name="reader_panel_scroll_yourself">Scroll up slowly through the chat. Cetchup reads as you go.</string>
     <string name="reader_panel_restoring">Putting the chat back where it was</string>
     <string name="reader_panel_stop">Stop</string>
-    <string name="reader_panel_signin_title">Sign in to Ketchup first</string>
-    <string name="reader_panel_signin_body">Ketchup sends the chat to Muse Spark as you, so it needs your account. Nothing has been read.</string>
-    <string name="reader_panel_setup_title">Finish setting up in Ketchup</string>
-    <string name="reader_panel_setup_body">Open Ketchup and read what the bubble does before it reads anything. Nothing has been read.</string>
-    <string name="reader_panel_open_app">Open Ketchup</string>
+    <string name="reader_panel_signin_title">Sign in to Cetchup first</string>
+    <string name="reader_panel_signin_body">Cetchup sends the chat to Muse Spark as you, so it needs your account. Nothing has been read.</string>
+    <string name="reader_panel_setup_title">Finish setting up in Cetchup</string>
+    <string name="reader_panel_setup_body">Open Cetchup and read what the bubble does before it reads anything. Nothing has been read.</string>
+    <string name="reader_panel_open_app">Open Cetchup</string>
     <string name="reader_panel_problem_title">Couldn\'t read this chat</string>
     <string name="reader_panel_try_again">Try again</string>
     <string name="reader_panel_nothing_kept">Nothing from the chat was kept.</string>
     <string name="reader_problem_not_thread">Open a chat first, then tap the bubble.</string>
     <string name="reader_problem_nothing">Couldn\'t find any messages here. Scroll to the newest message and try again.</string>
-    <string name="reader_problem_unreadable">The chat changed while Ketchup was reading it. Scroll to the newest message and try again.</string>
+    <string name="reader_problem_unreadable">The chat changed while Cetchup was reading it. Scroll to the newest message and try again.</string>
 
     <!-- Your name on Snapchat, asked once (SnapchatNameActivity) -->
     <string name="reader_name_kicker">Snapchat</string>
     <string name="reader_name_title">Your name on Snapchat</string>
-    <string name="reader_name_body">Snapchat shows everyone\'s messages on the left, under the sender\'s name. Type yours as Snapchat shows it, so Ketchup can tell your messages from your friends\'.</string>
+    <string name="reader_name_body">Snapchat shows everyone\'s messages on the left, under the sender\'s name. Type yours as Snapchat shows it, so Cetchup can tell your messages from your friends\'.</string>
     <string name="reader_name_field">Your name on Snapchat</string>
-    <string name="reader_name_note">It stays on this phone and is never sent anywhere. Change it any time on Ketchup\'s Snapchat page.</string>
+    <string name="reader_name_note">It stays on this phone and is never sent anywhere. Change it any time on Cetchup\'s Snapchat page.</string>
     <string name="reader_name_save">Save</string>
     <string name="reader_name_cancel">Not now</string>
 
     <!-- The home pager's Instagram and Snapchat pages -->
     <string name="reader_page_title">Catch up on your %1$s chats</string>
-    <string name="reader_page_body">Open a chat in %1$s and a small Ketchup bubble floats over it. Tap it and pick the last 10, 30, 80 or 120 messages, or let it read as you scroll. Muse Spark catches you up.</string>
+    <string name="reader_page_body">Open a chat in %1$s and a small Cetchup bubble floats over it. Tap it and pick the last 10, 30, 80 or 120 messages, or let it read as you scroll. Muse Spark catches you up.</string>
     <string name="reader_page_on">The bubble is on</string>
     <string name="reader_page_off">The bubble is off</string>
     <string name="reader_page_on_detail">It shows when a chat is open in Instagram or Snapchat.</string>
@@ -60,13 +60,13 @@
     <string name="reader_page_open">Open %1$s</string>
     <string name="reader_page_not_installed">%1$s isn\'t on this phone. Install it, sign in, then come back.</string>
     <string name="reader_page_snapchat_kicker">Heads up</string>
-    <string name="reader_page_snapchat_untested">Tested on one phone so far. Snapchat changes its chat screen often, so after a Snapchat update the bubble may not show until Ketchup catches up.</string>
+    <string name="reader_page_snapchat_untested">Tested on one phone so far. Snapchat changes its chat screen often, so after a Snapchat update the bubble may not show until Cetchup catches up.</string>
     <string name="reader_page_snap_name">Your name on Snapchat: %1$s</string>
     <string name="reader_page_snap_name_unset">Your name on Snapchat isn\'t set yet. The bubble asks the first time you tap it.</string>
     <string name="reader_page_snap_name_change">Change</string>
     <string name="reader_page_snap_name_set">Set it</string>
-    <string name="reader_page_restricted_title">Installed Ketchup yourself?</string>
-    <string name="reader_page_restricted_body">On Android 13 and later, Settings may grey out the switch for apps that didn\'t come from a store. Open Ketchup\'s App info, tap the ⋮ menu, choose Allow restricted settings, then turn the bubble on again.</string>
+    <string name="reader_page_restricted_title">Installed Cetchup yourself?</string>
+    <string name="reader_page_restricted_body">On Android 13 and later, Settings may grey out the switch for apps that didn\'t come from a store. Open Cetchup\'s App info, tap the ⋮ menu, choose Allow restricted settings, then turn the bubble on again.</string>
     <string name="reader_page_app_info">Open App info</string>
 
     <!-- The consent screen, before Settings -->
@@ -77,10 +77,10 @@
     <string name="reader_consent_when_title">When</string>
     <string name="reader_consent_when">Only when you tap the bubble and pick how many messages. It scrolls back through that chat, then puts it back. Until you tap, it only checks whether a chat is open, never what it says.</string>
     <string name="reader_consent_where_title">Where it goes</string>
-    <string name="reader_consent_where">To Muse Spark, through Ketchup\'s server, for your catch-up. The messages aren\'t stored, not on Ketchup\'s server and not on this phone.</string>
+    <string name="reader_consent_where">To Muse Spark, through Cetchup\'s server, for your catch-up. The messages aren\'t stored, not on Cetchup\'s server and not on this phone.</string>
     <string name="reader_consent_how_title">How</string>
-    <string name="reader_consent_how">Ketchup uses Android\'s accessibility access to read the screen. It only listens to Instagram and Snapchat, and you can turn it off any time in Settings.</string>
+    <string name="reader_consent_how">Cetchup uses Android\'s accessibility access to read the screen. It only listens to Instagram and Snapchat, and you can turn it off any time in Settings.</string>
     <string name="reader_consent_agree">Agree and open Settings</string>
     <string name="reader_consent_not_now">Not now</string>
-    <string name="reader_consent_settings_hint">In Settings, open Accessibility, then Ketchup catch-up, and turn it on.</string>
+    <string name="reader_consent_settings_hint">In Settings, open Accessibility, then Cetchup catch-up, and turn it on.</string>
 </resources>

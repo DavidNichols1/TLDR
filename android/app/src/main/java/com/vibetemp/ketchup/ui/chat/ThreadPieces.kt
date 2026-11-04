@@ -359,7 +359,7 @@ private fun Modifier.jumpMark(on: Boolean): Modifier {
 
 private fun copy(context: Context, text: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText("Ketchup message", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("Cetchup message", text))
 }
 
 /** Room for the avatar column when a bubble isn't the last of its run. */

@@ -56,7 +56,7 @@ fun squigglePath(size: Size, waves: Int = 6): Path {
 }
 
 /**
- * "Ketchup" in serif black italic with the mustard squiggle under it. A
+ * "Cetchup" in serif black italic with the mustard squiggle under it. A
  * fixed size on purpose: it's a logo, so it doesn't follow the font scale.
  * [drawIn] draws the squiggle the first time it appears (it is simply there
  * with Reduce Motion on).
@@ -73,12 +73,12 @@ fun Wordmark(modifier: Modifier = Modifier, size: Dp = 44.dp, drawIn: Boolean = 
     val fontSize = with(density) { (size.toPx() / density.density / density.fontScale).sp }
     Box(
         modifier.clearAndSetSemantics {
-            contentDescription = "Ketchup"
+            contentDescription = "Cetchup"
             heading()
         },
     ) {
         Text(
-            text = "Ketchup",
+            text = "Cetchup",
             modifier = Modifier.padding(bottom = size * 0.2f),
             style = TextStyle(
                 fontFamily = FontFamily.Serif,

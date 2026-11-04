@@ -12,7 +12,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * One mustard highlighter pass (iOS `MarkerStroke`): how Ketchup says "this
+ * One mustard highlighter pass (iOS `MarkerStroke`): how Cetchup says "this
  * part matters" instead of a badge. [progress] draws it from the left (0 is
  * nothing, 1 the whole pass). The ends lean like a chisel tip and the edges
  * wobble a little, so it looks hand done. It inks a band from 20% to 96% of

@@ -300,7 +300,7 @@ private fun StageContent(
                 brief = brief,
                 byline = bylineDetails(response, thread?.source?.appName),
                 chatName = session.source.displayTitle,
-                app = thread?.source?.appName ?: "Ketchup",
+                app = thread?.source?.appName ?: "Cetchup",
                 readerName = session.readerName,
                 refs = rememberRefContext(session, open),
                 onSection = onSection,

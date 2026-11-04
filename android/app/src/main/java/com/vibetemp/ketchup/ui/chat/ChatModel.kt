@@ -394,14 +394,14 @@ class ChatModel(
             val detail = e.message.orEmpty()
             return when {
                 e is UnknownHostException ->
-                    "Couldn't find Ketchup's server. Check that you're online, and turn off any VPN, ad blocker or Private DNS that might block it."
+                    "Couldn't find Cetchup's server. Check that you're online, and turn off any VPN, ad blocker or Private DNS that might block it."
                 e is SSLException ->
-                    "Couldn't make a secure connection to Ketchup. Check that your phone's date and time are right, then try again."
+                    "Couldn't make a secure connection to Cetchup. Check that your phone's date and time are right, then try again."
                 e is SocketTimeoutException ->
-                    "Ketchup took too long to answer. Check your connection and try again."
+                    "Cetchup took too long to answer. Check your connection and try again."
                 "EPERM" in detail || "EACCES" in detail || detail.contains("permission denied", ignoreCase = true) ->
-                    "Android isn't letting Ketchup use the internet. In Ketchup's App info, allow Wi-Fi and mobile data."
-                else -> "Couldn't reach Ketchup. Check your connection and try again."
+                    "Android isn't letting Cetchup use the internet. In Cetchup's App info, allow Wi-Fi and mobile data."
+                else -> "Couldn't reach Cetchup. Check your connection and try again."
             }
         }
     }

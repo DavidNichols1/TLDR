@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The chat slice's strings: the app's name, sign-in, the inbox, a chat. No em dashes. -->
 <resources>
-    <string name="app_name">Ketchup</string>
+    <string name="app_name">Cetchup</string>
     <string name="model_name">Muse Spark</string>
 
     <!-- Sign-in (iOS SignInView) -->
     <string name="signin_headline">Missed 300 messages?</string>
-    <string name="signin_pitch">Ketchup reads the backlog and serves up the plans, who owes what, and what people asked you.</string>
+    <string name="signin_pitch">Cetchup reads the backlog and serves up the plans, who owes what, and what people asked you.</string>
     <string name="signin_email_placeholder">you@example.com</string>
     <string name="signin_send_code">Email me a code</string>
     <string name="signin_code_phrase_an">an %1$d-digit code</string>
@@ -86,7 +86,7 @@
     <string name="settings_change_name">Change your name</string>
     <string name="settings_account">Account</string>
     <string name="settings_sign_out">Sign out</string>
-    <string name="settings_sign_out_title">Sign out of Ketchup?</string>
+    <string name="settings_sign_out_title">Sign out of Cetchup?</string>
     <string name="settings_sign_out_body">To get back in, you\'ll sign in with a code sent to %1$s.</string>
     <string name="settings_sign_out_body_plain">To get back in, you\'ll sign in with a code sent to your email.</string>
     <string name="settings_about">About</string>
@@ -148,7 +148,7 @@
     <string name="info_share">Share</string>
     <string name="info_copy">Copy</string>
     <string name="info_copied">Copied</string>
-    <string name="info_share_text">Join “%1$s” on Ketchup with code %2$s</string>
+    <string name="info_share_text">Join “%1$s” on Cetchup with code %2$s</string>
     <string name="info_people_title">People</string>
     <string name="info_you">You</string>
     <string name="info_leave">Leave chat</string>

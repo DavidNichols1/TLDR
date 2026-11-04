@@ -22,7 +22,7 @@ data class CalendarEvent(
 /**
  * "Add to calendar" for a plan: the system's new-event screen, prefilled
  * with the title, the time and the place, for the reader to check and save
- * (`Intent.ACTION_INSERT` on the Events table). Ketchup never writes to the
+ * (`Intent.ACTION_INSERT` on the Events table). Cetchup never writes to the
  * calendar itself and asks for no calendar permission. Port of iOS
  * AI/EventEditor.swift; the mapping is pure Kotlin (JVM tests).
  */
@@ -30,14 +30,14 @@ object PlanCalendar {
 
     /**
      * The event for [plan]. [chatName] and [app] say where it came from in
-     * the notes ("From “Breck Weekend” on Ketchup"). A plan with no time
+     * the notes ("From “Breck Weekend” on Cetchup"). A plan with no time
      * starts at the next whole hour, for the reader to set; one with a date
      * but no time is all day on that date.
      */
     fun event(
         plan: CatchUp.Plan,
         chatName: String,
-        app: String = "Ketchup",
+        app: String = "Cetchup",
         now: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
     ): CalendarEvent {

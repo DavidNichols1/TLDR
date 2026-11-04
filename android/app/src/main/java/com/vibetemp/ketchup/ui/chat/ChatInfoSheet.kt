@@ -138,7 +138,7 @@ fun ChatInfoSheet(model: ChatModel, state: ChatState, onDone: () -> Unit, onLeav
                     stringResource(if (copied) R.string.info_copied else R.string.info_copy),
                     onClick = {
                         context.getSystemService(ClipboardManager::class.java)
-                            ?.setPrimaryClip(ClipData.newPlainText("Ketchup invite code", code))
+                            ?.setPrimaryClip(ClipData.newPlainText("Cetchup invite code", code))
                         copied = true
                     },
                     fill = ButtonFill.Outline,

@@ -129,7 +129,7 @@ object InviteCode {
 
     /**
      * Capitals and numbers, at most six. From a pasted share message
-     * ("Join “Breck” on Ketchup with code WQGAEA") it keeps the word after
+     * ("Join “Breck” on Cetchup with code WQGAEA") it keeps the word after
      * "code", or else the last 6-character word (iOS `JoinChatSheet.clean`).
      */
     fun clean(raw: String): String {

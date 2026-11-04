@@ -28,7 +28,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
-// The mustard highlighter: how Ketchup says "this part matters to you" (a
+// The mustard highlighter: how Cetchup says "this part matters to you" (a
 // time, an amount, your name) instead of bold color or a badge. Port of iOS
 // Design/Marker.swift.
 

@@ -266,7 +266,7 @@ private fun SettingsRow(title: String, @DrawableRes icon: Int, chevron: Boolean 
     }
 }
 
-/** The colophon: the drop and the name, the version, Muse Spark's byline, where Ketchup was made. */
+/** The colophon: the drop and the name, the version, Muse Spark's byline, where Cetchup was made. */
 @Composable
 private fun About() {
     val colors = KetchupTheme.colors

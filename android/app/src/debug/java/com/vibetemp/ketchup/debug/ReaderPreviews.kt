@@ -128,7 +128,7 @@ private fun FixtureLauncher() {
         Text("A synthetic Instagram thread", style = KetchupTheme.type.serifTitle2, color = colors.ink)
         Text(
             "Breck Crew 🎿, made-up people, drawn the way Instagram's app draws a DM thread. With the reader " +
-                "service on, the Ketchup bubble shows over it and reads it offline.",
+                "service on, the Cetchup bubble shows over it and reads it offline.",
             style = KetchupTheme.type.subheadline,
             color = colors.ink,
         )

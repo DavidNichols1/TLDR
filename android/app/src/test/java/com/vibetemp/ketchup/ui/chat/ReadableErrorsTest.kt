@@ -15,11 +15,11 @@ class ReadableErrorsTest {
 
     @Test
     fun eachKindOfNetworkFailureSaysWhy() {
-        assertTrue(ChatModel.readable(UnknownHostException("Unable to resolve host")).startsWith("Couldn't find Ketchup's server."))
+        assertTrue(ChatModel.readable(UnknownHostException("Unable to resolve host")).startsWith("Couldn't find Cetchup's server."))
         assertTrue(ChatModel.readable(SSLHandshakeException("Chain validation failed")).startsWith("Couldn't make a secure connection"))
-        assertTrue(ChatModel.readable(SocketTimeoutException("timeout")).startsWith("Ketchup took too long"))
-        assertTrue(ChatModel.readable(SocketException("socket failed: EPERM (Operation not permitted)")).startsWith("Android isn't letting Ketchup"))
-        assertEquals("Couldn't reach Ketchup. Check your connection and try again.", ChatModel.readable(ConnectException("Failed to connect")))
+        assertTrue(ChatModel.readable(SocketTimeoutException("timeout")).startsWith("Cetchup took too long"))
+        assertTrue(ChatModel.readable(SocketException("socket failed: EPERM (Operation not permitted)")).startsWith("Android isn't letting Cetchup"))
+        assertEquals("Couldn't reach Cetchup. Check your connection and try again.", ChatModel.readable(ConnectException("Failed to connect")))
     }
 
     @Test

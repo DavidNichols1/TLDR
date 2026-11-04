@@ -44,7 +44,7 @@ import kotlin.math.roundToInt
  * composer. The service treats only this screen as a thread (its root's
  * id, ReaderDebug). Offline: nothing it leads to reaches the server, and
  * the reader skips its sign-in check here. With `--ez live true` it keeps
- * that check, so the panel's "Sign in to Ketchup first" shows when signed out.
+ * that check, so the panel's "Sign in to Cetchup first" shows when signed out.
  */
 class ReaderFixtureActivity : Activity() {
 
