@@ -239,13 +239,13 @@ struct WebChatSheet: View {
 
     // MARK: Footer
 
-    /// What this covered, and that it's an experiment, said once and quietly.
+    /// What this covered, said once and quietly.
     private var footer: some View {
         let thread = session.thread
         let covers = thread.reachedStart && !thread.truncated
             ? "Covers the whole chat."
             : "Covers the last \(thread.messages.count.formatted()) messages."
-        return Text("\(covers) Read from the \(source.name) chat open on this phone, and kept on this phone only, until you delete it. Experimental, not in the released app.")
+        return Text("\(covers) Read from the \(source.name) chat open on this phone, and kept on this phone only, until you delete it.")
             .font(.footnote)
             .foregroundStyle(Theme.inkSoft)
             .fixedSize(horizontal: false, vertical: true)

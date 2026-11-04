@@ -42,8 +42,6 @@ struct WebChatSource: Identifiable, Hashable {
     /// a site's service worker there (Snapchat needs one), and once the app
     /// lists any domains, the reader only runs in a web view kept to them.
     let appBound: Bool
-    /// Whose terms say no to reading it automatically, for the intro card.
-    let owner: String
     /// One more line for the intro card, when the site needs explaining.
     let note: String?
     /// Synthetic test threads for DEBUG builds.
@@ -97,7 +95,6 @@ extension WebChatSource {
         userAgentSuffix: "Version/26.0 Mobile/15E148 Safari/604.1",
         desktop: nil,
         appBound: true,
-        owner: "Meta",
         note: nil,
         fixtures: [
             Fixture(title: "Test thread", file: "ig-thread-fixture",
@@ -123,7 +120,6 @@ extension WebChatSource {
         desktop: Desktop(userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Safari/605.1.15",
                          width: 1024),
         appBound: true,
-        owner: "Snap",
         note: "Snapchat only runs its computer version here, so the page is shrunk to fit. Pinch to zoom.",
         fixtures: [
             Fixture(title: "Test chat", file: "snap-thread-fixture",

@@ -112,7 +112,6 @@ fun ReaderPageContent(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Kicker(stringResource(R.string.reader_page_kicker))
             Text(
                 stringResource(R.string.reader_page_title, source.appName),
                 style = KetchupTheme.type.serifTitle,
@@ -181,8 +180,6 @@ fun ReaderPageContent(
                 CapsuleButton(stringResource(R.string.reader_page_app_info), onClick = onAppInfo, fill = ButtonFill.Outline, compact = true)
             }
         }
-
-        Text(stringResource(R.string.reader_page_terms), style = KetchupTheme.type.footnote, color = colors.inkSoft)
     }
 }
 
@@ -214,7 +211,6 @@ fun ReaderConsent(onAgree: () -> Unit, onNotNow: () -> Unit, modifier: Modifier 
             Point(stringResource(R.string.reader_consent_when_title), stringResource(R.string.reader_consent_when))
             Point(stringResource(R.string.reader_consent_where_title), stringResource(R.string.reader_consent_where))
             Point(stringResource(R.string.reader_consent_how_title), stringResource(R.string.reader_consent_how))
-            Text(stringResource(R.string.reader_page_terms), style = KetchupTheme.type.footnote, color = colors.inkSoft)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 CapsuleButton(stringResource(R.string.reader_consent_agree), onClick = onAgree)
                 CapsuleButton(stringResource(R.string.reader_consent_not_now), onClick = onNotNow, fill = ButtonFill.Outline)

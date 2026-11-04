@@ -49,7 +49,6 @@
     <string name="reader_name_cancel">Not now</string>
 
     <!-- The home pager's Instagram and Snapchat pages -->
-    <string name="reader_page_kicker">Experimental</string>
     <string name="reader_page_title">Catch up on your %1$s chats</string>
     <string name="reader_page_body">Open a chat in %1$s and a small Ketchup bubble floats over it. Tap it, pick the last 30, 80 or 120 messages, and Muse Spark catches you up.</string>
     <string name="reader_page_on">The bubble is on</string>
@@ -69,7 +68,6 @@
     <string name="reader_page_restricted_title">Installed Ketchup yourself?</string>
     <string name="reader_page_restricted_body">On Android 13 and later, Settings may grey out the switch for apps that didn\'t come from a store. Open Ketchup\'s App info, tap the ⋮ menu, choose Allow restricted settings, then turn the bubble on again.</string>
     <string name="reader_page_app_info">Open App info</string>
-    <string name="reader_page_terms">Not in a released app: Meta\'s and Snap\'s terms don\'t allow reading chats this way.</string>
 
     <!-- The consent screen, before Settings -->
     <string name="reader_consent_kicker">Before you turn it on</string>

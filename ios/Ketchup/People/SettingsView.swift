@@ -263,7 +263,7 @@ struct PrivacySection: View {
 /// that site saved in Ketchup's web views on this iPhone.
 private struct WebChatSignOutSection: View {
     var body: some View {
-        SettingsSection("Web chats", kicker: "Experimental",
+        SettingsSection("Web chats",
                         footer: "Ketchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched. Signing out of Ketchup forgets both.") {
             ForEach(WebChatSource.all) { source in
                 WebChatSignOutRow(source: source)

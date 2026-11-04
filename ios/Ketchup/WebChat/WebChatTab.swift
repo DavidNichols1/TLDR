@@ -241,8 +241,8 @@ private struct CatchUpCircle: View {
     }
 }
 
-/// The slim bar over the site: its name in New York, a quiet "Experimental",
-/// and the page's own buttons on the right.
+/// The slim bar over the site: its name in New York, and the page's own
+/// buttons on the right.
 struct WebChatBar<Trailing: View>: View {
     let title: String
     var close: (() -> Void)? = nil
@@ -250,13 +250,10 @@ struct WebChatBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: title)
-                    .font(.serif(.title3))
-                    .foregroundStyle(Theme.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Kicker("Experimental")
-            }
+            Text(verbatim: title)
+                .font(.serif(.title3))
+                .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             trailing()
             if let close {
@@ -306,7 +303,6 @@ struct WebChatIntro: View {
             Theme.cream.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Kicker("Experimental")
                     Text("Catch up on your \(source.name) chats")
                         .font(.serif(.title))
                         .foregroundStyle(Theme.ink)
@@ -318,7 +314,6 @@ struct WebChatIntro: View {
                         if let note = source.note {
                             point("plus.magnifyingglass", note)
                         }
-                        point("exclamationmark.triangle", "Not in the released app. \(source.name)'s terms don't allow this, so it only ships if \(source.owner) is fine with it.")
                     }
                     Button("Got it", action: done)
                         .buttonStyle(.ketchup)
