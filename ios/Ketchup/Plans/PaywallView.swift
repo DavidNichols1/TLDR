@@ -247,7 +247,7 @@ struct PaywallSheet: View {
     var body: some View {
         PaywallView(hit: hit, close: close)
             .safeAreaInset(edge: .top, spacing: 0) {
-                SheetBar(title: "Ketchup plans") { close() }
+                SheetBar(title: "Cetchup plans") { close() }
             }
             .background(Theme.cream)
             .presentationBackground(Theme.cream)

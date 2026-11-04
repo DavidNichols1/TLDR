@@ -118,7 +118,7 @@ enum Storage {
             throw APIError.server("That photo is too big to send.")
         }
         if status == 415 || message.contains("mime type") {
-            throw APIError.server("That file isn't a photo Ketchup can send.")
+            throw APIError.server("That file isn't a photo Cetchup can send.")
         }
         if message.contains("row-level security") {
             // The app only writes where it may, so this is the hourly cap.

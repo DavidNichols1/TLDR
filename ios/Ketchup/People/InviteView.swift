@@ -4,7 +4,7 @@
 //
 //  Invite friends: a chat's invite code in a message, sent two ways. Text a
 //  friend opens Apple's contact picker (no Contacts permission, nothing
-//  uploaded: Ketchup only gets the one number you pick, to hand to
+//  uploaded: Cetchup only gets the one number you pick, to hand to
 //  Messages) and then a Messages draft. Share another way is the system
 //  share sheet. From Settings and Your people.
 //
@@ -77,7 +77,7 @@ struct InviteView: View {
                     .buttonStyle(.outline)
                 }
 
-                Text("You pick one person in Apple's contact list. Ketchup only gets that number, to open Messages, and doesn't keep it or send it anywhere.")
+                Text("You pick one person in Apple's contact list. Cetchup only gets that number, to open Messages, and doesn't keep it or send it anywhere.")
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSoft)
                     .fixedSize(horizontal: false, vertical: true)
@@ -132,10 +132,10 @@ enum InviteMessage {
     /// App Store). Until then the message carries the name and the code.
     static let appLink: URL? = nil
 
-    /// "I'm on Ketchup… Join “Breck Weekend 🎿” with code WQGAEA." Join with
+    /// "I'm on Cetchup… Join “Breck Weekend 🎿” with code WQGAEA." Join with
     /// code pulls the code back out of a pasted message (JoinChatSheet.clean).
     static func text(for chat: ChatSummary?) -> String {
-        var parts = ["I'm on Ketchup, a group chat that catches you up on what you missed."]
+        var parts = ["I'm on Cetchup, a group chat that catches you up on what you missed."]
         if let chat { parts.append("Join “\(chat.name)” with code \(chat.inviteCode).") }
         if let appLink { parts.append(appLink.absoluteString) }
         return parts.joined(separator: " ")

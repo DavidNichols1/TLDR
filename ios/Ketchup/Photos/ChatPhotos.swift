@@ -212,7 +212,7 @@ private struct ChatPhotoPicker: ViewModifier {
     private func open(_ picked: PhotosPickerItem) async {
         guard let data = try? await picked.loadTransferable(type: Data.self),
               let photo = await PhotoPrep.prepare(data) else {
-            problem = "Ketchup couldn't read it. Try another one."
+            problem = "Cetchup couldn't read it. Try another one."
             return
         }
         onPicked(photo)

@@ -2,7 +2,7 @@
 //  AIConsentSheet.swift
 //  Ketchup
 //
-//  Asked once, before your first catch-up or question: Ketchup sends the
+//  Asked once, before your first catch-up or question: Cetchup sends the
 //  messages it covers, your friends' included, to Meta's Muse Spark, and
 //  Muse Spark is for people 18 and older. Apple's guideline 5.1.2(i) wants
 //  that said plainly with an explicit yes; Meta's terms (section 10.1) want
@@ -32,7 +32,7 @@ struct AIConsentSheet: View {
                     Button("Not now") { answer(false) }
                         .buttonStyle(.outline)
                 }
-                Text("You're asked once. Your answer is kept with your Ketchup account.")
+                Text("You're asked once. Your answer is kept with your Cetchup account.")
                     .font(.footnote)
                     .foregroundStyle(Theme.inkSoft)
                     .frame(maxWidth: .infinity)
@@ -69,10 +69,10 @@ struct AIConsentSheet: View {
     private var points: some View {
         VStack(alignment: .leading, spacing: 0) {
             point("text.bubble",
-                  "To write a catch-up or answer a question, Ketchup sends the messages it covers to Meta's \(Theme.modelName). That includes your friends' messages in the chat.")
+                  "To write a catch-up or answer a question, Cetchup sends the messages it covers to Meta's \(Theme.modelName). That includes your friends' messages in the chat.")
             SettingsHairline()
             point("lock",
-                  "Ketchup uses Meta's Standard mode, and Meta doesn't train its AI on them.")
+                  "Cetchup uses Meta's Standard mode, and Meta doesn't train its AI on them.")
             SettingsHairline()
             point("person.crop.circle.badge.checkmark",
                   "\(Theme.modelName) is for people 18 and older.")

@@ -68,12 +68,12 @@ struct SettingsView: View {
                         .disabled(deleting)
                 }
             }
-            .confirmationDialog("Sign out of Ketchup?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            .confirmationDialog("Sign out of Cetchup?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { close(.signOut) }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 if let email = app.accountEmail {
-                    Text("Ketchup also forgets your Instagram and Snapchat sign-ins on this iPhone. To get back in, you'll sign in with a code sent to \(email).")
+                    Text("Cetchup also forgets your Instagram and Snapchat sign-ins on this iPhone. To get back in, you'll sign in with a code sent to \(email).")
                 }
             }
             // A new name that didn't go through (AppModel.renameNow).
@@ -198,7 +198,7 @@ struct SettingsView: View {
     // MARK: About
 
     /// The colophon: the drop and the name, the version, Muse Spark's
-    /// byline, and where Ketchup was made.
+    /// byline, and where Cetchup was made.
     private var about: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle("About")
@@ -259,12 +259,12 @@ struct PrivacySection: View {
 
 // MARK: - Web chats
 
-/// "Sign out of Instagram in Ketchup", and Snapchat. Each forgets what
+/// "Sign out of Instagram in Cetchup", and Snapchat. Each forgets what
 /// that site saved in Ketchup's web views on this iPhone.
 private struct WebChatSignOutSection: View {
     var body: some View {
         SettingsSection("Web chats",
-                        footer: "Ketchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched. Signing out of Ketchup forgets both.") {
+                        footer: "Cetchup's browser forgets that site's sign-in and saved data on this iPhone, so you'll sign in on its page again. Your accounts aren't touched. Signing out of Cetchup forgets both.") {
             ForEach(WebChatSource.all) { source in
                 WebChatSignOutRow(source: source)
             }
@@ -284,7 +284,7 @@ private struct WebChatSignOutRow: View {
         Button {
             confirm = true
         } label: {
-            SettingsRow("Sign out of \(source.name) in Ketchup", systemImage: "globe", detail: detail) {
+            SettingsRow("Sign out of \(source.name) in Cetchup", systemImage: "globe", detail: detail) {
                 switch status {
                 case .working:
                     ProgressView().tint(Theme.inkSoft)
@@ -304,13 +304,13 @@ private struct WebChatSignOutRow: View {
         .disabled(status == .nothingSaved || status == .working || status == .done)
         .sensoryFeedback(.success, trigger: status) { _, now in now == .done }
         .task { status = await source.hasSavedData() ? .saved : .nothingSaved }
-        .confirmationDialog("Sign out of \(source.name) in Ketchup?", isPresented: $confirm, titleVisibility: .visible) {
+        .confirmationDialog("Sign out of \(source.name) in Cetchup?", isPresented: $confirm, titleVisibility: .visible) {
             Button("Sign out of \(source.name)", role: .destructive) {
                 Task { await forget() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Ketchup forgets \(source.name)'s sign-in and what its site saved on this iPhone. Your \(source.name) account isn't touched.")
+            Text("Cetchup forgets \(source.name)'s sign-in and what its site saved on this iPhone. Your \(source.name) account isn't touched.")
         }
     }
 

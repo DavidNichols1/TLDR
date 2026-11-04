@@ -124,7 +124,7 @@ struct DeleteAccountView: View {
                         .foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
-                    Text("This deletes your Ketchup account for good. There's no undo.")
+                    Text("This deletes your Cetchup account for good. There's no undo.")
                         .font(.body)
                         .foregroundStyle(Theme.inkSoft)
                         .fixedSize(horizontal: false, vertical: true)
@@ -135,7 +135,7 @@ struct DeleteAccountView: View {
                     point("text.bubble", "Every message you've sent, in every chat. Your friends won't see them anymore.")
                     point("doc.text", "Your catch-ups, and the ones friends saved that read your messages.")
                     point("person.crop.circle", "Your name, and any chat where you're the only one left.")
-                    point("globe", "The Instagram and Snapchat sign-ins in Ketchup on this iPhone.")
+                    point("globe", "The Instagram and Snapchat sign-ins in Cetchup on this iPhone.")
                 }
                 .paperCard(padding: 18)
 

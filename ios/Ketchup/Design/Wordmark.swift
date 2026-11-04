@@ -2,7 +2,7 @@
 //  Wordmark.swift
 //  Ketchup
 //
-//  "Ketchup" in New York black italic, with a squirt of mustard under it.
+//  "Cetchup" in New York black italic, with a squirt of mustard under it.
 //
 
 import SwiftUI
@@ -50,7 +50,7 @@ struct Wordmark: View {
     }
 
     var body: some View {
-        Text(verbatim: "Ketchup")
+        Text(verbatim: "Cetchup")
             .font(.system(size: size, weight: .black, design: .serif).italic())
             .tracking(-size * 0.025)
             .foregroundStyle(Theme.ketchup)
@@ -65,7 +65,7 @@ struct Wordmark: View {
                     .padding(.trailing, size * 0.1)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(verbatim: "Ketchup"))
+            .accessibilityLabel(Text(verbatim: "Cetchup"))
             .accessibilityAddTraits(.isHeader)
             .onAppear {
                 guard drawn < 1 else { return }

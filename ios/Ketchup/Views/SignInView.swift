@@ -82,7 +82,7 @@ struct SignInView: View {
                 .font(.serif(.largeTitle))
                 .foregroundStyle(Theme.ink)
                 .accessibilityAddTraits(.isHeader)
-            Text("Ketchup reads the backlog and serves up the plans, who owes what, and what people asked you.")
+            Text("Cetchup reads the backlog and serves up the plans, who owes what, and what people asked you.")
                 .font(.body)
                 .foregroundStyle(Theme.inkSoft)
                 .padding(.top, 10)

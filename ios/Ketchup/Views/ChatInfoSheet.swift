@@ -97,7 +97,7 @@ struct ChatInfoSheet: View {
                 .foregroundStyle(Theme.inkSoft)
 
             HStack(spacing: 10) {
-                ShareLink(item: "Join “\(model.chat.name)” on Ketchup with code \(code)") {
+                ShareLink(item: "Join “\(model.chat.name)” on Cetchup with code \(code)") {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.ketchup)

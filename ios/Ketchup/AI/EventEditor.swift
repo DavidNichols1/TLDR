@@ -3,7 +3,7 @@
 //  Ketchup
 //
 //  EKEventEditViewController wrapped for SwiftUI, prefilled from a plan.
-//  Ketchup never writes to the calendar itself; the user taps Add.
+//  Cetchup never writes to the calendar itself; the user taps Add.
 //
 
 import SwiftUI
@@ -48,7 +48,7 @@ struct EventEditor: UIViewControllerRepresentable {
             event.endDate = plan.allDay ? start : start.addingTimeInterval(3600)
         }
 
-        var notes = "From “\(chatName)” on Ketchup, found by Muse Spark."
+        var notes = "From “\(chatName)” on Cetchup, found by Muse Spark."
         if !plan.who.isEmpty { notes += "\nGoing: \(plan.who.joined(separator: ", "))" }
         if !plan.confirmed { notes += "\nStill a proposal in the chat." }
         event.notes = notes

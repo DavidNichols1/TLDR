@@ -58,7 +58,7 @@ private struct ProfilePhotoPicker: ViewModifier {
     private func open(_ picked: PhotosPickerItem) async {
         guard let data = try? await picked.loadTransferable(type: Data.self),
               let image = await PhotoPrep.upright(data, maxPixels: 2048) else {
-            problem = "Ketchup couldn't read it. Try another one."
+            problem = "Cetchup couldn't read it. Try another one."
             return
         }
         framing = Framing(image: image)

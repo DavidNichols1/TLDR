@@ -44,7 +44,7 @@ struct DesignGallery: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Kicker("Ketchup design system")
+            Kicker("Cetchup design system")
             Text("The counter")
                 .font(.serif(.largeTitle))
                 .foregroundStyle(Theme.ink)

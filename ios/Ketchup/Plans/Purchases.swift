@@ -67,7 +67,7 @@ final class Purchases {
     func buy(_ tier: PlanTier) async {
         guard buying == nil, tier != .free else { return }
         guard let account = Self.account else {
-            note = "Sign in to Ketchup first."
+            note = "Sign in to Cetchup first."
             return
         }
         note = nil
@@ -111,7 +111,7 @@ final class Purchases {
             return
         }
         if await syncEntitlements(quietly: false) == 0 {
-            note = "There's no Ketchup subscription on this Apple Account."
+            note = "There's no Cetchup subscription on this Apple Account."
         }
     }
 
@@ -170,15 +170,15 @@ final class Purchases {
         let raw = error.localizedDescription
         if raw.hasPrefix("Offline preview") {
             return xcode
-                ? "Bought in Xcode's StoreKit test. Previews don't talk to Ketchup's server, so your plan stays as it is."
-                : "Bought. Previews don't talk to Ketchup's server, so your plan stays as it is."
+                ? "Bought in Xcode's StoreKit test. Previews don't talk to Cetchup's server, so your plan stays as it is."
+                : "Bought. Previews don't talk to Cetchup's server, so your plan stays as it is."
         }
         let lower = raw.lowercased()
         if lower.contains("function") && lower.contains("not found") {
-            return "Bought, but Ketchup's server can't take purchases yet. It tries again the next time Ketchup opens."
+            return "Bought, but Cetchup's server can't take purchases yet. It tries again the next time Cetchup opens."
         }
         if raw.hasPrefix("Request failed") || error is URLError {
-            return "Bought, but Ketchup couldn't reach its server. It tries again the next time Ketchup opens."
+            return "Bought, but Cetchup couldn't reach its server. It tries again the next time Cetchup opens."
         }
         return raw
     }

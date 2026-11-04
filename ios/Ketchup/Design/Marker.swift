@@ -2,7 +2,7 @@
 //  Marker.swift
 //  Ketchup
 //
-//  The mustard highlighter: how Ketchup says "this part matters" (a time,
+//  The mustard highlighter: how Cetchup says "this part matters" (a time,
 //  an amount, your name) instead of bold color or a badge.
 //
 

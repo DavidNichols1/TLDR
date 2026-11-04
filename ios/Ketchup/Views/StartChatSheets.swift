@@ -95,7 +95,7 @@ struct JoinChatSheet: View {
     }
 
     /// Capital letters and numbers, at most six. From a pasted share message
-    /// ("Join “Breck” on Ketchup with code WQGAEA") it keeps the word after
+    /// ("Join “Breck” on Cetchup with code WQGAEA") it keeps the word after
     /// "code", or else the last 6-character word.
     static func clean(_ raw: String) -> String {
         let upper = raw.uppercased()
