@@ -1,6 +1,7 @@
 package com.vibetemp.ketchup.ui.brief
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -121,8 +122,11 @@ fun AskSection(
             targetState = session.answer,
             contentKey = { it::class },
             transitionSpec = {
-                if (reduceMotion) fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade())
+                val swap = if (reduceMotion) fadeIn(Motion.fade()) togetherWith fadeOut(Motion.fade())
                 else fadeIn(Motion.settle()) togetherWith fadeOut(Motion.fade())
+                // The first ask takes its room at once: the suggestions go as it starts, and a page
+                // growing from nothing would come up short and jump before it glides to Ask.
+                swap.using(if (initialState == Phase.Idle) null else SizeTransform())
             },
             label = "answer",
         ) { phase ->
