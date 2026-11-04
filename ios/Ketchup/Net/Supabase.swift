@@ -123,6 +123,21 @@ final class Supabase {
     func verifyCode(email: String, code: String) async throws {
         let data = try await postAuth(path: "/auth/v1/verify",
                                       body: ["type": "email", "email": email, "token": code])
+        try adoptSession(from: data)
+    }
+
+    /// Email and password (Supabase's password grant), for an account made with a
+    /// password in the dashboard, such as App Review's demo account. Never creates
+    /// an account. The answer is the same session a code gives, kept and refreshed
+    /// the same way.
+    func signIn(email: String, password: String) async throws {
+        let data = try await postAuth(path: "/auth/v1/token?grant_type=password",
+                                      body: ["email": email, "password": password])
+        try adoptSession(from: data)
+    }
+
+    /// Both sign-ins end here: the answer becomes the session (Keychain, onSessionChange).
+    private func adoptSession(from data: Data) throws {
         session = try Self.parseSession(from: data)
     }
 
@@ -298,6 +313,8 @@ final class Supabase {
         if lower.contains("token has expired") || lower.contains("otp") && lower.contains("invalid") {
             return "That code didn't work. Check it or send a new one."
         }
+        // The password grant's 400: {"error_code":"invalid_credentials","msg":"Invalid login credentials"}.
+        if lower.contains("invalid login credentials") { return "That email and password don't match." }
         if lower.contains("row-level security") { return "That isn't allowed in this chat." }
         if status == 429 || lower.contains("rate limit") { return "Too many tries. Wait a minute and try again." }
         return raw

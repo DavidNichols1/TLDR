@@ -20,6 +20,14 @@ enum Config {
     /// Auth → Sign In / Providers → Email → "Email OTP Length" (8 on this project).
     nonisolated static let otpLength = 8
 
+    /// The Terms of Service and Privacy Policy everyone agrees to (Terms/Terms.swift,
+    /// migration 0011). `termsVersion` is the date they were published. Bump it to a
+    /// new date when either page changes: everyone signed in then gets the agree
+    /// sheet once, and the server keeps the version each person agreed to.
+    nonisolated static let termsVersion = "2026-11-04"
+    nonisolated static let termsURL = URL(string: "https://cetchup.ai/terms")!
+    nonisolated static let privacyURL = URL(string: "https://cetchup.ai/privacy")!
+
     /// Realtime websocket (Phoenix protocol).
     nonisolated static var realtimeURL: URL {
         var c = URLComponents(url: supabaseURL, resolvingAgainstBaseURL: false)!

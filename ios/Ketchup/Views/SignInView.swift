@@ -3,6 +3,8 @@
 //  Ketchup
 //
 //  Email → emailed code (Config.otpLength digits) → in. The account is created on the first code.
+//  "Use a password instead" signs in an account made with a password (App Review's), and
+//  every sign-in records the agreement to the terms line under the button (Terms/Terms.swift).
 //
 
 import SwiftUI
@@ -19,6 +21,12 @@ struct SignInView: View {
     /// Supabase allows one code email per address every 60 s; show it instead of failing silently.
     @State private var cooldown = 0
     @FocusState private var focused: Bool
+    /// "Use a password instead": email and password, for an account made with
+    /// a password in the dashboard (App Review's demo account). Everyone else
+    /// uses the emailed code.
+    @State private var usingPassword = false
+    @State private var password = ""
+    @FocusState private var passwordFocused: Bool
 
     private var validEmail: Bool {
         let e = email.trimmingCharacters(in: .whitespaces)
@@ -93,25 +101,60 @@ struct SignInView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($focused)
-                .submitLabel(.continue)
-                .onSubmit { Task { await sendCode() } }
+                .submitLabel(usingPassword ? .next : .continue)
+                .onSubmit {
+                    if usingPassword { passwordFocused = true } else { Task { await sendCode() } }
+                }
                 .paperField(focused: focused)
                 .padding(.top, 28)
 
+            if usingPassword {
+                SecureField("Password", text: $password, prompt: Text("Password").foregroundStyle(Theme.inkFaint))
+                    .textContentType(.password)
+                    .focused($passwordFocused)
+                    .submitLabel(.go)
+                    .onSubmit { Task { await signInWithPassword() } }
+                    .paperField(focused: passwordFocused)
+                    .padding(.top, 12)
+                    .transition(.opacity)
+            }
+
             Button {
-                Task { await sendCode() }
+                Task {
+                    if usingPassword { await signInWithPassword() } else { await sendCode() }
+                }
             } label: {
-                busyLabel("Email me a code")
+                busyLabel(usingPassword ? "Sign in" : "Email me a code")
             }
             .buttonStyle(.ketchup)
-            .disabled(!validEmail || busy)
+            .disabled(!validEmail || busy || (usingPassword && password.isEmpty))
             .padding(.top, 12)
 
-            Text("We'll email you \(codePhrase). New here? That makes your account.")
-                .font(.footnote)
-                .foregroundStyle(Theme.inkSoft)
+            TermsLine()
                 .padding(.top, 12)
+
+            if !usingPassword {
+                Text("We'll email you \(codePhrase). New here? That makes your account.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+            }
+
+            Button(usingPassword ? "Use an emailed code instead" : "Use a password instead") {
+                usingPassword.toggle()
+                password = ""
+                error = nil
+                notice = nil
+                if usingPassword && validEmail { passwordFocused = true } else { focused = true }
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Theme.ink)
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+            .padding(.horizontal, 4)
         }
+        .motion(Motion.fade, value: usingPassword)
     }
 
     private var codeStep: some View {
@@ -238,7 +281,29 @@ struct SignInView: View {
         } catch {
             self.error = error.localizedDescription
             code = ""
+            return
         }
+        await TermsStore.shared.agreedAtSignIn()
+    }
+
+    /// The password path. A wrong pair says "That email and password don't
+    /// match." (Supabase.friendly). Nothing about it is logged.
+    private func signInWithPassword() async {
+        guard validEmail, !password.isEmpty, !busy else { return }
+        busy = true
+        error = nil
+        defer { busy = false }
+        email = email.trimmingCharacters(in: .whitespaces).lowercased()
+        do {
+            try await Supabase.shared.signIn(email: email, password: password)
+            password = ""
+        } catch {
+            self.error = error.localizedDescription
+            password = ""
+            passwordFocused = true
+            return
+        }
+        await TermsStore.shared.agreedAtSignIn()
     }
 }
 
@@ -251,6 +316,13 @@ extension SignInView {
         _email = State(initialValue: email)
         _code = State(initialValue: code)
         _cooldown = State(initialValue: cooldown)
+    }
+
+    /// Offline preview: the password path for `email`, with `error` under it.
+    init(previewPasswordFor email: String, error: String? = nil) {
+        _usingPassword = State(initialValue: true)
+        _email = State(initialValue: email)
+        _error = State(initialValue: error)
     }
 }
 #endif

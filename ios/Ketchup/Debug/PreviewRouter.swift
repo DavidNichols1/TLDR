@@ -31,6 +31,7 @@ struct PreviewRouter: View {
         [DesignGallery.name] + CorePreviewScreen.names + AIPreviewScreen.names + WebChatPreviewScreen.names
             + PeoplePreviewScreen.names + PhotosPreviewScreen.names + SavedPreviewScreen.names
             + PlansPreviewScreen.names  // Plans
+            + TermsPreviewScreen.names  // Terms
             + [StoreCheckScreen.name]
     }
 
@@ -48,6 +49,8 @@ struct PreviewRouter: View {
                 WebChatPreviewScreen(name: name)
             } else if name.hasPrefix("photo-"), PhotosPreviewScreen.names.contains(name) {
                 PhotosPreviewScreen(name: name)
+            } else if TermsPreviewScreen.names.contains(name) {  // Terms
+                TermsPreviewScreen(name: name)
             } else if PlansPreviewScreen.names.contains(name) {  // Plans
                 PlansPreviewScreen(name: name)
             } else if PeoplePreviewScreen.names.contains(name) {
