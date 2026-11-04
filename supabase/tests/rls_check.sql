@@ -641,5 +641,88 @@ insert into results select 'joins: a blocked person''s line hides too',
   (select count(*) = 0 from public.messages where sender = '00000000-0000-0000-0000-0000000000e5');
 reset role;
 
+-- Terms (0011): accept_terms records your agreement to a version of the
+-- Terms of Service and Privacy Policy, for you only, at the server's time.
+-- You read only your own row, nobody writes the table directly, anon gets
+-- nothing, and deleting your account deletes it. Gus is a throwaway account.
+insert into auth.users (id, email, aud, role, instance_id)
+values ('00000000-0000-0000-0000-0000000000f6', 'gus@test.ketchup', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+insert into results select 'terms: row level security is on',
+  (select relrowsecurity from pg_class where oid = 'public.terms_acceptances'::regclass);
+insert into results select 'terms: accept_terms is security definer with search_path pinned',
+  (select prosecdef and proconfig @> array['search_path=public'] from pg_proc
+    where oid = 'public.accept_terms(text)'::regprocedure);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', true);
+insert into results select 'terms: none at first', (select count(*) = 0 from public.terms_acceptances);
+insert into results select 'terms: accept_terms says what it recorded',
+  (select t->>'version' = '2026-11-04' and (t->>'accepted_at')::timestamptz = now()
+     from public.accept_terms('2026-11-04') t);
+insert into results select 'terms: yours, at the server''s time',
+  (select count(*) = 1 and bool_and(user_id = auth.uid() and version = '2026-11-04' and accepted_at = now())
+     from public.terms_acceptances);
+select public.accept_terms('2026-12-01');
+insert into results select 'terms: agreeing again moves your one row to the new version',
+  (select count(*) = 1 and bool_and(version = '2026-12-01') from public.terms_acceptances);
+do $$ begin
+  perform public.accept_terms('next week');
+  insert into results values ('terms: a version must be a date', false);
+exception when invalid_parameter_value then insert into results values ('terms: a version must be a date', true); end $$;
+do $$ begin
+  update public.terms_acceptances set accepted_at = now() - interval '1 year';
+  insert into results values ('terms: your row can''t be backdated', false);
+exception when insufficient_privilege then insert into results values ('terms: your row can''t be backdated', true); end $$;
+do $$ begin
+  delete from public.terms_acceptances;
+  insert into results values ('terms: your row can''t be deleted from the app', false);
+exception when insufficient_privilege then insert into results values ('terms: your row can''t be deleted from the app', true); end $$;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}', true);
+insert into results select 'terms: other people''s rows unreadable', (select count(*) = 0 from public.terms_acceptances);
+do $$ begin
+  insert into public.terms_acceptances (user_id, version) values ('00000000-0000-0000-0000-0000000000a1', '2026-11-04');
+  insert into results values ('terms: never written for someone else', false);
+exception when insufficient_privilege then insert into results values ('terms: never written for someone else', true); end $$;
+do $$ begin
+  insert into public.terms_acceptances (user_id, version) values (auth.uid(), '2026-11-04');
+  insert into results values ('terms: only accept_terms writes yours', false);
+exception when insufficient_privilege then insert into results values ('terms: only accept_terms writes yours', true); end $$;
+do $$ begin
+  update public.terms_acceptances set version = '2000-01-01' where user_id = '00000000-0000-0000-0000-0000000000a1';
+  insert into results values ('terms: nobody changes someone else''s', false);
+exception when insufficient_privilege then insert into results values ('terms: nobody changes someone else''s', true); end $$;
+select public.accept_terms('2026-11-04');
+insert into results select 'terms: accept_terms writes for the caller',
+  (select count(*) = 1 and bool_and(user_id = auth.uid() and version = '2026-11-04') from public.terms_acceptances);
+select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+do $$ begin
+  perform public.accept_terms('2026-11-04');
+  insert into results values ('terms: nothing recorded without a signed-in caller', false);
+exception when sqlstate '28000' then insert into results values ('terms: nothing recorded without a signed-in caller', true); end $$;
+-- Gus agrees, then deletes his account.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000f6","role":"authenticated"}', true);
+select public.accept_terms('2026-11-04');
+select public.delete_account();
+reset role;
+insert into results select 'terms: accept_terms wrote only for each caller',
+  (select count(*) = 2
+          and bool_and(case user_id when '00000000-0000-0000-0000-0000000000a1' then version = '2026-12-01'
+                                    when '00000000-0000-0000-0000-0000000000b2' then version = '2026-11-04' end)
+     from public.terms_acceptances
+    where user_id in ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b2',
+                      '00000000-0000-0000-0000-0000000000c3'));
+insert into results select 'terms: deleting your account deletes yours',
+  not exists (select 1 from public.terms_acceptances where user_id = '00000000-0000-0000-0000-0000000000f6');
+grant all on results to anon;
+set local role anon;
+do $$ begin
+  perform * from public.terms_acceptances;
+  insert into results values ('terms: table closed to anon', false);
+exception when insufficient_privilege then insert into results values ('terms: table closed to anon', true); end $$;
+do $$ begin
+  perform public.accept_terms('2026-11-04');
+  insert into results values ('terms: accept_terms closed to anon', false);
+exception when insufficient_privilege then insert into results values ('terms: accept_terms closed to anon', true); end $$;
+reset role;
+
 select * from results;
 rollback;
