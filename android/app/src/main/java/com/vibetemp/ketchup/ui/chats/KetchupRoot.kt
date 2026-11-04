@@ -100,7 +100,9 @@ fun Home(app: AppModel, start: HomeStart = HomeStart()) {
             } else if (forward) {
                 slideInHorizontally(Motion.settle()) { it } togetherWith slideOutHorizontally(Motion.settle()) { -it / 4 }
             } else {
-                slideInHorizontally(Motion.settle()) { -it / 4 } togetherWith slideOutHorizontally(Motion.settle()) { it }
+                // Back: the screen leaving slides off over the one coming back, not under it.
+                (slideInHorizontally(Motion.settle()) { -it / 4 } togetherWith slideOutHorizontally(Motion.settle()) { it })
+                    .apply { targetContentZIndex = -1f }
             }
         },
         contentKey = { it.first },
