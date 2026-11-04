@@ -19,7 +19,7 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const REPORTS_EMAIL = Deno.env.get("REPORTS_EMAIL") ?? "";
-const FROM = Deno.env.get("REPORTS_FROM") ?? "Ketchup <noreply@vibetemp.com>";
+const FROM = Deno.env.get("REPORTS_FROM") ?? "Cetchup <noreply@vibetemp.com>";
 
 const REASONS: Record<string, string> = {
   spam: "Spam",
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
   const { count: waiting } = await admin
     .from("reports").select("id", { count: "exact", head: true }).is("reviewed_at", null);
   const text = [
-    "Someone filed a report on Ketchup.",
+    "Someone filed a report on Cetchup.",
     "",
     `Reason: ${reason}`,
     `About: ${report.message_id ? "a message" : "a person"}`,
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [REPORTS_EMAIL], subject: `Ketchup: a new report (${reason})`, text }),
+    body: JSON.stringify({ from: FROM, to: [REPORTS_EMAIL], subject: `Cetchup: a new report (${reason})`, text }),
   });
   if (!res.ok) {
     // Let a later call try again.

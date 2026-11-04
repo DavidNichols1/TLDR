@@ -55,7 +55,7 @@ export async function checkPurchase(
     if (unsigned.environment === "Xcode") {
       if (!options.xcodeTest) {
         return refuse(403, "xcode_test_off",
-          "This is an Xcode test purchase. Apple doesn't sign those, so Ketchup can't check it, and your plan stays as it is.");
+          "This is an Xcode test purchase. Apple doesn't sign those, so Cetchup can't check it, and your plan stays as it is.");
       }
       tx = unsigned;
       source = "xcode-test";
@@ -63,29 +63,29 @@ export async function checkPurchase(
       tx = await verifySignedTransaction(jws, options);
       if (tx.environment === "Production") source = "app_store";
       else if (tx.environment === "Sandbox") source = "sandbox";
-      else return refuse(400, "unverified", "Ketchup couldn't confirm this purchase with Apple.", "environment");
+      else return refuse(400, "unverified", "Cetchup couldn't confirm this purchase with Apple.", "environment");
     }
   } catch (e) {
     const reason = e instanceof AppleVerifyError ? e.reason : "unknown";
-    return refuse(400, "unverified", "Ketchup couldn't confirm this purchase with Apple.", reason);
+    return refuse(400, "unverified", "Cetchup couldn't confirm this purchase with Apple.", reason);
   }
 
   if (tx.bundleId !== BUNDLE_ID) return refuse(400, "wrong_app", "That purchase is for a different app.");
   const productId = text(tx.productId);
   const plan = productId ? PRODUCTS[productId] : undefined;
-  if (!productId || !plan) return refuse(400, "unknown_product", "Ketchup doesn't sell that.");
-  if (tx.type !== "Auto-Renewable Subscription") return refuse(400, "unknown_product", "Ketchup doesn't sell that.");
+  if (!productId || !plan) return refuse(400, "unknown_product", "Cetchup doesn't sell that.");
+  if (tx.type !== "Auto-Renewable Subscription") return refuse(400, "unknown_product", "Cetchup doesn't sell that.");
 
   // Bought from this account (the app passes the user id as appAccountToken).
   const token = typeof tx.appAccountToken === "string" ? tx.appAccountToken.toLowerCase() : null;
   if (token && token !== user.toLowerCase()) {
-    return refuse(409, "other_account", "This App Store subscription belongs to another Ketchup account.");
+    return refuse(409, "other_account", "This App Store subscription belongs to another Cetchup account.");
   }
 
   const originalTransactionId = text(tx.originalTransactionId);
   const transactionId = text(tx.transactionId);
   if (!originalTransactionId || !transactionId) {
-    return refuse(400, "unverified", "Ketchup couldn't confirm this purchase with Apple.", "ids");
+    return refuse(400, "unverified", "Cetchup couldn't confirm this purchase with Apple.", "ids");
   }
 
   return {

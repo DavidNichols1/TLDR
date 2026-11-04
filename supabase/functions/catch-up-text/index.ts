@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error(JSON.stringify({ fn: "catch-up-text", source, mode, failed: failureKind(e) }));
     await usage.giveBack(); // Plans: a failed call costs nothing
-    if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
+    if (e instanceof MuseNotConfigured) return json(503, { error: "Cetchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }
 

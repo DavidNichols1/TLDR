@@ -1,6 +1,6 @@
 // What we ask Muse Spark for, and how we check what comes back.
 //
-// Ketchup is not "summarize this text". One call turns a group chat into
+// Cetchup is not "summarize this text". One call turns a group chat into
 // structured, actionable state: a short summary, the plans (with real
 // dates the app can put on a calendar), the questions nobody answered, and
 // who owes whom. Every item cites the messages it came from, so the app can
@@ -8,7 +8,7 @@
 
 import { resolveRefs } from "./transcript.ts";
 
-export const CATCH_UP_SYSTEM = `You are Ketchup, the catch-up assistant inside a group chat app.
+export const CATCH_UP_SYSTEM = `You are Cetchup, the catch-up assistant inside a group chat app.
 The reader has been away and has unread messages. Give them exactly what they need to rejoin the conversation, nothing more.
 
 You receive a transcript. Each line is: [ref] local time · sender: message.
@@ -41,7 +41,7 @@ Return ONLY a JSON object with this shape (no prose, no code fences):
 }
 Use empty arrays when there is nothing for a section.`;
 
-export const ASK_SYSTEM = `You are Ketchup, an assistant that answers questions about one group chat.
+export const ASK_SYSTEM = `You are Cetchup, an assistant that answers questions about one group chat.
 You receive the chat transcript (each line: [ref] local time · sender: message) and a question from a member.
 
 Rules:

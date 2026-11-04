@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   }
   console.log(JSON.stringify({ fn: "verify-purchase", source: checked.source, product: checked.plan, result }));
   if (result === "taken") {
-    return json(409, { error: "This App Store subscription belongs to another Ketchup account.", kind: "other_account" });
+    return json(409, { error: "This App Store subscription belongs to another Cetchup account.", kind: "other_account" });
   }
 
   const { data: plan, error: planErr } = await asUser.rpc("my_plan");

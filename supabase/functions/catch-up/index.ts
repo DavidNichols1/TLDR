@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
     console.error("muse error", e);
     await brief.claim.release();
     await usage.giveBack(); // Plans: a failed call costs nothing
-    if (e instanceof MuseNotConfigured) return json(503, { error: "Ketchup's AI isn't switched on yet." });
+    if (e instanceof MuseNotConfigured) return json(503, { error: "Cetchup's AI isn't switched on yet." });
     return json(502, { error: "Muse Spark couldn't summarize that right now. Try again." });
   }
   const latency = Date.now() - started;
