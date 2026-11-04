@@ -1,4 +1,4 @@
-// Ketchup's Instagram thread reader. EXPERIMENTAL, NOT RELEASED.
+// Ketchup's Instagram thread reader.
 //
 // This is the BODY of an async function, run with WKWebView's
 // callAsyncJavaScript in Ketchup's own isolated JavaScript world
