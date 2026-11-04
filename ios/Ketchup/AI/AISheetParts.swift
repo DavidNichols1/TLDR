@@ -129,7 +129,7 @@ struct CaughtUpCard: View {
                 .font(.serif(.title2))
                 .foregroundStyle(Theme.ink)
                 .accessibilityAddTraits(.isHeader)
-            Text("Nothing new to ketchup on since you last read this chat. Looking for something? Try Ask the chat.")
+            Text("Nothing new to catch up on since you last read this chat. Looking for something? Try Ask the chat.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.inkSoft)
         }

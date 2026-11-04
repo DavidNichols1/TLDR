@@ -35,7 +35,7 @@
 
     <!-- Nothing new -->
     <string name="brief_caught_up">You\'re all caught up</string>
-    <string name="brief_caught_up_body">Nothing new to ketchup on since you last read this chat. Looking for something? Try Ask the chat.</string>
+    <string name="brief_caught_up_body">Nothing new to catch up on since you last read this chat. Looking for something? Try Ask the chat.</string>
     <string name="brief_thread_empty">No messages to read</string>
     <string name="brief_thread_empty_body">Cetchup couldn\'t see any messages in this chat. Scroll to the newest message and try again.</string>
 
