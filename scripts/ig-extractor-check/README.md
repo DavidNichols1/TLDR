@@ -43,3 +43,17 @@ that leaves WebKit's scroll anchoring on, so every batch of older messages shift
 hides part of the batch, which the reader has to go back for. All three runs must print
 `PASS 88/88`.
 
+## Following ("Until I stop scrolling")
+
+Add `--follow` to any of the commands above (and leave `maxMessages` out of `--args`) to run the
+reader the way the app's "Until I stop scrolling" does: `follow` "start", a "look" every quarter
+second and "finish", with the app's finish rules (about 3 s after the last new message, 5 s after
+the start if none came, 600 messages or 3 minutes). Meanwhile a pretend person scrolls the page's
+own scroller, 0.6 of a screen every half second, from a content world of its own: `--person
+'up 8, down 2, up 120'` is the default (four ups in a row that go nowhere end a run of ups).
+Besides the usual comparison it prints one line of counts, for example `follow read 88 messages,
+58 looks, stop enough (quiet), ...; the scroll moved during 0 of 58 looks; dupes 0; left in the
+page after finish: nothing`, then checks that "stop" leaves nothing in the page and that another
+thread mid-follow (a `pushState`) stops it with `thread_changed`. The two Instagram fixtures must
+print `PASS 88/88` and the Snapchat one `PASS 62/62`. With `?anchoring=on` it reads fewer (69 on
+Nov 4, 2026): following can't go back for rows the view jumped past.

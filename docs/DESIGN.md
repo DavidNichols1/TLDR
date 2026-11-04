@@ -227,12 +227,14 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 | Piece | What it does |
 |---|---|
 | `WebChatBar` | The site's name in New York, back and a … menu on the right. A hairline under it. Done only when the page is shown full screen. |
-| The Catch me up circle | The page's one ketchup thing: a small ketchup circle with the drop, floating on the right edge just above the site's message box, so it covers little of the chat. VoiceOver calls it "Catch me up". It's a menu of the last 30, 80 or 120 messages, since the site doesn't say what's unread. While it reads, it opens into a pill with a spinner and "Reading the chat". |
+| The Catch me up circle | The page's one ketchup thing: a small ketchup circle with the drop, floating on the right edge just above the site's message box, so it covers little of the chat. VoiceOver calls it "Catch me up". It's a menu of the last 10, 30, 80 or 120 messages, since the site doesn't say what's unread, and under a divider, nearest the circle, "Until I stop scrolling". While a Last N read runs, it opens into a pill with a spinner and "Reading the chat". |
+| `FollowingPanel` | "Until I stop scrolling" while it reads: a paper card over the bottom of the page, in place of the circle and over the site's message box (nobody types then). The drop, the kicker "UNTIL I STOP SCROLLING" over "Reading the chat" in New York, the count in mono on the right ("42 messages", rolling up as it grows; under the title when that doesn't fit), the Android line ("Scroll up through the chat. Cetchup reads as you go and catches you up when you stop."), then a compact ketchup "Catch me up now" and an outline "Stop". It takes touches only on itself, so the page around it scrolls as usual, and it stops growing at the first accessibility text size. It rises in with `Motion.settle`. The … menu waits while it's up. |
 | `WebChatIntro` | First visit only: a paper card that says plainly what happens (sign in on the site's own page, only the open chat, only on tap, your friends' messages go to Muse Spark, the catch-up stays on this phone and never on Ketchup's server), plus the site's own note when it needs one (Snapchat: its computer page, shrunk to fit), with a ketchup "Got it". |
 | `WebChatSheet` | The same pieces as a chat's catch-up: `SheetBar`, `SkimmingView` on the thread's own messages, `CatchUpContent`, `AIErrorCard`, and Ask's `NotepadField` and `AnswerCard`. The byline names the source ("88 Instagram messages"); a quiet footer says what it covered. |
 | `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Kept on this phone with the catch-up." |
 
 - **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
+- **Following never moves the page.** The person scrolls; the panel only counts. Stop, or leaving the tab or the app, ends it with nothing sent.
 
 ## Settings
 
