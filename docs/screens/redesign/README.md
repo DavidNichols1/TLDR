@@ -17,7 +17,7 @@ The chat side of Ketchup on the diner-counter design system (`docs/DESIGN.md`): 
 | `inbox` | The home's Chats tab: serif title, monogram rows, mustard badges, the "302 new · catch up" nudge from 15 unread, and the tab bar (a mustard mark under the tab you're on, the unread count on Chats) |
 | `inbox-empty` | "Nothing on the counter yet" |
 | `home-instagram` | The Instagram tab: `WebChatTab` (its slim bar, the site, the ketchup Catch me up circle on the right) on the synthetic test thread, over the tab bar |
-| `home-snapchat` | The Snapchat tab the first time it opens: the intro card (sign in on Snapchat's own page, tap the ketchup drop and pick the last 30, 80 or 120, nothing saved, the computer version shrunk to fit, not in the released app) and Got it, over the tab bar |
+| `home-snapchat` | The Snapchat tab the first time it opens: the intro card (sign in on Snapchat's own page, tap the ketchup drop and pick the last 30, 80 or 120, the catch-up kept on this phone only, the computer version shrunk to fit) and Got it, over the tab bar |
 | `new-chat`, `join` | The "+" menu's sheets; Join has 6 code boxes |
 | `chat` | The top of Breck: the ketchup "Catch me up" (prefetch landed, so "ready"), the "302 NEW" mark |
 | `chat-middle` | Scrolled into the thread: runs from one sender, names in their person colors |
