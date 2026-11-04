@@ -6,7 +6,7 @@ the technical recipe. README.md is the judge-facing overview.
 
 ## Rules
 - The app was called TL;DR until Nov 2, 2026, then Ketchup (as in *catch up*), and since Nov 4,
-  2026 it's **Cetchup** (the App Store Connect record is "Cetchup.ai": plain "Ketchup" and
+  2026 it's **Cetchup** (the App Store Connect record is "Cetchup: Catch Up", renamed from "Cetchup.ai" on Nov 4, 2026: plain "Ketchup" and
   "Cetchup" were taken). Only what a person sees says Cetchup: UI copy, VoiceOver labels, the
   name under the icon (`INFOPLIST_KEY_CFBundleDisplayName`), Android's `app_name` and reader
   service label, StoreKit display names, the server's sentences, Muse Spark's prompts, the docs.

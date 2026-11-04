@@ -360,7 +360,7 @@ the sandbox sees the products):
 1. **Agreements, Tax, and Banking**: the Paid Applications Agreement is active (it is
    until January 13, 2027), with tax and banking filled in.
 2. **Apps → + → New App**: iOS, bundle ID `com.vibetemp.ketchup` (pick it from your
-   identifiers), and the name "Cetchup.ai" (plain "Ketchup" and "Cetchup" were taken; the name
+   identifiers), and the name "Cetchup: Catch Up" (first created as "Cetchup.ai"; plain "Ketchup" and "Cetchup" were taken; the name
    under the icon is plain Cetchup).
 3. **The app → Monetization → Subscriptions → Create** a subscription group, "Cetchup".
 4. In the group, **Create** "Cetchup Plus Monthly": product ID
