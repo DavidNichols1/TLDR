@@ -8,11 +8,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.vibetemp.ketchup.R
 import com.vibetemp.ketchup.data.ApiException
+import com.vibetemp.ketchup.data.AuthSession
 import com.vibetemp.ketchup.data.ChatSummary
 import com.vibetemp.ketchup.data.KetchupApi
 import com.vibetemp.ketchup.data.Member
 import com.vibetemp.ketchup.data.Message
+import com.vibetemp.ketchup.data.PrefsTermsStore
 import com.vibetemp.ketchup.data.Profile
+import com.vibetemp.ketchup.data.TermsGate
 import com.vibetemp.ketchup.data.realtime.ChatRealtime
 import com.vibetemp.ketchup.data.realtime.LiveMessages
 import com.vibetemp.ketchup.data.realtime.NotLive
@@ -22,6 +25,7 @@ import com.vibetemp.ketchup.ui.chat.ChatModel
 import com.vibetemp.ketchup.ui.chat.LiveChatBackend
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -29,9 +33,9 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 /**
- * App-wide state (iOS `AppModel`): who is signed in, their name, and the
- * inbox. One per process ([get]); offline previews make their own with
- * [offline], which never touches the network.
+ * App-wide state (iOS `AppModel`): who is signed in, whether they've agreed
+ * to the terms, their name, and the inbox. One per process ([get]); offline
+ * previews make their own with [offline], which never touches the network.
  */
 @Stable
 class AppModel private constructor(
@@ -45,6 +49,9 @@ class AppModel private constructor(
     private val appContext = context.applicationContext
     private val prefs: SharedPreferences? =
         if (api == null) null else context.applicationContext.getSharedPreferences("ketchup.app", Context.MODE_PRIVATE)
+
+    /** The Terms of Service and Privacy Policy (migration 0011); none in an offline preview. */
+    private val terms: TermsGate? = api?.let { TermsGate(it.client, PrefsTermsStore(appContext)) }
 
     /** The app's own work that outlives a screen: sends, mark-read, leaving. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -66,6 +73,10 @@ class AppModel private constructor(
 
     /** Sign-up names everyone after their email; until they confirm or change it once, the app asks. */
     var nameConfirmed by mutableStateOf(true)
+        private set
+
+    /** Signed in without having agreed to this version of the terms: the terms screen comes before the app. */
+    var termsNeeded by mutableStateOf(false)
         private set
 
     /** Previews: the inbox never finishes loading (`inbox-loading`). */
@@ -105,10 +116,12 @@ class AppModel private constructor(
                         chats = emptyList()
                         chatsLoaded = false
                         notice = null
+                        termsNeeded = false
                         openChats.values.forEach { it.realtime.stop() }
                         openChats.clear()
                     } else if (next.userId != before) {
                         chatsLoaded = false
+                        termsNeeded = false
                     }
                 }
             }
@@ -149,6 +162,49 @@ class AppModel private constructor(
     fun confirmName() {
         prefs?.edit()?.putBoolean(nameKey, true)?.apply()
         nameConfirmed = true
+    }
+
+    // MARK: The terms (migration 0011, data/TermsGate.kt)
+
+    /**
+     * Whether the terms screen comes before the app (KetchupRoot, whenever
+     * someone is signed in). An acceptance kept on this phone needs no
+     * network; trouble reaching the server lets you in this time.
+     */
+    suspend fun checkTerms() {
+        val gate = terms ?: return
+        val user = session?.userId ?: return
+        val needed = gate.needsAgreement(user)
+        if (session?.userId == user) termsNeeded = needed
+    }
+
+    /**
+     * Right after a sign-in with the emailed code or a password, which agrees
+     * to the terms: records it. Started undispatched, so you're marked as
+     * agreed before the root's own check can look (no terms screen flashing
+     * while accept_terms is on its way); if recording fails, the usual check
+     * decides.
+     */
+    fun signedIn(signedIn: AuthSession) {
+        val gate = terms ?: return
+        val user = signedIn.userId
+        termsNeeded = false
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            if (gate.signedIn(user) && session?.userId == user) termsNeeded = true
+        }
+    }
+
+    /** The terms screen's Agree. Throws when it couldn't be saved; a preview pretends, and says no with [previewRefuses]. */
+    suspend fun agreeToTerms() {
+        val user = myId ?: return
+        val gate = terms
+        if (gate == null) {
+            delay(PREVIEW_SAVE_MS)
+            if (previewRefuses) throw ApiException("The server said no (a preview).")
+            return
+        }
+        gate.agree(user)
+        if (myId == user) termsNeeded = false
     }
 
     /** The first-run name step: waits for the server. */
@@ -298,6 +354,9 @@ class AppModel private constructor(
     companion object {
         const val PREVIEW_EMAIL = "david@example.com"
         const val PREVIEW_NEW_CHAT = "c0000000-0000-4000-8000-0000000000ff"
+
+        /** Previews: how long a pretend save takes, so the busy state shows. */
+        private const val PREVIEW_SAVE_MS = 800L
 
         @Volatile
         private var instance: AppModel? = null

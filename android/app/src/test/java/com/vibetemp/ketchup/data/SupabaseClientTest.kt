@@ -69,6 +69,48 @@ class SupabaseClientTest {
     }
 
     @Test
+    fun passwordSignInKeepsTheSessionLikeTheCode() = runBlocking {
+        val store = MemoryStore()
+        val transport = FakeTransport(HttpResponse(200, sessionJson("a", "r")))
+        val api = KetchupApi(SupabaseClient(store, transport) { clock })
+
+        // A made-up password, spaces and all: it goes as typed; the email is trimmed.
+        val signedIn = api.signInWithPassword(" david@example.com ", " made-up pass ")
+        val token = transport.sent.single()
+        assertEquals("POST", token.method)
+        assertEquals("$base/auth/v1/token?grant_type=password", token.url)
+        assertEquals(Config.PUBLISHABLE_KEY, token.headers["apikey"])
+        assertNull(token.headers["Authorization"])
+        assertEquals("""{"email":"david@example.com","password":" made-up pass "}""", token.body)
+
+        val expected = AuthSession("a", "r", "d0000000-0000-4000-8000-000000000001", "david@example.com", clock + 3600)
+        assertEquals(expected, signedIn)
+        assertEquals(expected, store.saved)
+        assertEquals(expected, api.session.value)
+
+        // Exactly what the emailed code keeps for the same answer.
+        val viaCode = MemoryStore()
+        KetchupApi(SupabaseClient(viaCode, FakeTransport(HttpResponse(200, sessionJson("a", "r")))) { clock })
+            .verifyCode("david@example.com", "12345678")
+        assertEquals(viaCode.saved, store.saved)
+    }
+
+    @Test
+    fun aWrongPasswordReadsAsASentence() = runBlocking {
+        // What the live project answers a wrong email or password with.
+        val store = MemoryStore()
+        val transport = FakeTransport(
+            HttpResponse(400, """{"code":400,"error_code":"invalid_credentials","msg":"Invalid login credentials"}"""),
+        )
+        val api = KetchupApi(SupabaseClient(store, transport) { clock })
+        val e = runCatching { api.signInWithPassword("david@example.com", "not-it") }.exceptionOrNull() as ApiException
+        assertEquals("That email and password don't match.", e.message)
+        assertEquals(400, e.status)
+        assertNull(store.saved)
+        assertNull(api.session.value)
+    }
+
+    @Test
     fun readsCarryTheTokenAndDecode() = runBlocking {
         val inbox = """[{"id":"b0000000-0000-4000-8000-00000000b4ec","name":"Breck Weekend 🎿","invite_code":"WQGAEA",
             "member_count":6,"created_at":"2026-10-28T18:00:00+00:00","last_message_at":"2026-11-03T04:11:24.5+00:00",
@@ -178,7 +220,10 @@ class SupabaseClientTest {
         Previewing.active = true
         val transport = FakeTransport()
         val api = KetchupApi(SupabaseClient(MemoryStore(session()), transport) { clock })
-        for (call in listOf<suspend () -> Unit>({ api.sendCode("a@b.c") }, { api.myChats() }, { api.catchUp("c") })) {
+        val calls = listOf<suspend () -> Unit>(
+            { api.sendCode("a@b.c") }, { api.signInWithPassword("a@b.c", "made-up") }, { api.myChats() }, { api.catchUp("c") },
+        )
+        for (call in calls) {
             val e = runCatching { call() }.exceptionOrNull()
             assertEquals("Offline preview: nothing goes to the server.", e?.message)
         }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Terms of Service and Privacy Policy (migration 0011): the line under sign-in's button and the terms screen (ui/auth/TermsScreen.kt). No em dashes. -->
+<resources>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="terms_privacy_policy">Privacy Policy</string>
+    <!-- Under sign-in's button. The two names (the strings above) are links. -->
+    <string name="terms_by_continuing">By continuing, you agree to Cetchup\'s %1$s and %2$s.</string>
+
+    <!-- The terms screen, before the app, until you agree to this version. -->
+    <string name="terms_title">Cetchup\'s Terms and Privacy Policy</string>
+    <string name="terms_pitch">Please read them, then tap Agree to keep using Cetchup.</string>
+    <string name="terms_opens_browser">Opens in your browser</string>
+    <!-- The date of Config.TERMS_VERSION, like "November 4, 2026". -->
+    <string name="terms_updated">Updated %1$s</string>
+    <string name="terms_agree">Agree</string>
+    <string name="terms_save_failed">Couldn\'t save that. Check your connection and try again.</string>
+</resources>

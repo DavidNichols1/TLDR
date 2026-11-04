@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import com.vibetemp.ketchup.R
 import com.vibetemp.ketchup.ui.auth.NameScreen
 import com.vibetemp.ketchup.ui.auth.SignInScreen
+import com.vibetemp.ketchup.ui.auth.TermsScreen
 import com.vibetemp.ketchup.ui.chat.ChatScreen
 import com.vibetemp.ketchup.ui.chat.ChatStart
 import com.vibetemp.ketchup.ui.theme.KetchupTheme
@@ -32,13 +33,16 @@ import com.vibetemp.ketchup.ui.theme.Motion
 
 /**
  * The chat slice's nav graph (iOS `RootView`): sign-in until there's a
- * session, the name step once after sign-up, then the home.
+ * session, the terms screen while this version of the terms isn't agreed to
+ * (data/TermsGate.kt), the name step once after sign-up, then the home.
  */
 @Composable
 fun KetchupRoot(app: AppModel) {
     LaunchedEffect(app.myId) { app.loadMe() }
+    LaunchedEffect(app.myId) { app.checkTerms() }
     val screen = when {
         !app.isSignedIn -> "signin"
+        app.termsNeeded -> "terms"
         app.needsName -> "name"
         else -> "home"
     }
@@ -48,7 +52,8 @@ fun KetchupRoot(app: AppModel) {
         label = "root",
     ) { which ->
         when (which) {
-            "signin" -> SignInScreen(app.api)
+            "signin" -> SignInScreen(app.api, onSignedIn = app::signedIn)
+            "terms" -> TermsScreen(app)
             "name" -> NameScreen(app)
             else -> Home(app)
         }

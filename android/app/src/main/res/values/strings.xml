@@ -21,6 +21,10 @@
     <string name="signin_resend_in">Resend in %1$ds</string>
     <string name="signin_new_code_sent">New code sent. Use the newest email.</string>
     <string name="signin_byline">Summaries by %1$s, Meta\'s model</string>
+    <!-- The secondary way in, for an account with a password (a reviewer's demo account). -->
+    <string name="signin_use_password">Use a password instead</string>
+    <string name="signin_use_code">Use an emailed code instead</string>
+    <string name="signin_password_placeholder">Password</string>
 
     <!-- The name step (iOS NameView) -->
     <string name="name_kicker">Last step</string>

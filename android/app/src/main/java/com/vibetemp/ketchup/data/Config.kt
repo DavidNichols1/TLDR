@@ -22,4 +22,18 @@ object Config {
     /** Realtime websocket (Phoenix protocol), for the chat slice's `data/realtime/`. */
     const val REALTIME_URL =
         "wss://cfqlnthmqwkhjbhylvgu.supabase.co/realtime/v1/websocket?apikey=$PUBLISHABLE_KEY&vsn=1.0.0"
+
+    /** The Terms of Service, opened in the system browser (sign-in and the terms screen). */
+    const val TERMS_URL = "https://cetchup.ai/terms"
+
+    /** The Privacy Policy, opened in the system browser. */
+    const val PRIVACY_URL = "https://cetchup.ai/privacy"
+
+    /**
+     * The version of the terms the app asks people to agree to: the date they
+     * were published, `YYYY-MM-DD` (migration 0011, data/TermsGate.kt).
+     * Bumping it to a new date asks everyone to agree again, once, before the
+     * app. The terms screen's "Updated" line is read from it.
+     */
+    const val TERMS_VERSION = "2026-11-04"
 }
