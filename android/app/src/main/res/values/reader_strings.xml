@@ -50,7 +50,7 @@
 
     <!-- The home pager's Instagram and Snapchat pages -->
     <string name="reader_page_title">Catch up on your %1$s chats</string>
-    <string name="reader_page_body">Open a chat in %1$s and a small Ketchup bubble floats over it. Tap it, pick the last 30, 80 or 120 messages, and Muse Spark catches you up.</string>
+    <string name="reader_page_body">Open a chat in %1$s and a small Ketchup bubble floats over it. Tap it and pick the last 10, 30, 80 or 120 messages, or let it read as you scroll. Muse Spark catches you up.</string>
     <string name="reader_page_on">The bubble is on</string>
     <string name="reader_page_off">The bubble is off</string>
     <string name="reader_page_on_detail">It shows when a chat is open in Instagram or Snapchat.</string>

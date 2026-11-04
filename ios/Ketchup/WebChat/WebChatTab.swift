@@ -46,7 +46,7 @@ private struct WebChatPage: View {
     }
 
     /// The page doesn't say what's unread, so the button asks how far back.
-    static let windows = [30, 80, 120]
+    static let windows = [10, 30, 80, 120]
 
     init(source: WebChatSource, close: (() -> Void)?) {
         self.source = source
@@ -309,7 +309,7 @@ struct WebChatIntro: View {
                         .fixedSize(horizontal: false, vertical: true)
                     VStack(alignment: .leading, spacing: 14) {
                         point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
-                        point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
+                        point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 10, 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
                         point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Ketchup's server.")
                         if let note = source.note {
                             point("plus.magnifyingglass", note)

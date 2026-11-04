@@ -35,7 +35,7 @@ import java.util.IdentityHashMap
  *   "Message..." composer) from a structure-only copy of the screen: no
  *   message text, no names. Then a small Ketchup bubble floats over it.
  * - It reads only on a tap: the bubble opens a panel, the person picks the
- *   last 30, 80 or 120 messages, and only then does it copy text, scrolling
+ *   last 10, 30, 80 or 120 messages, and only then does it copy text, scrolling
  *   back with ACTION_SCROLL_BACKWARD and putting the thread back after.
  * - It stores nothing: the thread goes to BriefActivity in memory. It logs
  *   counts only, never message text or names.

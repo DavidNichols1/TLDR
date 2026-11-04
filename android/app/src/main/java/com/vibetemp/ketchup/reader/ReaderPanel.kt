@@ -44,7 +44,7 @@ import com.vibetemp.ketchup.ui.theme.Motion
 
 /** What the panel over the other app shows. */
 sealed interface PanelState {
-    /** Last 30, 80 or 120. */
+    /** Last 10, 30, 80 or 120, or Until I stop scrolling. */
     data object Pick : PanelState
 
     data class Reading(val progress: ReadProgress) : PanelState
@@ -79,7 +79,7 @@ fun ReaderBubble(modifier: Modifier = Modifier) {
 const val BUBBLE_DP = 56
 
 /**
- * The panel the bubble opens. [onPick] reads the newest 30, 80 or 120
+ * The panel the bubble opens. [onPick] reads the newest 10, 30, 80 or 120
  * messages; [onStop] stops a read; [onOpenApp] opens Ketchup (to sign in
  * or to finish setting up).
  */

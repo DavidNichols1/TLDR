@@ -429,7 +429,7 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
 - **How it works.** Instagram's or Snapchat's own website opens inside the app, on its own
   tab along the bottom of the home screen, next to Chats. Switching tabs keeps the page
   loaded and signed in. You sign in on their page and open a chat. Tap the ketchup drop on
-  the right (**Catch me up**), pick the last 30, 80 or 120 messages (the page doesn't say
+  the right (**Catch me up**), pick the last 10, 30, 80 or 120 messages (the page doesn't say
   what's unread), and Ketchup reads that much of the conversation off the page. Then it
   runs the same Muse Spark catch-up as its own chats through a second edge function,
   [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
