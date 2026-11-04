@@ -287,7 +287,8 @@ class KetchupReaderService : AccessibilityService(), ReaderOverlay.Actions {
                 "loads ${s?.scrolls}, stop ${s?.stop}, dupes ${s?.dupes}, ${s?.ms} ms",
         )
         if (on.fixture) ReaderDebug.checkFixture(this, thread)
-        overlay?.hidePanel()
+        // The bubble goes with the panel, so it isn't left over the brief while it opens.
+        overlay?.hideBubble()
         BriefActivity.start(this, thread)
     }
 
