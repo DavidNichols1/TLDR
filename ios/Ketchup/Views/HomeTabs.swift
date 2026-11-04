@@ -132,7 +132,7 @@ struct HomeTabs: View {
             HostedPage(content: rooted(YouView()), active: active, bottomInset: tabs.barHeight)
                 .ignoresSafeArea()
         case .web(let source):
-            WebChatTab(source: source)
+            WebChatTab(source: source, active: active)
                 .padding(.bottom, tabs.barHeight)
         }
     }

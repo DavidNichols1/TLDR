@@ -17,40 +17,53 @@ struct WebChatTab: View {
     let source: WebChatSource
     /// Only for a page shown full screen: adds Done to the bar.
     var close: (() -> Void)? = nil
+    /// False while another tab of the home is showing (this one is kept, hidden).
+    var active = true
 
     var body: some View {
-        WebChatPage(source: source, close: close)
+        WebChatPage(source: source, close: close, active: active)
     }
 }
 
 private struct WebChatPage: View {
     let source: WebChatSource
     let close: (() -> Void)?
+    let active: Bool
 
     @Environment(AppModel.self) private var app: AppModel?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     /// Made on first appear, not in init: SwiftUI may build this view many
     /// times, and each browser owns a web view.
     @State private var browser: WebChatBrowser?
     @State private var reading = false
+    /// "Until I stop scrolling" while it reads.
+    @State private var following: WebFollow?
     @State private var session: WebCatchUp?
     @State private var showSaved = false
     @State private var failure: Failure?
     @State private var notice: String?
     @AppStorage private var introSeen: Bool
 
+    /// What the Catch me up menu picked.
+    enum Pick: Equatable {
+        case last(Int)
+        case untilStop
+    }
+
     /// A read that didn't work, and the pick to try again.
     private struct Failure: Equatable {
         let message: String
-        let last: Int
+        let pick: Pick
     }
 
     /// The page doesn't say what's unread, so the button asks how far back.
     static let windows = [10, 30, 80, 120]
 
-    init(source: WebChatSource, close: (() -> Void)?) {
+    init(source: WebChatSource, close: (() -> Void)?, active: Bool) {
         self.source = source
         self.close = close
+        self.active = active
         _introSeen = AppStorage(wrappedValue: false, "webchat.\(source.id).introSeen")
     }
 
@@ -68,7 +81,9 @@ private struct WebChatPage: View {
                     }
                     WebChatBarButton(symbol: "chevron.backward", label: "Back") { browser.goBack() }
                         .disabled(!browser.canGoBack)
+                    // Its pages and sheets would cover the chat while it's being read.
                     menu(browser)
+                        .disabled(following != nil)
                 }
             }
             ZStack(alignment: .bottom) {
@@ -77,22 +92,26 @@ private struct WebChatPage: View {
                 } else {
                     Theme.cream
                 }
-                // On the right edge, just above the site's message box.
+                // On the right edge, just above the site's message box. While
+                // following, the panel takes the bottom instead: nobody types then.
                 VStack(alignment: .trailing, spacing: 12) {
                     if let failure {
                         AIErrorCard(message: failure.message, note: "Nothing from the chat was saved.", prominent: false) {
-                            if let browser { Task { await catchUp(browser, last: failure.last) } }
+                            if let browser { Task { await run(failure.pick, browser) } }
                         }
                         .transition(.rise(reduceMotion: reduceMotion))
                     }
-                    if let browser, browser.isThread {
+                    if let following {
+                        FollowingPanel(follow: following)
+                            .transition(.rise(reduceMotion: reduceMotion))
+                    } else if let browser, browser.isThread {
                         catchUpButton(browser)
                             .transition(.opacity)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 76)
+                .padding(.bottom, following == nil ? 76 : 12)
             }
         }
         .background(Theme.cream)
@@ -104,9 +123,13 @@ private struct WebChatPage: View {
         }
         .motion(Motion.settle, value: failure)
         .motion(Motion.settle, value: reading)
+        .motion(Motion.settle, value: following == nil)
         .motion(Motion.fade, value: introSeen)
         .onAppear(perform: start)
         .onChange(of: browser?.url) { _, _ in failure = nil }
+        // Following stops, sending nothing, when the person leaves the tab or the app.
+        .onChange(of: active) { _, now in if !now { following?.stop() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { following?.stop() } }
         // Settings signed this site out of Ketchup: start over at its sign-in page.
         .onReceive(NotificationCenter.default.publisher(for: .webChatForgotten)) { note in
             if note.object as? String == source.id { browser?.openStart() }
@@ -126,8 +149,12 @@ private struct WebChatPage: View {
         browser = b
         #if DEBUG
         // `-KetchupInstagramFixture YES` (`-KetchupSnapchatFixture YES`) opens the synthetic test thread instead.
-        if UserDefaults.standard.bool(forKey: "Ketchup\(source.name)Fixture"), let fixture = source.fixtures.first {
+        // `-webFixture <file>` picks another one, like ig-thread-fixture-virtual.
+        if UserDefaults.standard.bool(forKey: "Ketchup\(source.name)Fixture"),
+           let fixture = source.fixtures.first(where: { $0.file == UserDefaults.standard.string(forKey: "webFixture") })
+               ?? source.fixtures.first {
             b.open(fixture)
+            Task { await debugRuns(b) }
             return
         }
         #endif
@@ -138,7 +165,7 @@ private struct WebChatPage: View {
 
     /// The page's one ketchup thing: a small circle with the drop, so it
     /// covers little of the chat. It picks how many of the newest messages
-    /// to read.
+    /// to read, or reads along while the person scrolls.
     private func catchUpButton(_ browser: WebChatBrowser) -> some View {
         Menu {
             Section("Catch me up on the") {
@@ -146,27 +173,83 @@ private struct WebChatPage: View {
                     Button("Last \(n) messages") { Task { await catchUp(browser, last: n) } }
                 }
             }
+            Section {
+                Button("Until I stop scrolling") { Task { await follow(browser) } }
+            }
         } label: {
             CatchUpCircle(reading: reading)
         }
         .menuOrder(.fixed)
         .disabled(reading)
         .accessibilityLabel(reading ? "Reading the chat" : "Catch me up")
-        .accessibilityHint("Pick how many of the newest messages to read")
+        .accessibilityHint("Pick how many of the newest messages to read, or read as you scroll")
+    }
+
+    private func run(_ pick: Pick, _ browser: WebChatBrowser) async {
+        switch pick {
+        case .last(let n): await catchUp(browser, last: n)
+        case .untilStop: await follow(browser)
+        }
     }
 
     private func catchUp(_ browser: WebChatBrowser, last: Int) async {
-        guard !reading else { return }
+        guard !reading, following == nil else { return }
         reading = true
         failure = nil
         defer { reading = false }
         do {
             let thread = try await browser.readThread(readerName: readerName, last: last)
+            #if DEBUG
+            WebReadCheck.compare(thread, fixture: browser.fixture, last: last)
+            #endif
             session = WebCatchUp(thread: thread, readerName: readerName)
         } catch {
-            failure = Failure(message: WebChatError.message(for: error), last: last)
+            failure = Failure(message: WebChatError.message(for: error), pick: .last(last))
         }
     }
+
+    /// "Until I stop scrolling": Ketchup never scrolls; the panel counts
+    /// what's been read while the person does. When they stop, it's the
+    /// same catch-up as a Last N read. Stopped (Stop, or they left), it
+    /// sends nothing and keeps nothing.
+    private func follow(_ browser: WebChatBrowser) async {
+        guard !reading, following == nil else { return }
+        failure = nil
+        let follow = WebFollow()
+        #if DEBUG
+        follow.holds = UserDefaults.standard.bool(forKey: "followHold")
+        #endif
+        following = follow
+        defer { following = nil }
+        do {
+            guard let thread = try await browser.follow(follow, readerName: readerName) else { return }
+            #if DEBUG
+            WebReadCheck.compare(thread, fixture: browser.fixture, last: nil)
+            #endif
+            session = WebCatchUp(thread: thread, readerName: readerName)
+        } catch {
+            failure = Failure(message: WebChatError.message(for: error), pick: .untilStop)
+        }
+    }
+
+    #if DEBUG
+    /// Offline checks on a test thread, from launch arguments: `-readTest 10`
+    /// reads the last 10; `-followTest YES` (or moves like "up 8, down 2, up
+    /// 120") follows while a pretend person scrolls the test page;
+    /// `-followAuto YES` just starts following (the web-following preview).
+    private func debugRuns(_ browser: WebChatBrowser) async {
+        let defaults = UserDefaults.standard
+        let last = defaults.integer(forKey: "readTest"), test = defaults.string(forKey: "followTest")
+        guard last > 0 || test != nil || defaults.bool(forKey: "followAuto") else { return }
+        await WebReadCheck.loaded(browser)
+        if last > 0 {
+            await catchUp(browser, last: last)
+        } else {
+            if let test { Task { await WebReadCheck.person(browser, moves: WebReadCheck.moves(test)) } }
+            await follow(browser)
+        }
+    }
+    #endif
 
     // MARK: Menu
 
@@ -241,6 +324,54 @@ private struct CatchUpCircle: View {
     }
 }
 
+/// "Until I stop scrolling" while it reads: paper over the bottom of the
+/// page with the count so far and the two ways out. It takes touches only on
+/// itself, so the chat around it still scrolls. At the biggest text sizes
+/// it stops growing, so it can't cover the chat it's reading.
+private struct FollowingPanel: View {
+    let follow: WebFollow
+
+    @ScaledMetric(relativeTo: .headline) private var drop: CGFloat = 22
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                KetchupDrop()
+                    .fill(Theme.ketchup)
+                    .frame(width: drop, height: drop)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Kicker("Until I stop scrolling")
+                    Text("Reading the chat")
+                        .font(.serif(.headline))
+                        .foregroundStyle(Theme.ink)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                Spacer(minLength: 8)
+                Text(follow.found == 1 ? "1 message" : "\(follow.found.formatted()) messages")
+                    .font(.mono(.footnote))
+                    .foregroundStyle(Theme.ink)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(follow.found)))
+                    .motion(Motion.snappy, value: follow.found)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+            Text("Scroll up through the chat. Cetchup reads as you go and catches you up when you stop.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button("Catch me up now", action: follow.catchUpNow)
+                    .buttonStyle(.ketchup(.compact))
+                Button("Stop", action: follow.stop)
+                    .buttonStyle(.outline(.compact))
+            }
+        }
+        .paperCard(padding: 16)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+    }
+}
+
 /// The slim bar over the site: its name in New York, and the page's own
 /// buttons on the right.
 struct WebChatBar<Trailing: View>: View {
@@ -309,7 +440,7 @@ struct WebChatIntro: View {
                         .fixedSize(horizontal: false, vertical: true)
                     VStack(alignment: .leading, spacing: 14) {
                         point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
-                        point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 10, 30, 80 or 120 messages. Ketchup reads only that chat, only when you tap.")
+                        point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 10, 30, 80 or 120 messages, or let it read as you scroll. Cetchup reads only that chat, only when you tap.")
                         point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Ketchup's server.")
                         if let note = source.note {
                             point("plus.magnifyingglass", note)

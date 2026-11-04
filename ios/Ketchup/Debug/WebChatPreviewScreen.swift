@@ -6,8 +6,11 @@
 //  synthetic threads in Instagram/Fixture/ and Snapchat/Fixture/ (made-up
 //  people): the Instagram page on its thread, the first-visit card, the
 //  catch-up while it reads, a finished one (a canned brief, not a Muse
-//  Spark call), a failure, a source shown whole, and the Snapchat page on
-//  its thread. No sign-in, no network. Sheets are shown full screen.
+//  Spark call), a failure, a source shown whole, the Snapchat page on its
+//  thread, and "Until I stop scrolling" reading on each page (the real
+//  follow, held open until Stop or Catch me up now, so the panel stays for
+//  screenshots; scroll the page and the count goes up). No sign-in, no
+//  network. Sheets are shown full screen.
 //
 
 #if DEBUG
@@ -22,6 +25,8 @@ struct WebChatPreviewScreen: View {
         case error = "web-error"
         case quote = "web-quote"
         case snapchat = "web-snapchat"
+        case following = "web-following"
+        case followingSnapchat = "web-following-snapchat"
     }
 
     static var names: [String] { Screen.allCases.map(\.rawValue) }
@@ -39,6 +44,10 @@ struct WebChatPreviewScreen: View {
         if args["KetchupSnapchatFixture"] == nil { args["KetchupSnapchatFixture"] = true }
         args["webchat.instagram.introSeen"] = name != Screen.intro.rawValue
         args["webchat.snapchat.introSeen"] = true
+        if name == Screen.following.rawValue || name == Screen.followingSnapchat.rawValue {
+            args["followAuto"] = true
+            if args["followHold"] == nil { args["followHold"] = true }
+        }
         UserDefaults.standard.setVolatileDomain(args, forName: UserDefaults.argumentDomain)
     }
 
@@ -59,8 +68,10 @@ struct WebChatPreviewScreen: View {
                                                  answer: .idle, lastQuestion: ""))
             case .quote:
                 WebQuoteCard(message: Self.thread.messages[84], source: .instagram)
-            case .snapchat:
+            case .snapchat, .followingSnapchat:
                 WebChatTab(source: .snapchat)
+            case .following:
+                WebChatTab(source: .instagram)
             case nil:
                 PreviewIndex(unknown: name)
             }
