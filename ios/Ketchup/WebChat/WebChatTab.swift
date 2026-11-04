@@ -110,8 +110,8 @@ private struct WebChatPage: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal, 16)
-                .padding(.bottom, following == nil ? 76 : 12)
+                .padding(.horizontal, following == nil ? 16 : 10)
+                .padding(.bottom, following == nil ? 76 : 10)
             }
         }
         .background(Theme.cream)
@@ -335,26 +335,21 @@ private struct FollowingPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                KetchupDrop()
-                    .fill(Theme.ketchup)
-                    .frame(width: drop, height: drop)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Kicker("Until I stop scrolling")
-                    Text("Reading the chat")
-                        .font(.serif(.headline))
-                        .foregroundStyle(Theme.ink)
-                        .accessibilityAddTraits(.isHeader)
+            // The count beside the title, or under it when that doesn't fit (big text, small phones).
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 10) {
+                    mark
+                    heading
+                    Spacer(minLength: 8)
+                    count
                 }
-                Spacer(minLength: 8)
-                Text(follow.found == 1 ? "1 message" : "\(follow.found.formatted()) messages")
-                    .font(.mono(.footnote))
-                    .foregroundStyle(Theme.ink)
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: Double(follow.found)))
-                    .motion(Motion.snappy, value: follow.found)
-                    .accessibilityAddTraits(.updatesFrequently)
+                HStack(alignment: .top, spacing: 10) {
+                    mark
+                    VStack(alignment: .leading, spacing: 6) {
+                        heading
+                        count
+                    }
+                }
             }
             Text("Scroll up through the chat. Cetchup reads as you go and catches you up when you stop.")
                 .font(.subheadline)
@@ -369,6 +364,33 @@ private struct FollowingPanel: View {
         }
         .paperCard(padding: 16)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+    }
+
+    private var mark: some View {
+        KetchupDrop()
+            .fill(Theme.ketchup)
+            .frame(width: drop, height: drop)
+            .accessibilityHidden(true)
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Kicker("Until I stop scrolling")
+            Text("Reading the chat")
+                .font(.serif(.headline))
+                .foregroundStyle(Theme.ink)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+
+    private var count: some View {
+        Text(follow.found == 1 ? "1 message" : "\(follow.found.formatted()) messages")
+            .font(.mono(.footnote))
+            .foregroundStyle(Theme.ink)
+            .monospacedDigit()
+            .contentTransition(.numericText(value: Double(follow.found)))
+            .motion(Motion.snappy, value: follow.found)
+            .accessibilityAddTraits(.updatesFrequently)
     }
 }
 
