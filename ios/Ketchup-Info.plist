@@ -7,7 +7,7 @@
 	App-bound domains, for the experimental web chats (ios/Ketchup/WebChat/).
 	Every web-chat web view is kept to these (limitsNavigationsToAppBoundDomains):
 	WebKit only runs a site's service worker there, which Snapchat for Web needs,
-	and once an app lists any, Ketchup's own scripts (the readers) only run in a
+	and once an app lists any, Cetchup's own scripts (the readers) only run in a
 	web view kept to them. So each source's sites (WebChatSource.domains) are all
 	here. At most 10, and this is 10: Instagram's 6, then Snapchat's 4.
 	-->

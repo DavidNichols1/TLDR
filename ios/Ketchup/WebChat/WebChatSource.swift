@@ -2,9 +2,9 @@
 //  WebChatSource.swift
 //  Ketchup
 //
-//  EXPERIMENTAL, NOT RELEASED. A chat app whose own website Ketchup opens
+//  EXPERIMENTAL, NOT RELEASED. A chat app whose own website Cetchup opens
 //  in a web view, and reads one open thread from when the user asks, for
-//  the same Muse Spark catch-up as Ketchup's own chats (edge function
+//  the same Muse Spark catch-up as Cetchup's own chats (edge function
 //  catch-up-text). Instagram runs its phone page; Snapchat only runs its
 //  computer version, so it gets the desktop page, laid out wide and scaled
 //  to fit, in app-bound mode.

@@ -3,7 +3,7 @@
 // real site: tags, roles, labels (names masked), dir, bubble styles, font
 // sizes and positions. No message text: every text becomes its length and a
 // kind, except time separators. Same rules as the reader: runs only on tap,
-// only on instagram.com/direct/, in Ketchup's isolated world.
+// only on instagram.com/direct/, in Cetchup's isolated world.
 
 if (!/(^|\.)instagram\.com$/.test(location.hostname) || !location.pathname.startsWith("/direct/")) {
   return "not an Instagram DM page";

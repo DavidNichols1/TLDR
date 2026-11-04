@@ -431,7 +431,7 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   tab along the bottom of the home screen, next to Chats. Switching tabs keeps the page
   loaded and signed in. You sign in on their page and open a chat. Tap the ketchup drop on
   the right (**Catch me up**), pick the last 10, 30, 80 or 120 messages (the page doesn't say
-  what's unread), and Ketchup reads that much of the conversation off the page. Or pick
+  what's unread), and Cetchup reads that much of the conversation off the page. Or pick
   **Until I stop scrolling**: you scroll up through the chat yourself, a small panel counts
   what's been read, and about 3 seconds after you stop (or on **Catch me up now**) it catches
   you up on everything you scrolled past, as on Android. **Stop**, or leaving the tab, sends
@@ -439,7 +439,7 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   function, [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
   transcript, prompts, JSON schemas and validation, laid out with the same brief, tickets,
   diner check and Ask the chat. Each source chip shows the whole message it quotes.
-- **It reads only the chat you have open, in your own signed-in session.** Ketchup never
+- **It reads only the chat you have open, in your own signed-in session.** Cetchup never
   sees your password or cookies. The readers
   ([`InstagramThreadReader.js`](ios/Ketchup/Instagram/InstagramThreadReader.js),
   [`SnapchatThreadReader.js`](ios/Ketchup/Snapchat/SnapchatThreadReader.js)) run only when
@@ -455,9 +455,9 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
 - **It isn't sanctioned by Instagram's or Snapchat's terms.** They don't allow automated
   collection, and the messages, your friends' included, go to Muse Spark to summarize. So
   it's not in the released app, and it won't ship unless Meta and Snap are fine with it.
-  Ketchup's own chat doesn't depend on it.
+  Cetchup's own chat doesn't depend on it.
 - **Snapchat took three browser settings, and nothing injected into its pages.** Snapchat for
-  Web sends phones to "Download Snapchat", so Ketchup asks for its desktop page with a Mac
+  Web sends phones to "Download Snapchat", so Cetchup asks for its desktop page with a Mac
   user agent (what Safari's "Request Desktop Website" does) and lays the page out 1024 points
   wide, shrunk to fit the screen. Signed in, its chat app also needs a service worker, which
   WebKit only runs for app-bound domains (the app's Info.plist lists them). Once an app lists

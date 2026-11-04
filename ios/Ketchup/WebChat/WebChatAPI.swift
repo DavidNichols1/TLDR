@@ -4,7 +4,7 @@
 //
 //  EXPERIMENTAL, NOT RELEASED. Sends a thread read off a source's website
 //  to the catch-up-text edge function (the same Muse Spark pipeline as
-//  Ketchup's own chats). The server stores nothing from it; this side
+//  Cetchup's own chats). The server stores nothing from it; this side
 //  doesn't either.
 //
 
@@ -22,7 +22,7 @@ enum WebChatAPI {
         return try await call(request)
     }
 
-    /// My messages go under the reader's Ketchup name, so "For you" and
+    /// My messages go under the reader's Cetchup name, so "For you" and
     /// questions aimed at them by name come out right.
     private static func body(_ thread: WebThread, readerName: String, mode: String) -> [String: Any] {
         var body: [String: Any] = [

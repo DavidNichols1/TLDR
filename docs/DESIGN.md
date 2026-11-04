@@ -233,7 +233,7 @@ Experimental and not released. `WebChatTab(source:)` (`ios/Ketchup/WebChat/`) is
 | `WebChatSheet` | The same pieces as a chat's catch-up: `SheetBar`, `SkimmingView` on the thread's own messages, `CatchUpContent`, `AIErrorCard`, and Ask's `NotepadField` and `AnswerCard`. The byline names the source ("88 Instagram messages"); a quiet footer says what it covered. |
 | `WebQuoteCard` | A source chip can't jump into the site, so it opens the whole message: the sender's monogram and color, the text, "About Sat 9:15 PM", "Kept on this phone with the catch-up." |
 
-- **The site's own page is the site's.** Ketchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
+- **The site's own page is the site's.** Cetchup doesn't restyle or touch it; its own chrome stays cream, ink and one ketchup pill.
 - **Following never moves the page.** The person scrolls; the panel only counts. Stop, or leaving the tab or the app, ends it with nothing sent.
 
 ## Settings

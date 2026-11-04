@@ -130,7 +130,7 @@ private struct WebChatPage: View {
         // Following stops, sending nothing, when the person leaves the tab or the app.
         .onChange(of: active) { _, now in if !now { following?.stop() } }
         .onChange(of: scenePhase) { _, phase in if phase == .background { following?.stop() } }
-        // Settings signed this site out of Ketchup: start over at its sign-in page.
+        // Settings signed this site out of Cetchup: start over at its sign-in page.
         .onReceive(NotificationCenter.default.publisher(for: .webChatForgotten)) { note in
             if note.object as? String == source.id { browser?.openStart() }
         }
@@ -208,7 +208,7 @@ private struct WebChatPage: View {
         }
     }
 
-    /// "Until I stop scrolling": Ketchup never scrolls; the panel counts
+    /// "Until I stop scrolling": Cetchup never scrolls; the panel counts
     /// what's been read while the person does. When they stop, it's the
     /// same catch-up as a Last N read. Stopped (Stop, or they left), it
     /// sends nothing and keeps nothing.
@@ -461,9 +461,9 @@ struct WebChatIntro: View {
                         .foregroundStyle(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     VStack(alignment: .leading, spacing: 14) {
-                        point("person.badge.key", "Sign in on \(source.name)'s own page. Ketchup never sees your password.")
+                        point("person.badge.key", "Sign in on \(source.name)'s own page. Cetchup never sees your password.")
                         point("hand.tap", "Open a chat, tap the ketchup drop, and pick the last 10, 30, 80 or 120 messages, or let it read as you scroll. Cetchup reads only that chat, only when you tap.")
-                        point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Ketchup's server.")
+                        point("text.bubble", "Those messages, your friends' too, go to \(Theme.modelName) to sum up. The catch-up stays on this phone until you delete it, never on Cetchup's server.")
                         if let note = source.note {
                             point("plus.magnifyingglass", note)
                         }

@@ -1,4 +1,4 @@
-// Ketchup: run an Instagram thread extractor against an HTML page in real WebKit, offscreen,
+// Cetchup: run an Instagram thread extractor against an HTML page in real WebKit, offscreen,
 // and compare what it returns with a ground-truth file.
 //
 //   swift scripts/ig-extractor-check/check.swift --html <file> --js <file> [--expected <file>]
@@ -687,7 +687,7 @@ UserDefaults.standard.setVolatileDomain(["AppleShowScrollBars": "WhenScrolling"]
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)   // no Dock icon, no menu bar, never activated
-    let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated], reason: "Ketchup extractor check")
+    let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated], reason: "Cetchup extractor check")
     let harness = Harness(options: options)
     DispatchQueue.main.asyncAfter(deadline: .now() + options.timeout) {
         eprint("error: timed out after \(Int(options.timeout))s (page load plus extractor)")

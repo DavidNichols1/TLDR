@@ -4,7 +4,7 @@
 //
 //  EXPERIMENTAL, NOT RELEASED. What a source's reader script reads off a
 //  chat thread, and how catch-up-text's refs (indexes into the messages
-//  the app sent) fit the CatchUp model Ketchup's own chats use. None of
+//  the app sent) fit the CatchUp model Cetchup's own chats use. None of
 //  this is ever written to disk.
 //
 
@@ -82,7 +82,7 @@ struct WebReaderResult: Decodable {
 }
 
 /// catch-up-text cites messages by their index in the request. The CatchUp
-/// model holds refs as UUIDs (for Ketchup's own messages), so each index
+/// model holds refs as UUIDs (for Cetchup's own messages), so each index
 /// travels as a fixed UUID whose last 12 hex digits are the index.
 nonisolated enum WebRef {
     private static let prefix = "00000000-0000-0000-0000-"

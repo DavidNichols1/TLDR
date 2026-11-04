@@ -3,7 +3,7 @@
 //  Ketchup
 //
 //  EXPERIMENTAL, NOT RELEASED. "Until I stop scrolling" on a web chat: the
-//  person scrolls the site's page and Ketchup only reads, never scrolling
+//  person scrolls the site's page and Cetchup only reads, never scrolling
 //  itself (WebChatBrowser.follow). This is what the page's panel watches
 //  while it runs, and the two ways out of it.
 //

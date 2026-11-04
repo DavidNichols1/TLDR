@@ -450,11 +450,11 @@ a "Reading the chat" pill while it reads. Edge function `catch-up-text`, migrati
   That's the 10 allowed, so a new source needs room first. It's app-wide, and every web-chat
   web view is kept to it (`limitsNavigationsToAppBoundDomains`), so each source's `domains`
   must all be listed. Why both: Snapchat needs it for its service worker, and once the app
-  lists any domains, Ketchup's scripts (`callAsyncJavaScript`) only run reliably in a web view
+  lists any domains, Cetchup's scripts (`callAsyncJavaScript`) only run reliably in a web view
   kept to them. On Nov 3, 2026, with the list declared and Instagram's web view not kept to it,
-  the Instagram reader failed on the real site ("Couldn't read this chat", Ketchup's message for
+  the Instagram reader failed on the real site ("Couldn't read this chat", Cetchup's message for
   any WebKit error during a read) while the sim's fixture still read fine; keeping it to the
-  list fixed it. Test the real sites after any change here. Ketchup uses no message handlers
+  list fixed it. Test the real sites after any change here. Cetchup uses no message handlers
   or cookie APIs. The reader harness is its own macOS process, without this plist.
 - Each source's web view (all use the default website data store):
 

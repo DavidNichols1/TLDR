@@ -1,7 +1,7 @@
-// Ketchup's Snapchat chat reader.
+// Cetchup's Snapchat chat reader.
 //
 // This is the BODY of an async function, run with WKWebView's
-// callAsyncJavaScript in Ketchup's own isolated JavaScript world
+// callAsyncJavaScript in Cetchup's own isolated JavaScript world
 // (WKContentWorld.defaultClient), so the page's scripts can't see or change
 // it. Arguments arrive as local variables: maxMessages, maxScrolls,
 // readerName, debug. It returns a JSON string, the same shape as the
@@ -288,7 +288,7 @@ function readAll(list, only) {
   return { messages, stats };
 }
 
-/** The chat as Ketchup sends it: senders named, the newest MAX kept, and
+/** The chat as Cetchup sends it: senders named, the newest MAX kept, and
  *  how the read went (counts only). `read` holds the ways in which a Last N
  *  read and a follow differ. */
 function threadResult(messages, stats, title, read) {
@@ -319,7 +319,7 @@ function threadResult(messages, stats, title, read) {
 // ---------------------------------------------------------------------------
 // "Until I stop scrolling": the person scrolls, and this only reads.
 //
-// Ketchup runs this script about four times a second with `follow` set.
+// Cetchup runs this script about four times a second with `follow` set.
 // "start" reads the chat as loaded now, each "look" reads it again (the
 // person's scrolling makes Snapchat load older messages), "finish" hands
 // back the chat the way a Last N read does, with `stop` as the reason, and

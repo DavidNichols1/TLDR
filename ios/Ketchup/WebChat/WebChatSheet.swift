@@ -3,11 +3,11 @@
 //  Ketchup
 //
 //  EXPERIMENTAL, NOT RELEASED. Catch me up for a thread read off a
-//  source's website, laid out with the same Muse Spark pieces as Ketchup's
+//  source's website, laid out with the same Muse Spark pieces as Cetchup's
 //  own chats: the skim while it reads, the brief, Ask. A source chip can't
-//  jump to the message (it isn't in Ketchup), so it shows the whole message
+//  jump to the message (it isn't in Cetchup), so it shows the whole message
 //  instead. A catch-up or answer that lands is kept on this phone only
-//  (Store/SavedBriefs.swift), never on Ketchup's server.
+//  (Store/SavedBriefs.swift), never on Cetchup's server.
 //
 
 import SwiftUI

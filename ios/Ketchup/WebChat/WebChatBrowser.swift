@@ -4,11 +4,11 @@
 //
 //  EXPERIMENTAL, NOT RELEASED. A source's own website in a web view.
 //
-//  The user signs in on the site's own page. Ketchup never sees, stores or
+//  The user signs in on the site's own page. Cetchup never sees, stores or
 //  touches their password or cookies: the default (persistent) website data
 //  store keeps the sign-in the way Safari would. Nothing is injected into
 //  any page. The source's reader script runs only when the user picks how
-//  much to catch up on, on a thread page, in Ketchup's own isolated
+//  much to catch up on, on a thread page, in Cetchup's own isolated
 //  JavaScript world, and it checks the page again itself. A desktop source
 //  (Snapchat) gets WebKit's desktop page and a custom user agent, the way
 //  Safari's "Request Desktop Website" does it, and app-bound mode.

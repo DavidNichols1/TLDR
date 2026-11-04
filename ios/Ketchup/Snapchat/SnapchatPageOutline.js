@@ -3,7 +3,7 @@
 // against the real site: tags, roles, labels (names masked), classes, styles,
 // font sizes and positions. No message text: every text becomes its length
 // and a kind, except time separators. Same rules as the reader: runs only on
-// tap, only on a chat page (www.snapchat.com/web/...), in Ketchup's isolated
+// tap, only on a chat page (www.snapchat.com/web/...), in Cetchup's isolated
 // world.
 
 if (location.hostname !== "www.snapchat.com" || !location.pathname.startsWith("/web")) {

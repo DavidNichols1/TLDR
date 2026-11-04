@@ -1,7 +1,7 @@
-// Ketchup's Instagram thread reader.
+// Cetchup's Instagram thread reader.
 //
 // This is the BODY of an async function, run with WKWebView's
-// callAsyncJavaScript in Ketchup's own isolated JavaScript world
+// callAsyncJavaScript in Cetchup's own isolated JavaScript world
 // (WKContentWorld.defaultClient), so the page's scripts can't see or change
 // it. Arguments arrive as local variables: maxMessages, maxScrolls,
 // readerName, debug. It returns a JSON string.
@@ -601,7 +601,7 @@ function walk(all) {
 
 const BUDGET_MS = 45000;
 
-/** The thread as Ketchup sends it: senders named, the newest MAX kept, and
+/** The thread as Cetchup sends it: senders named, the newest MAX kept, and
  *  how the read went (counts only). `read` holds the ways in which a Last N
  *  read and a follow differ. */
 function threadResult(ctx, title, read) {
@@ -640,7 +640,7 @@ function threadResult(ctx, title, read) {
 // ---------------------------------------------------------------------------
 // "Until I stop scrolling": the person scrolls, and this only reads.
 //
-// Ketchup runs this script about four times a second with `follow` set.
+// Cetchup runs this script about four times a second with `follow` set.
 // "start" reads the rows filled in now, each "look" reads the rows filled in
 // since (the ones the person scrolled to), "finish" hands back the thread
 // the way a Last N read does, with `stop` as the reason, and "stop" forgets

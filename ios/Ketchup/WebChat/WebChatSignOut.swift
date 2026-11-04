@@ -2,8 +2,8 @@
 //  WebChatSignOut.swift
 //  Ketchup
 //
-//  EXPERIMENTAL, NOT RELEASED. Settings' "Sign out of Instagram in Ketchup"
-//  (and Snapchat): forgets what one source's sites saved in Ketchup's web
+//  EXPERIMENTAL, NOT RELEASED. Settings' "Sign out of Instagram in Cetchup"
+//  (and Snapchat): forgets what one source's sites saved in Cetchup's web
 //  views on this iPhone (cookies, storage, caches, service workers), so the
 //  next visit starts at their sign-in page. Only that source's sites: the
 //  other one stays signed in, and the account itself isn't touched.
@@ -12,7 +12,7 @@
 import WebKit
 
 extension WebChatSource {
-    /// Something from this source's sites is saved in Ketchup's web views.
+    /// Something from this source's sites is saved in Cetchup's web views.
     func hasSavedData() async -> Bool {
         !(await savedRecords()).isEmpty
     }
