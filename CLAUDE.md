@@ -511,7 +511,38 @@ a "Reading the chat" pill while it reads. Edge function `catch-up-text`, migrati
   drop (Catch me up); `-KetchupInstagramFixture YES` (or Snapchat) opens the
   synthetic thread instead of the real site. The console prints counts only:
   `[snapchat] read N messages, …`, and each page as host and path with ids left out. Tap the
-  menu once and wait: a second tap where the button was lands on "Last 120".
+  menu once and wait: a second tap where the button was lands on "Until I stop scrolling".
+- **Until I stop scrolling** (Nov 4, 2026; Android's `ThreadReader.follow` on iPhone). Menu item
+  under Last 120; `WebChatBrowser.follow` and `WebFollow` (`WebChat/WebChatFollow.swift`),
+  `FollowingPanel` in `WebChatTab.swift`. It never scrolls: every 250 ms the app runs the
+  reader with `follow` = "start", then "look", and at the end "finish" (same JSON as Last N)
+  or "stop". Only what has been on screen counts. The reader keeps what it read in the
+  `.defaultClient` world's own `globalThis.ketchupFollow`, deleted on finish or stop, and sets
+  no timers or listeners. Instagram lines rows up by place from the list's bottom (as Last N
+  does, allowing for anything new at the bottom), Snapchat lays each read over the last one.
+  Done at the first of: 3 s after the last new message, 5 s after the start with none, 600
+  messages or 3 minutes (`stop` "budget"; the rest "enough"), or Catch me up now. Stop, another
+  tab, the app going to the background, another page or thread: nothing sent, nothing kept.
+  Its log line: `[instagram] follow read N messages, L looks, stop enough (quiet), gaps G,
+  dupes D, X ms`; `gaps` counts rows Instagram never filled in while on screen (the view
+  jumped past them), which follow can't go back for.
+  Offline checks (no sign-in, no network), each must print the counts shown (Nov 4, 2026):
+  - Harness, same commands as above plus `--follow` (a pretend person scrolls the page from a
+    third content world: `--person 'up 8, down 2, up 120'` by default) and without
+    `maxMessages`: Instagram `PASS 88/88` (88 read, 58 looks), the virtual one `PASS 88/88`,
+    Snapchat `PASS 62/62`; each also says the scroll moved during 0 looks, nothing was left
+    in the page after finish or after stop, and another thread mid-follow gave
+    `thread_changed`. The virtual one with `?anchoring=on` reads 69 of 88: the view jumps past
+    part of each older batch. `--person 'up 0'` finishes at about 5 s with what's on screen.
+  - Simulator: `-screen web-instagram -followTest YES` (add `-webFixture
+    ig-thread-fixture-virtual` for the other Instagram thread) and `-screen web-snapchat
+    -followTest YES`, with `--console-pty`: `follow check: 88 of 88 match the test thread's
+    newest 88 in order, 88 of its 88 read, 0 repeated or not in it` (62 for Snapchat). The
+    pretend person scrolls back down twice midway. `-readTest 10` (or 30) checks a Last N read
+    the same way: `Last 10 check: 10 of 10 match …`.
+  - Previews: `web-following` and `web-following-snapchat` run the real follow held open (no
+    timers) for screenshots; swipe the page and the count goes up. Then the sheet stops at
+    the server call (offline).
 - On David's phone: `xcrun devicectl list devices` for the udid, build with
   `-destination 'id=<udid>'` (or `generic/platform=iOS` while it's locked) and
   `-allowProvisioningUpdates`, then

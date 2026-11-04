@@ -431,9 +431,12 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   tab along the bottom of the home screen, next to Chats. Switching tabs keeps the page
   loaded and signed in. You sign in on their page and open a chat. Tap the ketchup drop on
   the right (**Catch me up**), pick the last 10, 30, 80 or 120 messages (the page doesn't say
-  what's unread), and Ketchup reads that much of the conversation off the page. Then it
-  runs the same Muse Spark catch-up as its own chats through a second edge function,
-  [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
+  what's unread), and Ketchup reads that much of the conversation off the page. Or pick
+  **Until I stop scrolling**: you scroll up through the chat yourself, a small panel counts
+  what's been read, and about 3 seconds after you stop (or on **Catch me up now**) it catches
+  you up on everything you scrolled past, as on Android. **Stop**, or leaving the tab, sends
+  nothing. Then it runs the same Muse Spark catch-up as its own chats through a second edge
+  function, [`catch-up-text`](supabase/functions/catch-up-text/index.ts): the same ref-tagged
   transcript, prompts, JSON schemas and validation, laid out with the same brief, tickets,
   diner check and Ask the chat. Each source chip shows the whole message it quotes.
 - **It reads only the chat you have open, in your own signed-in session.** Ketchup never
@@ -442,7 +445,9 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
   [`SnapchatThreadReader.js`](ios/Ketchup/Snapchat/SnapchatThreadReader.js)) run only when
   you pick how much to read on a chat. They go by page structure (roles, tags, labels,
   layout), not the sites' class names, which change. Both step up through the chat for
-  older messages, then put the scroll back.
+  older messages, then put the scroll back. Until I stop scrolling never scrolls: it looks
+  at the page four times a second and keeps each message once, in order, however you
+  scroll.
 - **Nothing is stored on the server.** No message text in the logs (counts and token usage
   only). The server keeps one usage count per call, with no content, for an hourly cap of 20.
   The catch-up itself is kept on your phone (the last 3 for each thread) until you delete

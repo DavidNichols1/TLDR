@@ -3,6 +3,11 @@
 //
 //   swift scripts/ig-extractor-check/check.swift --html <file> --js <file> [--expected <file>]
 //       [--url <baseURL>] [--args '<json>'] [--size <W>x<H>] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
+//       [--follow] [--person '<moves>']
+//
+// --follow runs "Until I stop scrolling" the way the app does: the extractor with follow "start",
+// "look" every quarter second and "finish" with the app's finish rules, while a pretend person
+// scrolls the page's own scroller from a third content world (see `Follow` below).
 //
 // The page goes into a 390x844 WKWebView with loadHTMLString(html, baseURL: url). The web view
 // sits in a borderless window parked far off every screen, so nothing ever appears, but WebKit
@@ -36,6 +41,11 @@ struct Options: Sendable {
     /// The window in points: a phone by default; Snapchat's page is a computer's (`--size 1024x768`).
     var width = 390.0
     var height = 844.0
+    /// "Until I stop scrolling" instead of one call.
+    var follow = false
+    /// The pretend person's moves while following: "up 8, down 2, up 80" scrolls up 8 times, down
+    /// twice, then up until the top, 0.6 of a screen every half second.
+    var person = "up 8, down 2, up 120"
 }
 
 func eprint(_ line: String) {
@@ -52,6 +62,7 @@ func usage(_ problem: String? = nil) -> Never {
     eprint("""
     usage: swift scripts/ig-extractor-check/check.swift --html <file> --js <file> [--expected <file>]
                [--url <baseURL>] [--args '<json>'] [--size <W>x<H>] [--out <file>] [--screenshot <png>] [--timeout <seconds>]
+               [--follow] [--person '<moves>']
     """)
     exit(64)
 }
@@ -79,6 +90,8 @@ func parseOptions(_ argv: [String]) -> Options {
             guard wh.count == 2, wh[0] > 0, wh[1] > 0 else { usage("--size needs <width>x<height>, like 1024x768") }
             o.width = wh[0]
             o.height = wh[1]
+        case "--follow": o.follow = true
+        case "--person": o.person = value(flag)
         case "--timeout":
             guard let seconds = Double(value(flag)), seconds > 0 else { usage("--timeout needs a number of seconds") }
             o.timeout = seconds
@@ -361,7 +374,12 @@ final class Harness: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let started = Date()
         let raw: Any?
         do {
-            raw = try await web.callAsyncJavaScript(js, arguments: args, in: nil, contentWorld: .defaultClient)
+            if options.follow {
+                guard let moves = Follow.moves(options.person) else { usage("--person needs moves like 'up 8, down 2, up 120'") }
+                raw = try await Follow(web: web, js: js, args: args, moves: moves).run()
+            } else {
+                raw = try await web.callAsyncJavaScript(js, arguments: args, in: nil, contentWorld: .defaultClient)
+            }
         } catch {
             eprint("error: the extractor threw: \(Self.describe(error))")
             return 2
@@ -539,6 +557,123 @@ final class Harness: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let text = body["text"] as? String ?? "\(message.body)"
         eprint(message.name == "ketchupCheckPageError" ? "[page \(level)] \(text)" : "[js \(level)] \(text)")
     }
+}
+
+// MARK: - Following
+
+/// "Until I stop scrolling", as WebChatBrowser.follow runs it: the extractor never scrolls; a
+/// pretend person does, from their own content world, and the extractor reads what they scroll
+/// past. The same finish rules as the app: about 3 s after the last new message, 5 s after the
+/// start if none came, 600 messages, or 3 minutes. Prints counts only, then checks that
+/// nothing was left in the page, that "stop" forgets, and that a changed thread stops it.
+@MainActor
+struct Follow {
+    let web: WKWebView
+    let js: String
+    let args: [String: Any]
+    let moves: [Int]   // -1 up, +1 down, one per half second
+
+    static let quiet = 3.0, idle = 5.0, longest = 180.0, poll = 0.25, most = 600
+    static let person = WKContentWorld.world(name: "ketchup-check-person")
+
+    static func moves(_ plan: String) -> [Int]? {
+        var out: [Int] = []
+        for part in plan.split(separator: ",") {
+            let words = part.split(separator: " ")
+            guard words.count == 2, let n = Int(words[1]), n >= 0, words[0] == "up" || words[0] == "down" else { return nil }
+            out += Array(repeating: words[0] == "up" ? -1 : 1, count: n)
+        }
+        return out
+    }
+
+    func call(_ step: String, stop: String? = nil) async throws -> [String: Any] {
+        var a = args
+        a["maxMessages"] = Self.most
+        a["follow"] = step
+        if let stop { a["stop"] = stop }
+        let raw = try await web.callAsyncJavaScript(js, arguments: a, in: nil, contentWorld: .defaultClient)
+        guard let text = raw as? String, let object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else {
+            throw NSError(domain: "follow", code: 1, userInfo: [NSLocalizedDescriptionKey: "follow \(step) returned no JSON"])
+        }
+        return object
+    }
+
+    /// The person: the page's biggest scroller, moved 0.6 of its height. Returns how far it went.
+    func scroll(_ direction: Int) async -> Double {
+        let script = """
+        const sc = [...document.querySelectorAll('*')]
+          .filter((el) => /(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 8)
+          .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0];
+        if (!sc) return 0;
+        const before = sc.scrollTop;
+        if (direction !== 0) sc.scrollTop = before + direction * Math.round(sc.clientHeight * 0.6);
+        return direction === 0 ? before : Math.abs(sc.scrollTop - before);
+        """
+        let raw = try? await web.callAsyncJavaScript(script, arguments: ["direction": direction], in: nil, contentWorld: Self.person)
+        return (raw as? NSNumber)?.doubleValue ?? 0
+    }
+
+    func run() async throws -> Any? {
+        let started = Date()
+        var reply = try await call("start")
+        guard reply["ok"] as? Bool == true else { return try JSONSerialization.data(withJSONObject: reply).string }
+        var found = reply["found"] as? Int ?? 0
+        let first = found
+        var lastNew: Date?
+        var looks = 1, ups = 0, downs = 0, stuck = 0, movedInLook = 0, next = 0
+        var nextMove = started.addingTimeInterval(1)
+        var stop = "enough", why = "quiet"
+        while true {
+            let now = Date(), age = now.timeIntervalSince(started)
+            if found >= Self.most { why = "most"; break }
+            if age >= Self.longest { stop = "budget"; why = "budget"; break }
+            if lastNew == nil, age >= Self.idle { why = "idle"; break }
+            if let lastNew, now.timeIntervalSince(lastNew) >= Self.quiet { break }
+            if now >= nextMove, next < moves.count {
+                let direction = moves[next]
+                let went = await scroll(direction)
+                if direction < 0 { ups += 1 } else { downs += 1 }
+                // At the top with nothing more coming: the rest of this run of ups is done.
+                stuck = direction < 0 && went < 1 ? stuck + 1 : 0
+                next += 1
+                if stuck >= 4 { while next < moves.count, moves[next] < 0 { next += 1 }; stuck = 0 }
+                nextMove = Date().addingTimeInterval(0.5)
+            }
+            try await Task.sleep(nanoseconds: UInt64(Self.poll * 1e9))
+            let before = await scroll(0)
+            reply = try await call("look")
+            let after = await scroll(0)
+            if before != after { movedInLook += 1 }
+            guard reply["ok"] as? Bool == true else { return try JSONSerialization.data(withJSONObject: reply).string }
+            looks += 1
+            if let n = reply["found"] as? Int, n > found { found = n; lastNew = Date() }
+        }
+        let result = try await call("finish", stop: stop)
+        let stats = result["stats"] as? [String: Any] ?? [:]
+        let left = try await web.callAsyncJavaScript("return typeof globalThis.ketchupFollow", arguments: [:], in: nil, contentWorld: .defaultClient) as? String
+        eprint("[check] follow read \(stats["found"] ?? "?") messages, \(looks) looks, stop \(stop) (\(why)), \(stats["ms"] ?? "?") ms; " +
+               "\(first) on screen at the start; the person scrolled \(ups) up and \(downs) down; the scroll moved during \(movedInLook) of \(looks) looks; " +
+               "dupes \(stats["dupes"] ?? "?"); left in the page after finish: \(left == "undefined" ? "nothing" : left ?? "?")")
+
+        // "stop" forgets everything.
+        _ = try await call("start")
+        _ = try await call("stop")
+        let afterStop = try await web.callAsyncJavaScript("return typeof globalThis.ketchupFollow", arguments: [:], in: nil, contentWorld: .defaultClient) as? String
+        eprint("[check] after start then stop, left in the page: \(afterStop == "undefined" ? "nothing" : afterStop ?? "?")")
+        // A different thread mid-follow (the site changes pages with pushState) stops it.
+        _ = try await call("start")
+        _ = try await web.callAsyncJavaScript("const p = location.pathname; history.pushState(null, '', p.replace(/[^/]+\\/?$/, 'another-thread')); return p",
+                                              arguments: [:], in: nil, contentWorld: Self.person)
+        let changed = try await call("look")
+        let afterChange = try await web.callAsyncJavaScript("return typeof globalThis.ketchupFollow", arguments: [:], in: nil, contentWorld: .defaultClient) as? String
+        _ = try await web.callAsyncJavaScript("history.back(); return 1", arguments: [:], in: nil, contentWorld: Self.person)
+        eprint("[check] another thread mid-follow: \(changed["error"] ?? "no error"), left in the page: \(afterChange == "undefined" ? "nothing" : afterChange ?? "?")")
+        return try JSONSerialization.data(withJSONObject: result).string
+    }
+}
+
+extension Data {
+    var string: String { String(decoding: self, as: UTF8.self) }
 }
 
 // MARK: - Main
