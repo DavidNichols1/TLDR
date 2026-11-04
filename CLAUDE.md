@@ -252,7 +252,7 @@ in one group (StoreKit 2). Code: `supabase/functions/_shared/` (`consent.ts`, `p
 - **`PLANS_ENFORCED=false`** (function secret): the emergency off switch. Nothing counted or refused;
   consent is still required.
 - **Apply and deploy, in this order**: 1. migration as one part, `apply_migration` name `0010_plans`,
-  then `rls_check.sql` (117 of 117 on Nov 3, 2026, inside a rolled-back transaction). 2. Give the
+  then `rls_check.sql` (132 of 132 on Nov 3, 2026, inside a rolled-back transaction). 2. Give the
   recording account Pro and consent (the SQL in the migration's header, plus
   `insert into public.ai_consents (user_id, confirmed_adult) values ('<id>', true);`): the demo
   chat's 302 unread is over Free's 150. 3. Install the new iOS and Android builds (old builds can't
@@ -260,7 +260,7 @@ in one group (StoreKit 2). Code: `supabase/functions/_shared/` (`consent.ts`, `p
   `verify-purchase` with `--use-api`; `list_edge_functions` → `verify_jwt: true` on all three, and an
   unauthenticated POST to `verify-purchase` returns 401. Until step 1 the iOS app shows no plan rows
   and asks nothing (`my_plan` missing), and Android asks nothing (no `ai_consents` table).
-- **Tests**: `deno test supabase/functions/_shared/` (36 on Nov 3, 2026: `plan_test.ts`,
+- **Tests**: `deno test supabase/functions/_shared/` (37 on Nov 3, 2026: `plan_test.ts`,
   `consent_test.ts`, `apple_test.ts` with Apple's real G6 intermediate checked against the pinned root
   and a throwaway chain made at test time, nothing private in the repo). Android `ConsentGateTest`,
   `PlanRefusalsTest`.
