@@ -1,13 +1,23 @@
-# Ketchup: notes for Claude sessions
+# Cetchup: notes for Claude sessions
 
 Hackathon app (Meta Global AI Developer Hackathon, due Nov 4, 2026 9 PM ET). Product context
 lives in the Brain vault note `Projects/Meta Hackathon/Meta Hackathon.md`; this file is
 the technical recipe. README.md is the judge-facing overview.
 
 ## Rules
-- The app was called TL;DR until Nov 2, 2026, then renamed Ketchup (as in *catch up*). On purpose,
-  three things kept the old name: the `tldr` JSON field (stored data), the seed accounts'
-  `tldr.demo+…` emails (live users), and the comments in applied migrations.
+- The app was called TL;DR until Nov 2, 2026, then Ketchup (as in *catch up*), and since Nov 4,
+  2026 it's **Cetchup** (the App Store Connect record is "Cetchup.ai": plain "Ketchup" and
+  "Cetchup" were taken). Only what a person sees says Cetchup: UI copy, VoiceOver labels, the
+  name under the icon (`INFOPLIST_KEY_CFBundleDisplayName`), Android's `app_name` and reader
+  service label, StoreKit display names, the server's sentences, Muse Spark's prompts, the docs.
+  Identifiers keep Ketchup on purpose, since renaming them breaks builds, signing, sign-in or
+  installed copies: the Xcode project, target, scheme, PRODUCT_NAME and folders, bundle ID and
+  Android package `com.vibetemp.ketchup`, product IDs, type and file names, UserDefaults and
+  SharedPreferences keys, launch arguments, log tags (`KetchupReader`, `KetchupNet`), theme colors
+  (`Theme.ketchup`), Supabase names and test fixtures (the GitHub repo is still TLDR). Lowercase
+  ketchup, the condiment and the color (the ketchup drop, ketchup red), stays. From TL;DR, three
+  things kept that name: the `tldr` JSON field (stored data), the seed accounts' `tldr.demo+…`
+  emails (live users), and the comments in applied migrations.
 - No em dashes in anything user-facing: UI copy, Muse Spark output (brief.ts `plain()` strips
   them), docs.
 - The repo is **public**. No secrets, ever: the Meta key is only the Supabase secret
@@ -204,7 +214,7 @@ phone's own voice; Meta has no text to speech). Plus and Pro are Apple auto-rene
 in one group (StoreKit 2). Code: `supabase/functions/_shared/` (`consent.ts`, `plan.ts`, `apple.ts`,
 `purchase.ts`), `supabase/functions/verify-purchase/`, `ios/Ketchup/Plans/`, Android
 `data/ConsentGate.kt` and `ui/plans/ConsentDialog.kt`.
-- **Consent** (`ai_consents`, one row per person): your yes to Ketchup sending the messages a
+- **Consent** (`ai_consents`, one row per person): your yes to Cetchup sending the messages a
   catch-up or question covers, friends' included, to Meta's Muse Spark, and that you're 18 or older
   (Meta's terms 10.1; Apple 5.1.2(i)). RLS: your own row only; insert names only `user_id` and
   `confirmed_adult`, so `consented_at` is always the server's; delete withdraws. `my_plan()` reports it.
@@ -309,10 +319,10 @@ left over sign-in.
   use a throwaway account, never a seed one (their messages are the demo chat) or David's.
 - While a delete is on its way, its page hides Back and Settings holds Done and swipe-down;
   if the sheet is gone anyway when it finishes, YouView signs out at once. Leaving
-  (Sign out or a deleted account) forgets the Instagram and Snapchat sign-ins in Ketchup
+  (Sign out or a deleted account) forgets the Instagram and Snapchat sign-ins in Cetchup
   (`AppModel.leave`). Offline previews never touch the real website data: `leave` and the
   web-chat rows skip it while previewing.
-- "Sign out of Instagram/Snapchat in Ketchup" removes the `WKWebsiteDataStore.default()`
+- "Sign out of Instagram/Snapchat in Cetchup" removes the `WKWebsiteDataStore.default()`
   records whose name matches that source's `domains`, then posts `webChatForgotten` and the
   open page goes back to its start URL. The first check after a fresh install can take a few
   seconds (WebKit starting); the row works meanwhile.
@@ -340,7 +350,7 @@ left over sign-in.
 - Report email: after a report the app calls `report-alert` (verify_jwt on), which emails
   `REPORTS_EMAIL` through Resend (reason, message or person, the SQL to read it; no names or
   text). It does nothing until David sets `RESEND_API_KEY` and `REPORTS_EMAIL` (optional
-  `REPORTS_FROM`, default `Ketchup <noreply@vibetemp.com>`). Deploy:
+  `REPORTS_FROM`, default `Cetchup <noreply@vibetemp.com>`). Deploy:
   `supabase functions deploy report-alert --project-ref cfqlnthmqwkhjbhylvgu --use-api`; an
   unauthenticated POST must return 401. Logs: `"fn":"report-alert"`, counts only.
 - Your people: `contacts` (owner-only select; writes through `add_contact`, which needs a
@@ -534,7 +544,7 @@ It also has who owns which files (chat, brief, reader slices) and the frozen `da
 **David's test phone** (moto g 2025, Android 16) connects over Wi-Fi debugging, no cable: once he turns
 on Developer options → Wireless debugging (paired with this Mac through Android Studio), `adb mdns
 services` lists it and `adb connect <ip:port>` (or adb's auto-connect) attaches it. It drops when the
-phone sleeps, so a background loop that waits for it, then installs, works well. Read only Ketchup's
+phone sleeps, so a background loop that waits for it, then installs, works well. Read only Cetchup's
 own log tags: `KetchupReader` (read counts, and why no thread was found), `KetchupReaderDump` (layout:
 view ids, bounds, text lengths, never text) and `KetchupNet` (network failures). Never take a
 screenshot or a `uiautomator dump` while Instagram or Snapchat is open (both include message text),

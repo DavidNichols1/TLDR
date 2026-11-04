@@ -1,8 +1,8 @@
-# Ketchup
+# Cetchup
 
 **Come back to 300 unread group-chat messages and know what matters in 10 seconds.**
 
-**Ketchup**, as in *catch up*, is a native iOS group chat with Meta's **Muse Spark** built in. Tap **Catch me up**
+**Cetchup** (cetchup.ai), as in *catch up*, is a native iOS group chat with Meta's **Muse Spark** built in. Tap **Catch me up**
 and Muse Spark reads everything you missed. It gives you the plans, the money, the
 questions still waiting on an answer, and what people asked *you*. Every item links back
 to the message it came from.
@@ -30,7 +30,7 @@ time are we leaving?" and get groaned at.
 - **Plans become calendar events.** Each plan is a card with a real date and time (for
   example, "Saturday 6am" becomes `2026-11-07T06:00:00-07:00`), a place, who's going,
   and whether it's confirmed or only proposed. **Add to Calendar** opens the iOS event
-  editor already filled in. Ketchup never writes to your calendar itself.
+  editor already filled in. Cetchup never writes to your calendar itself.
 - **Cited messages.** Every bullet has chips for the messages behind it. Tap one and the
   chat jumps to that exact message and highlights it.
 - **Ask the chat.** Ask a question like "what time are we leaving?" or "how much do I
@@ -63,7 +63,7 @@ screen opens offline on real demo data with `-screen <name>`; see
 
 ## How it uses Muse Spark
 
-Ketchup doesn't just summarize, and it isn't basic RAG either. One Muse Spark call turns
+Cetchup doesn't just summarize, and it isn't basic RAG either. One Muse Spark call turns
 a messy group chat into structured state that the app can act on. Then the server
 checks that every claim is backed by a real message.
 
@@ -136,7 +136,7 @@ Calling the Meta Model API ([`muse.ts`](supabase/functions/_shared/muse.ts)):
 
 ## Opens instantly
 
-The phone keeps a copy of what you last saw, so Ketchup opens on your chats at once and
+The phone keeps a copy of what you last saw, so Cetchup opens on your chats at once and
 refreshes from the server behind them.
 
 - **Your inbox and each chat's newest 400 messages stay on the phone.** They show in the
@@ -158,7 +158,7 @@ refreshes from the server behind them.
   the chat has it loaded. Delete one, or Clear all; they stay until you do
   ([`SavedBriefs.swift`](ios/Ketchup/Store/SavedBriefs.swift)).
 - **Nothing new, no new call.** Tap Catch me up when nobody has written since your last
-  catch-up and Ketchup shows that one again ("Nothing new since 2:14 PM. Here's your last
+  catch-up and Cetchup shows that one again ("Nothing new since 2:14 PM. Here's your last
   catch-up."), without asking the server or Muse Spark. "You're all caught up" is only for a
   chat with no catch-up kept on the phone.
 - **Clear cache** in Settings drops the copy of your chats and the photo cache; both load
@@ -173,10 +173,10 @@ refreshes from the server behind them.
 ```mermaid
 flowchart LR
   subgraph iPhone
-    A["Ketchup iOS app<br/>SwiftUI, zero dependencies<br/>hand-rolled Supabase Auth + REST client<br/>Realtime websocket, polling fallback"]
+    A["Cetchup iOS app<br/>SwiftUI, zero dependencies<br/>hand-rolled Supabase Auth + REST client<br/>Realtime websocket, polling fallback"]
   end
   subgraph Android
-    B["Ketchup Android app<br/>Kotlin + Jetpack Compose<br/>hand-rolled client and Realtime websocket<br/>reader bubble over Instagram"]
+    B["Cetchup Android app<br/>Kotlin + Jetpack Compose<br/>hand-rolled client and Realtime websocket<br/>reader bubble over Instagram"]
   end
   subgraph Supabase
     DB[("Postgres<br/>RLS = security boundary<br/>RPCs: create/join/leave chat,<br/>mark_read, my_chats")]
@@ -278,8 +278,8 @@ flowchart LR
   can still be reviewed if it's deleted later. An edge function emails a heads-up with
   no names or message text in it.
 - **Your people, with no lookup.** You add people from a chat you share; there's no search
-  by email or phone, so nobody can find out who uses Ketchup, and your contacts are never
-  uploaded. Invite friends uses Apple's contact picker, so Ketchup gets only the one number
+  by email or phone, so nobody can find out who uses Cetchup, and your contacts are never
+  uploaded. Invite friends uses Apple's contact picker, so Cetchup gets only the one number
   you pick, to open a Messages draft. A new chat with your people never adds anyone who
   has blocked you, and doesn't say so.
 - **Photos follow the same rules** ([`0006_photos.sql`](supabase/migrations/0006_photos.sql)).
@@ -325,7 +325,7 @@ reads for you. **Every plan uses Meta's Standard mode, which Meta doesn't train 
 </table>
 
 - **You say yes once, first.** Before your first catch-up or question, a sheet says
-  plainly what happens: Ketchup sends the messages it covers, your friends' included, to
+  plainly what happens: Cetchup sends the messages it covers, your friends' included, to
   Meta's Muse Spark to write it, Meta doesn't train on them, and Muse Spark is for people
   18 and older. You check "I'm 18 or older" and allow it. The yes is kept with your
   account, and the server refuses a catch-up without it. Android asks the same before its
@@ -338,13 +338,13 @@ reads for you. **Every plan uses Meta's Standard mode, which Meta doesn't train 
   catch-up that was already made, or two taps at once, costs nothing; a call that fails
   gives its messages back. Opening a chat on Free doesn't spend anything until you tap.
 - **Apple In-App Purchase, checked on the server.** Plus and Pro are auto-renewable
-  subscriptions in one group (StoreKit 2). A purchase carries your Ketchup account's id;
+  subscriptions in one group (StoreKit 2). A purchase carries your Cetchup account's id;
   the app sends Apple's signed transaction to the
   [`verify-purchase`](supabase/functions/verify-purchase/index.ts) edge function, which
   checks Apple's certificate chain up to Apple's root
   ([`apple.ts`](supabase/functions/_shared/apple.ts), no third-party code), then the app,
   the product and the account, before it sets your plan. The app can't set its own plan,
-  and one subscription unlocks one Ketchup account.
+  and one subscription unlocks one Cetchup account.
 - **Listen (Pro)** reads the catch-up aloud with the phone's own voice. Meta has no text
   to speech, so nothing more leaves the phone.
 - **Testing a purchase.** Xcode's local StoreKit test (`ios/Ketchup/Plans/Ketchup.storekit`,
@@ -360,12 +360,13 @@ the sandbox sees the products):
 1. **Agreements, Tax, and Banking**: the Paid Applications Agreement is active (it is
    until January 13, 2027), with tax and banking filled in.
 2. **Apps → + → New App**: iOS, bundle ID `com.vibetemp.ketchup` (pick it from your
-   identifiers), a name (if "Ketchup" is taken, something like "Ketchup: Catch Up").
-3. **The app → Monetization → Subscriptions → Create** a subscription group, "Ketchup".
-4. In the group, **Create** "Ketchup Plus Monthly": product ID
-   `com.vibetemp.ketchup.plus.monthly`, 1 month, $4.99, level 2, display name "Ketchup Plus".
-5. **Create** "Ketchup Pro Monthly": `com.vibetemp.ketchup.pro.monthly`, 1 month, $9.99,
-   level 1 (the higher level, so Plus to Pro is an upgrade), display name "Ketchup Pro".
+   identifiers), and the name "Cetchup.ai" (plain "Ketchup" and "Cetchup" were taken; the name
+   under the icon is plain Cetchup).
+3. **The app → Monetization → Subscriptions → Create** a subscription group, "Cetchup".
+4. In the group, **Create** "Cetchup Plus Monthly": product ID
+   `com.vibetemp.ketchup.plus.monthly`, 1 month, $4.99, level 2, display name "Cetchup Plus".
+5. **Create** "Cetchup Pro Monthly": `com.vibetemp.ketchup.pro.monthly`, 1 month, $9.99,
+   level 1 (the higher level, so Plus to Pro is an upgrade), display name "Cetchup Pro".
 6. Give each a description, a review screenshot (the paywall) and the group a display name;
    the first subscription goes to review with an app version.
 7. **Users and Access → Sandbox → Test Accounts → +**: a sandbox Apple Account. On the
@@ -463,18 +464,18 @@ on chats people already have: an Instagram DM thread or a Snapchat chat.
 
 ## Android, and the Instagram bubble (experimental)
 
-The Android app ([`android/`](android)) is the same Ketchup: sign in with an email code,
+The Android app ([`android/`](android)) is the same Cetchup: sign in with an email code,
 chats in real time, and Catch me up and Ask with the same brief, tickets, diner check
 and sources that jump back to the message. Ask opens straight to the question, without
 a catch-up first.
 
 Its Instagram and Snapchat pages work differently from the iPhone's. Android lets an
 app read the screen through accessibility, the way apps like SocialLite do, so there's
-no website inside Ketchup. You use the real Instagram app.
+no website inside Cetchup. You use the real Instagram app.
 
 - **How it works.** An accessibility service
   ([`android/.../reader/`](android/app/src/main/java/com/vibetemp/ketchup/reader)) listens
-  only to Instagram and Snapchat. When a DM thread is open, a small Ketchup bubble floats
+  only to Instagram and Snapchat. When a DM thread is open, a small Cetchup bubble floats
   over it (an accessibility overlay, so no draw-over permission). Tap it and pick the last
   10, 30, 80 or 120 messages. It reads them off the screen, scrolling back for older ones and
   dropping repeats, and tells your messages from theirs by which side they're on (on
@@ -500,7 +501,7 @@ no website inside Ketchup. You use the real Instagram app.
   text lengths, never text) showed that every Snapchat message sits on the left under a
   name row, so the reader takes each message's sender from the row above it instead of
   from its side, and finds the chat by Snapchat's own view names. The first time you use
-  it, Ketchup asks your name on Snapchat once and keeps it on the phone; messages under
+  it, Cetchup asks your name on Snapchat once and keeps it on the phone; messages under
   that name or "ME" are yours. Snapchat mostly ignores an app's scrolling, so the panel
   asks you to scroll up slowly and reads as you go. On the phone at 2:25 PM it read 30
   messages, 7 of them yours, with no repeats. Still unchecked on a real phone: a long
@@ -517,9 +518,9 @@ for their profile), Invite friends and Blocked people. Settings opens from it
 ([`ios/Ketchup/People/`](ios/Ketchup/People)).
 
 - **Change your name.** Friends see it in your chats, and Muse Spark uses it in catch-ups.
-- **Sign Instagram or Snapchat out of Ketchup.** Each row forgets that one site's sign-in
-  and saved data in Ketchup's web views on this iPhone (cookies, storage, caches, service
-  workers). Your accounts there aren't touched. Signing out of Ketchup forgets both, so
+- **Sign Instagram or Snapchat out of Cetchup.** Each row forgets that one site's sign-in
+  and saved data in Cetchup's web views on this iPhone (cookies, storage, caches, service
+  workers). Your accounts there aren't touched. Signing out of Cetchup forgets both, so
   the next person to sign in on that phone doesn't inherit them.
 - **Sign out, or delete your account for good** (see Security above). A page says what
   goes and what stays, then asks once more.
@@ -543,7 +544,7 @@ then the iOS app. The Android app followed on November 3, 2026.
 The networking and chat plumbing are adapted from **AurariaGO**, a live App Store app I
 built under VibetempLLC. That includes the Supabase client approach, the chat bubble
 and input bar components, and the on-device cache and loading skeletons (restyled for
-Ketchup). Everything specific to Ketchup is new for this event: the
+Cetchup). Everything specific to Cetchup is new for this event: the
 schema, the `catch-up` edge function, the Muse Spark integration, the catch-up and
 ask-the-chat UI, plan cards, and the Realtime websocket (AurariaGO polls).
 

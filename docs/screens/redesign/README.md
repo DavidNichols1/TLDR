@@ -1,6 +1,6 @@
 # Chat screens, redesigned
 
-The chat side of Ketchup on the diner-counter design system (`docs/DESIGN.md`): sign-in, the name step, the home's tabs (Chats, Instagram, Snapchat and You), the inbox and its sheets, the chat thread, the chat info sheet and the app icon. Taken on an iPhone 17 Pro Max simulator from the offline previews, November 3, 2026. Every file has a `-light` and a `-dark` version unless noted.
+The chat side of Cetchup on the diner-counter design system (`docs/DESIGN.md`): sign-in, the name step, the home's tabs (Chats, Instagram, Snapchat and You), the inbox and its sheets, the chat thread, the chat info sheet and the app icon. Taken on an iPhone 17 Pro Max simulator from the offline previews, November 3, 2026. Every file has a `-light` and a `-dark` version unless noted.
 
 <p>
 <img src="signin-light.png" width="200" alt="Sign-in">

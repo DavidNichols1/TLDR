@@ -1,6 +1,6 @@
-# Ketchup design
+# Cetchup design
 
-Ketchup looks like a diner counter: cream paper, warm ink, and one squeeze of ketchup red for the thing to press. Mustard marks what matters to you (a time, an amount, your name), pickle green stamps what's confirmed, plans arrive as order tickets and money as a diner check.
+Cetchup looks like a diner counter: cream paper, warm ink, and one squeeze of ketchup red for the thing to press. Mustard marks what matters to you (a time, an amount, your name), pickle green stamps what's confirmed, plans arrive as order tickets and money as a diner check.
 
 <p>
 <img src="screens/foundation/design-light.png" width="260" alt="Wordmark, logo drop and buttons">
@@ -70,7 +70,7 @@ Always use text styles so Dynamic Type works. The wordmark is the only fixed siz
 |---|---|
 | `KetchupDrop()` | The logo: a ketchup drop with a chat-bubble tail. Fill with `ketchup`; reads from 16 pt up. |
 | `DropShine()` | Highlight stacked on a big drop (icon, hero). Skip under about 40 pt. |
-| `Wordmark(size:drawIn:)` | "Ketchup" in New York black italic with the mustard squiggle; `drawIn` draws it once. |
+| `Wordmark(size:drawIn:)` | "Cetchup" in New York black italic with the mustard squiggle; `drawIn` draws it once. |
 | `Squiggle()` | The squirt under the wordmark, or a quiet divider. Works with `.trim`. |
 | `.buttonStyle(.ketchup)` | The one thing to press. Full-width red capsule, light haptic on press down. |
 | `.buttonStyle(.ink)` / `.outline` | A strong second choice / a quiet one. |
@@ -175,7 +175,7 @@ Catch me up and Ask the chat (`ios/Ketchup/AI/`) lay Muse Spark's JSON out on th
 
 ## First loads
 
-Ketchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a first load only shows on a first launch or a chat's first open. It's blank paper in the shape of what's coming, never a spinner. Screenshots: `screens/speed/`.
+Cetchup opens on the copy it kept on the phone (`Store/DeviceStore.swift`), so a first load only shows on a first launch or a chat's first open. It's blank paper in the shape of what's coming, never a spinner. Screenshots: `screens/speed/`.
 
 <p>
 <img src="screens/speed/inbox-loading-light.png" width="200" alt="The inbox's skeleton rows">
@@ -291,9 +291,9 @@ A profile opens from a name or photo in the thread (a sheet) or a member in Chat
 |---|---|
 | `PeopleView` | A kicker count over "Your people" in New York, then each person's avatar, name and "In 2 chats with you" in mono, with a chevron to their profile. An outline Invite friends under it. |
 | `PeoplePicker(people:picked:)` | Your people with an ink check each, for New chat. |
-| `InviteView` | Which chat (one ink check, its code in mono), the exact message on paper under "What they'll get", Text a friend (the one ketchup button) and an outline Share another way, and a footnote on what Ketchup sees. |
+| `InviteView` | Which chat (one ink check, its code in mono), the exact message on paper under "What they'll get", Text a friend (the one ketchup button) and an outline Share another way, and a footnote on what Cetchup sees. |
 
-- **Say what's shared.** The invite page names what Ketchup gets from the contact picker: the one number, used once.
+- **Say what's shared.** The invite page names what Cetchup gets from the contact picker: the one number, used once.
 
 ## Plans
 
@@ -303,13 +303,13 @@ The plans are a menu on the counter (`ios/Ketchup/Plans/`): three paper cards wi
 <img src="screens/plans/paywall-light.png" width="200" alt="Free, Plus and Pro as three cards, the Free card stamped Your plan">
 <img src="screens/plans/plan-limit-hit-dark.png" width="200" alt="This catch-up reads 302 messages, with today's bar, over the plans, dark">
 <img src="screens/plans/consent-light.png" width="200" alt="Before your first catch-up: three plain points and I'm 18 or older">
-<img src="screens/plans/storekit-purchase-sheet-light.png" width="200" alt="StoreKit's test purchase sheet for Ketchup Plus over the paywall">
+<img src="screens/plans/storekit-purchase-sheet-light.png" width="200" alt="StoreKit's test purchase sheet for Cetchup Plus over the paywall">
 </p>
 
 | Piece | What it does |
 |---|---|
 | `PaywallView` | "More catch-ups a day" in New York, then a card per plan: its messages a day (Pro adds Listen), the price from the App Store (the list price until it answers), and a pickle `Stamp("Your plan")` on yours. The plan worth getting next has the one ketchup button; the other is outline. Restore purchases, the renewal terms and Terms of Use under the cards. |
-| `PaywallSheet` | The same with `SheetBar("Ketchup plans")`, over a catch-up the server turned down: a "Today" card first with the server's sentence and the bar. After a purchase, "You're on Plus" with Back to my catch-up. |
+| `PaywallSheet` | The same with `SheetBar("Cetchup plans")`, over a catch-up the server turned down: a "Today" card first with the server's sentence and the bar. After a purchase, "You're on Plus" with Back to my catch-up. |
 | `UsageBar` | "112 of 150 messages today", a hairline track filling with ink (mustard from four fifths, when it matters to you), "38 left · back at 12:00 AM". |
 | `PlanSection` | Settings' Plan: "Your plan" with the plans behind it, and the bar, with the Standard-mode line under it. Hidden until the server has plans. |
 | `AIConsentSheet` | Asked once: three points on paper (what goes to Muse Spark, friends' messages included; Standard mode, no training; 18 and older), an ink check for "I'm 18 or older", and the ketchup "Allow and continue", which waits for the check. "Not now" sends nothing. |
