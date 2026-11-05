@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -141,6 +142,17 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         threadRows(state.messages, state.firstUnreadId, state.unreadAtOpen).asReversed()
     }
     val atBottom by remember { derivedStateOf { !list.canScrollBackward } }
+    // The thread shows once it's placed (at the "N new" line or the bottom), so
+    // the first page never flashes at the bottom and then jumps. A slow member
+    // or cursor read shows it anyway after a moment.
+    var placedLate by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loaded) {
+        if (state.loaded) {
+            delay(1_500)
+            placedLate = true
+        }
+    }
+    val shown = state.loaded && (positioned || placedLate)
 
     // The brief: Catch me up and Ask both open it; a cited message comes back to jump to.
     val brief = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -315,7 +327,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
         Box(Modifier.weight(1f)) {
             LazyColumn(
                 state = list,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (shown) 1f else 0f },
                 reverseLayout = true,
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
             ) {
@@ -331,7 +343,7 @@ fun ChatScreen(app: AppModel, chat: ChatSummary, onBack: () -> Unit, start: Chat
                     item(key = "older") { OlderRow(loading = state.loadingOlder) { scope.launch { model.loadOlder() } } }
                 }
             }
-            ThreadNote(state, chat, onRetry = { scope.launch { model.open() } })
+            ThreadNote(state, chat, placing = state.loaded && !shown, onRetry = { scope.launch { model.open() } })
             Toast(toast, Modifier.align(Alignment.BottomCenter))
         }
         ChatInputBar(
@@ -496,14 +508,14 @@ private fun OlderRow(loading: Boolean, onLoad: () -> Unit) {
 
 /** What the thread says when there's nothing to show yet: a skeleton, a failed load, or an empty chat. */
 @Composable
-private fun ThreadNote(state: ChatState, chat: ChatSummary, onRetry: () -> Unit) {
+private fun ThreadNote(state: ChatState, chat: ChatSummary, placing: Boolean, onRetry: () -> Unit) {
     val colors = KetchupTheme.colors
     val error = state.loadError
     when {
         !state.loaded && error != null -> Note(stringResource(R.string.chat_error_title), error) {
             CapsuleButton(stringResource(R.string.chat_try_again), onClick = onRetry, fill = ButtonFill.Outline, compact = true)
         }
-        !state.loaded -> ThreadSkeleton(stringResource(R.string.chat_loading), Modifier.background(colors.cream))
+        !state.loaded || placing -> ThreadSkeleton(stringResource(R.string.chat_loading), Modifier.background(colors.cream))
         state.messages.all { it.isJoin } -> {
             val line = stringResource(R.string.chat_empty_body, chat.inviteCode)
             val at = line.indexOf(chat.inviteCode)

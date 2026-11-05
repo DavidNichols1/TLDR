@@ -17,6 +17,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -125,7 +126,7 @@ fun HomePager(
             }
         }
         HomeSwitcher(
-            position = pager.currentPage + pager.currentPageOffsetFraction,
+            position = { pager.currentPage + pager.currentPageOffsetFraction },
             titles = pages.map { it.source?.appName ?: stringResource(R.string.home_page_chats) },
             select = { target ->
                 built = built + pages[target]
@@ -149,19 +150,20 @@ fun HomePager(
  * size past the default text size.
  */
 @Composable
-private fun HomeSwitcher(position: Float, titles: List<String>, select: (Int) -> Unit, modifier: Modifier = Modifier) {
+private fun HomeSwitcher(position: () -> Float, titles: List<String>, select: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = KetchupTheme.colors
     val density = LocalDensity.current
     val labels = remember { mutableStateMapOf<Int, Rect>() }
     val boxes = remember { mutableStateMapOf<Int, Rect>() }
-    val current = position.roundToInt().coerceIn(0, titles.size - 1)
+    // Read while drawing, so a swipe redraws the marker without recomposing the home.
+    val current by remember(titles.size) { derivedStateOf { position().roundToInt().coerceIn(0, titles.size - 1) } }
     // Bar titles keep their size; past the default text size they don't grow.
     val fontSize = (16f / maxOf(density.fontScale, 1f)).sp
     Row(
         modifier
             .background(colors.cream)
             .drawBehind {
-                val clamped = position.coerceIn(0f, (titles.size - 1).toFloat())
+                val clamped = position().coerceIn(0f, (titles.size - 1).toFloat())
                 val lower = floor(clamped).toInt()
                 val upper = min(lower + 1, titles.size - 1)
                 val from = label(lower, boxes, labels) ?: return@drawBehind
