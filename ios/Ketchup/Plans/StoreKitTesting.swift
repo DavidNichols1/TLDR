@@ -19,7 +19,7 @@
 //
 //  The last transaction's JWS goes to tmp/storekit-test-last.jws in the
 //  app's container, so the server's check can be run on a real one
-//  (`deno test` covers the rules; CLAUDE.md has the recipe).
+// (`deno test` covers the rules).
 //
 
 #if DEBUG && targetEnvironment(simulator)

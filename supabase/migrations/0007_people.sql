@@ -141,7 +141,7 @@ grant execute on function public.delete_account() to authenticated;
 --
 -- Report: a message or a person, with a reason. Only the reporter can file
 -- one and nobody reads them through the API; David reads them with SQL
--- (CLAUDE.md). The server copies the reported message and name into the
+-- The server copies the reported message and name into the
 -- report, so it can still be reviewed if they're deleted later.
 
 create table public.blocks (

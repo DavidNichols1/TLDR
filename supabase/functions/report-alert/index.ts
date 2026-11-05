@@ -2,7 +2,7 @@
 // message, or Report on a profile). The app has already saved the report
 // (reports table, migration 0007); this only sends a heads-up. The email
 // has no names and no message text: the reason, whether it's a message or
-// a person, how many are waiting, and the SQL to read it (CLAUDE.md).
+// a person, how many are waiting, and the SQL to read it.
 //
 // POST { report_id }
 // Authorization: Bearer <the reporter's Supabase access token>
